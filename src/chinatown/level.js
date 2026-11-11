@@ -538,6 +538,7 @@ export async function createLevel(G) {
 
   signs.finish();
   const staticRoot = kit.flush("static", root);
+  const shopRoot = B.fit.finish(root);
   const lights = createLights(ctx);
 
   // ---------------- gameplay data ----------------
@@ -805,8 +806,9 @@ export async function createLevel(G) {
     shedLights: [],
     vantage: {},
     stats: {
-      tris: staticRoot.userData.tris,
-      meshes: staticRoot.children.length,
+      tris: staticRoot.userData.tris + shopRoot.userData.tris,
+      meshes: staticRoot.children.length + shopRoot.children.length,
+      shops: shopRoot.userData,
       lights: ctx.emitters.length,
       spawns: enemySpawns.length,
     },

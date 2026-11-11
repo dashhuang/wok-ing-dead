@@ -329,6 +329,7 @@ export async function createBackdrop(G) {
   });
   signs.finish();
   kit.flush("backdrop", root);
+  B.fit.finish(root);
   Object.assign(ctx, keep);
 
   // ---- a helicopter working a searchlight over the district ----

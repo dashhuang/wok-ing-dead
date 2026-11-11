@@ -179,6 +179,7 @@ export function createBuilder(kit, signs, ctx) {
         nx: 0,
         nz: 1,
         len: x1 - x0,
+        depth: z1 - z0,
         map: { o: "s", i: "n", l: "w", r: "e" },
       };
     if (side === "n")
@@ -190,6 +191,7 @@ export function createBuilder(kit, signs, ctx) {
         nx: 0,
         nz: -1,
         len: x1 - x0,
+        depth: z1 - z0,
         map: { o: "n", i: "s", l: "e", r: "w" },
       };
     if (side === "e")
@@ -201,6 +203,7 @@ export function createBuilder(kit, signs, ctx) {
         nx: 1,
         nz: 0,
         len: z1 - z0,
+        depth: x1 - x0,
         map: { o: "e", i: "w", l: "s", r: "n" },
       };
     return {
@@ -211,6 +214,7 @@ export function createBuilder(kit, signs, ctx) {
       nx: -1,
       nz: 0,
       len: z1 - z0,
+      depth: x1 - x0,
       map: { o: "w", i: "e", l: "n", r: "s" },
     };
   }
@@ -698,6 +702,7 @@ export function createBuilder(kit, signs, ctx) {
           a,
           b,
           lift,
+          top,
           kind: unit.interior || "grocery",
           skin,
           unit,
@@ -946,6 +951,7 @@ export function createBuilder(kit, signs, ctx) {
         1.5 + rnd() * 0.4,
         unit.awning,
         rnd() < 0.5,
+        shop,
       );
   }
   const cropBottom = (uv, k) => [
@@ -1487,6 +1493,7 @@ export function createBuilder(kit, signs, ctx) {
     bladeSign,
     fascia,
     awning,
+    fit,
     notice,
     balcony,
     airCon,
