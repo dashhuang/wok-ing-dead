@@ -1754,6 +1754,8 @@ kbd {
   transition: opacity 0.5s;
   text-shadow: var(--shadow);
   max-width: calc(100vw - var(--gl) - var(--gr) - 16px);
+  /* decoration only: it sits over the title buttons while invisible and must not take their clicks */
+  pointer-events: none;
 }
 .loc-card i {
   position: absolute;
