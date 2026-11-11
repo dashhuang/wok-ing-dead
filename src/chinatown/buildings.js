@@ -348,6 +348,37 @@ export function createBuilder(kit, signs, ctx) {
       cast: false,
       skip: "i",
     });
+    // louvres over the grille, a control strip down one side, the drip tray's rusty brackets
+    for (let k = 0; k < 6; k++)
+      fbox(
+        f,
+        M.ac,
+        sc - 0.3,
+        y + 0.085 + k * 0.052,
+        0.452,
+        sc + 0.16,
+        y + 0.103 + k * 0.052,
+        0.468,
+        {
+          cast: false,
+          skip: "i",
+        },
+      );
+    fbox(f, M.ac, sc + 0.19, y + 0.06, 0.452, sc + 0.3, y + 0.4, 0.462, {
+      cast: false,
+      skip: "i",
+    });
+    fbox(f, M.acDark, sc + 0.215, y + 0.3, 0.462, sc + 0.275, y + 0.36, 0.468, {
+      cast: false,
+      skip: "i",
+    });
+    for (const e of [-0.3, 0.3])
+      kit.rod(
+        M.rust,
+        P(f, sc + e, y - 0.04, 0.44),
+        P(f, sc + e, y - 0.42, 0.02),
+        0.012,
+      );
     fbox(f, M.rust, sc - 0.4, y - 0.04, 0, sc + 0.4, y, 0.46, { cast: false });
     const g = ctx.decal("leak_stain");
     if (g)

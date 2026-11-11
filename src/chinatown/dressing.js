@@ -336,7 +336,7 @@ export function dressStreets(ctx, PLAN, marks) {
     steer: 0.5,
   });
   car(14.4, 9.0, HALF, 0x9aa6b0);
-  cars.place("lorry", 24.6, 3.25, HALF - 0.03, {
+  cars.place("lorry", 26.3, 3.3, HALF - 0.03, {
     color: 0xc9ccd0,
     load: "tilt",
     tilt: 0x2f5a46,
@@ -786,6 +786,209 @@ export function dressStreets(ctx, PLAN, marks) {
     range: 5.5,
     flicker: 2,
   });
+
+  // ---------- traffic signals and street names at the crossroads ----------
+  const sigBody = kit.flat(0x15181a, {
+    rough: 0.5,
+    metal: 0.4,
+    wet: "metal",
+    key: "signal",
+  });
+  const lensOff = (c) =>
+    kit.flat(c, { rough: 0.15, metal: 0.1, wet: "glazed", key: "siglens" });
+  const blink = kit.glow(0xffa21a, 4.2); // the whole junction is on flashing amber
+  const walkRed = kit.glow(0xff2a12, 2.6);
+  const lensGeo = new THREE.CircleGeometry(0.085, 14);
+  const hoodGeo = new THREE.CylinderGeometry(
+    0.1,
+    0.1,
+    0.16,
+    12,
+    1,
+    true,
+    -Math.PI / 2,
+    Math.PI,
+  );
+  hoodGeo.rotateX(Math.PI / 2);
+  const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+  function signalHead(x, y, z, yaw) {
+    const at = (lx, ly, lz, sx = 1, sy = 1, sz = 1) =>
+      kit
+        .xform(x, y, z, 0, yaw, 0)
+        .multiply(kit.xform(lx, ly, lz, 0, 0, 0, sx, sy, sz));
+    kit.add(sigBody, boxGeo, at(0, 0, 0, 0.3, 0.92, 0.2));
+    kit.add(sigBody, boxGeo, at(0, 0, -0.16, 0.5, 1.12, 0.02)); // backing board
+    [0xff2a12, 0xffa21a, 0x2aff7a].forEach((c, i) => {
+      const ly = 0.3 - i * 0.3;
+      kit.add(
+        i === 1
+          ? blink
+          : lensOff(new THREE.Color(c).multiplyScalar(0.12).getHex()),
+        lensGeo,
+        at(0, ly, 0.102),
+      );
+      kit.add(sigBody, hoodGeo, at(0, ly, 0.18));
+    });
+  }
+  function signal(x, z, yawA, yawB) {
+    kit.cyl(sigBody, x, K, z, 0.11, 0.5, { seg: 10, rTop: 0.07 });
+    kit.cyl(sigBody, x, K + 0.5, z, 0.06, 3.3, { seg: 10 });
+    kit.solid(x - 0.1, K, z - 0.1, x + 0.1, K + 3.8, z + 0.1, "metal");
+    for (const [yaw, y] of [
+      [yawA, 3.25],
+      [yawB, 3.25],
+    ]) {
+      const hx = x + Math.sin(yaw) * 0.2,
+        hz = z + Math.cos(yaw) * 0.2;
+      signalHead(hx, K + y, hz, yaw);
+    }
+    // pedestrian lamp on the pole, stuck on the red figure
+    const py = K + 2.15;
+    kit.add(
+      sigBody,
+      boxGeo,
+      kit
+        .xform(x, py, z, 0, yawA + Math.PI / 2, 0)
+        .multiply(kit.xform(0, 0, 0.12, 0, 0, 0, 0.24, 0.46, 0.14)),
+    );
+    kit.add(
+      walkRed,
+      new THREE.PlaneGeometry(0.16, 0.16),
+      kit
+        .xform(x, py + 0.1, z, 0, yawA + Math.PI / 2, 0)
+        .multiply(kit.xform(0, 0, 0.192)),
+    );
+    ctx.emitters.push({
+      pos: [x + Math.sin(yawA) * 0.6, K + 3.2, z + Math.cos(yawA) * 0.6],
+      color: 0xffa21a,
+      power: 1.1,
+      range: 8,
+      blink: true,
+    });
+  }
+  const HP = Math.PI / 2;
+  signal(-1.55, 1.5, -HP, Math.PI);
+  signal(5.55, 1.5, Math.PI, HP);
+  signal(-1.55, 10.5, 0, -HP);
+  signal(5.55, 10.5, HP, 0);
+  let bt = 0;
+  const amberOn = new THREE.Color(0xffa21a);
+  ctx.updaters.push((dt) => {
+    bt += dt;
+    const on = bt % 1.1 < 0.55;
+    blink.color.copy(amberOn).multiplyScalar(on ? 4.2 : 0.2);
+    for (const e of ctx.emitters) if (e.blink) e.gain = on ? 1 : 0.04;
+  });
+  // street name plates on the signal poles
+  const plateSteel = kit.game("steel_galv");
+  function nameplate(x, z, yaw, text, sub) {
+    const b = signs.board({
+      text,
+      sub,
+      w: 1.5,
+      h: 0.42,
+      bg: "#e9e9e2",
+      fg: "#111417",
+      kai: false,
+    });
+    const m = kit.xform(x, K + 2.72, z, 0, yaw, 0);
+    kit.add(
+      plateSteel,
+      boxGeo,
+      m.clone().multiply(kit.xform(0.82, 0, 0, 0, 0, 0, 1.56, 0.48, 0.02)),
+    );
+    for (const side of [1, -1]) {
+      const g = new THREE.PlaneGeometry(1.5, 0.42);
+      const uv = g.attributes.uv;
+      for (let i = 0; i < uv.count; i++)
+        uv.setXY(
+          i,
+          b.uv[0] + (b.uv[2] - b.uv[0]) * uv.getX(i),
+          b.uv[1] + (b.uv[3] - b.uv[1]) * uv.getY(i),
+        );
+      kit.add(
+        signs.mats.board,
+        g,
+        m
+          .clone()
+          .multiply(
+            kit.xform(0.82, 0, side * 0.012, 0, side > 0 ? 0 : Math.PI, 0),
+          ),
+      );
+    }
+  }
+  nameplate(-1.55, 1.5, HP, "金龍街", "GOLDEN DRAGON STREET");
+  nameplate(-1.55, 1.5, Math.PI, "福壽里", "FOOK SAU LANE");
+  nameplate(5.55, 10.5, -HP, "金龍街", "GOLDEN DRAGON STREET");
+  nameplate(5.55, 10.5, 0, "福壽里", "FOOK SAU LANE");
+
+  // ---------- gully gratings along the kerbs ----------
+  const iron2 = kit.flat(0x1a1b1d, {
+    rough: 0.6,
+    metal: 0.7,
+    wet: "glazed",
+    key: "manhole",
+  });
+  const gully = (x, z, alongX) => {
+    const hw = alongX ? 0.3 : 0.17,
+      hd = alongX ? 0.17 : 0.3;
+    kit.box(M.void, x - hw, 0.001, z - hd, x + hw, 0.004, z + hd, {
+      skip: "b",
+    });
+    kit.box(
+      iron2,
+      x - hw - 0.03,
+      0.002,
+      z - hd - 0.03,
+      x + hw + 0.03,
+      0.012,
+      z - hd,
+      { skip: "b" },
+    );
+    kit.box(
+      iron2,
+      x - hw - 0.03,
+      0.002,
+      z + hd,
+      x + hw + 0.03,
+      0.012,
+      z + hd + 0.03,
+      { skip: "b" },
+    );
+    for (let k = 0; k < 7; k++) {
+      const t = -1 + (2 * (k + 0.5)) / 7;
+      if (alongX)
+        kit.box(
+          iron2,
+          x + t * hw - 0.016,
+          0.002,
+          z - hd,
+          x + t * hw + 0.016,
+          0.014,
+          z + hd,
+          { skip: "b" },
+        );
+      else
+        kit.box(
+          iron2,
+          x - hw,
+          0.002,
+          z + t * hd - 0.016,
+          x + hw,
+          0.014,
+          z + t * hd + 0.016,
+          { skip: "b" },
+        );
+    }
+  };
+  for (const x of [-21, -11.5, 9.5, 18.5, 27.5]) {
+    gully(x, 2.2, true);
+    gully(x + 2.5, 9.8, true);
+  }
+  for (const z of [-22, -12, 19, 26]) {
+    gully(-0.8, z, false);
+    gully(4.8, z + 1.5, false);
+  }
 
   // ---------- manholes, three of them venting steam into the rain ----------
   const iron = kit.flat(0x2a2a2c, {

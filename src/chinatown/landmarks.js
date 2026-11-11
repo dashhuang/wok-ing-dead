@@ -1352,8 +1352,20 @@ export function buildLandmarks(ctx, PLAN) {
     B.fquad(hf, wall, da - 0.4, py, db + 0.4, 4.2, deep);
     B.fbox(hf, wall, da - 0.42, py, deep, da - 0.4, 4.2, -0.4, { skip: "b" });
     B.fbox(hf, wall, db + 0.4, py, deep, db + 0.42, 4.2, -0.4, { skip: "b" });
-    kit.quad(M.woodDark, B.P(hf, da - 0.4, py + 0.01, deep), B.P(hf, da - 0.4, py + 0.01, 0), B.P(hf, db + 0.4, py + 0.01, 0), B.P(hf, db + 0.4, py + 0.01, deep));
-    kit.quad(M.void, B.P(hf, da - 0.4, 4.2, 0), B.P(hf, da - 0.4, 4.2, deep), B.P(hf, db + 0.4, 4.2, deep), B.P(hf, db + 0.4, 4.2, 0));
+    kit.quad(
+      M.woodDark,
+      B.P(hf, da - 0.4, py + 0.01, deep),
+      B.P(hf, da - 0.4, py + 0.01, 0),
+      B.P(hf, db + 0.4, py + 0.01, 0),
+      B.P(hf, db + 0.4, py + 0.01, deep),
+    );
+    kit.quad(
+      M.void,
+      B.P(hf, da - 0.4, 4.2, 0),
+      B.P(hf, da - 0.4, 4.2, deep),
+      B.P(hf, db + 0.4, 4.2, deep),
+      B.P(hf, db + 0.4, 4.2, 0),
+    );
     const at = (s, y, d) => B.P(hf, s, y, d);
     const facing = Math.atan2(hf.nx, hf.nz);
     // a soft glow on the back wall, as if from lamps hidden behind the canopy
@@ -1368,54 +1380,147 @@ export function buildLandmarks(ctx, PLAN) {
     g2.fillRect(0, 0, 128, 128);
     const halo = kit.glowMap(new THREE.CanvasTexture(gc), 1.3);
     halo.map.colorSpace = THREE.SRGBColorSpace;
-    kit.add(halo, new THREE.PlaneGeometry(3.4, 3.4), kit.xform(...at(mid, py + 2.0, deep + 0.02), 0, facing, 0));
+    kit.add(
+      halo,
+      new THREE.PlaneGeometry(3.4, 3.4),
+      kit.xform(...at(mid, py + 2.0, deep + 0.02), 0, facing, 0),
+    );
     // stepped dais with the spirit tablet in a gilt frame
     const [fx, , fz] = at(mid, 0, deep + 0.6);
     const along = hf.ax !== 0; // the dais runs along x when the hall faces north or south
     const dais = (hw, hd, y0, y1, mat) =>
-      kit.box(mat, fx - (along ? hw : hd), y0, fz - (along ? hd : hw), fx + (along ? hw : hd), y1, fz + (along ? hd : hw), { skip: "b" });
+      kit.box(
+        mat,
+        fx - (along ? hw : hd),
+        y0,
+        fz - (along ? hd : hw),
+        fx + (along ? hw : hd),
+        y1,
+        fz + (along ? hd : hw),
+        { skip: "b" },
+      );
     dais(1.0, 0.5, py, py + 0.5, M.lacquer);
     dais(1.04, 0.54, py + 0.5, py + 0.56, gold);
     dais(0.7, 0.36, py + 0.56, py + 0.9, M.lacquer);
     dais(0.74, 0.4, py + 0.9, py + 0.95, gold);
-    const tablet = signs.board({ text: "關聖帝君", w: 0.5, h: 1.6, vertical: true, bg: "#7a0f0a", fg: "#f2cf6a", frame: false });
+    const tablet = signs.board({
+      text: "關聖帝君",
+      w: 0.5,
+      h: 1.6,
+      vertical: true,
+      bg: "#7a0f0a",
+      fg: "#f2cf6a",
+      frame: false,
+    });
     const tf = B.frame(hf.map.o, fx - 0.4, fz - 0.4, fx + 0.4, fz + 0.4);
-    B.fbox(tf, gold, 0.07, py + 0.95, -0.38, 0.73, py + 2.85, -0.26, { skip: "b" });
-    B.fquad(tf, signs.mats.board, 0.15, py + 1.1, 0.65, py + 2.7, -0.255, tablet.uv);
-    B.fbox(tf, gold, 0.0, py + 2.85, -0.42, 0.8, py + 2.97, -0.22, { skip: "" });
+    B.fbox(tf, gold, 0.07, py + 0.95, -0.38, 0.73, py + 2.85, -0.26, {
+      skip: "b",
+    });
+    B.fquad(
+      tf,
+      signs.mats.board,
+      0.15,
+      py + 1.1,
+      0.65,
+      py + 2.7,
+      -0.255,
+      tablet.uv,
+    );
+    B.fbox(tf, gold, 0.0, py + 2.85, -0.42, 0.8, py + 2.97, -0.22, {
+      skip: "",
+    });
     // parted curtains and a valance, in folds
-    const silk = [kit.flat(0x8a1410, { rough: 0.55, wet: "dry", side: true, key: "silk" }), kit.flat(0x5c0c0a, { rough: 0.55, wet: "dry", side: true, key: "silk" })];
+    const silk = [
+      kit.flat(0x8a1410, { rough: 0.55, wet: "dry", side: true, key: "silk" }),
+      kit.flat(0x5c0c0a, { rough: 0.55, wet: "dry", side: true, key: "silk" }),
+    ];
     for (const sgn of [-1, 1])
       for (let k = 0; k < 7; k++) {
         const s0 = mid + sgn * (0.75 + k * 0.13),
           s1 = mid + sgn * (0.75 + (k + 1) * 0.13);
         const d0 = deep + 0.5 + (k % 2 ? 0.07 : 0),
           d1 = deep + 0.5 + (k % 2 ? 0 : 0.07);
-        kit.quad(silk[k % 2], at(s0, py, d0), at(s1, py, d1), at(s1, py + 3.3, d1), at(s0, py + 3.3, d0));
+        kit.quad(
+          silk[k % 2],
+          at(s0, py, d0),
+          at(s1, py, d1),
+          at(s1, py + 3.3, d1),
+          at(s0, py + 3.3, d0),
+        );
       }
     for (let k = 0; k < 13; k++) {
       const s0 = mid - 1.66 + k * 0.255,
         drop = 0.34 + 0.16 * Math.abs(Math.sin((k + 0.5) * 0.9));
-      kit.quad(silk[(k + 1) % 2], at(s0, py + 3.3 - drop, deep + 0.6 + (k % 2) * 0.05), at(s0 + 0.255, py + 3.3 - drop, deep + 0.65 - (k % 2) * 0.05), at(s0 + 0.255, py + 3.3, deep + 0.62), at(s0, py + 3.3, deep + 0.62));
+      kit.quad(
+        silk[(k + 1) % 2],
+        at(s0, py + 3.3 - drop, deep + 0.6 + (k % 2) * 0.05),
+        at(s0 + 0.255, py + 3.3 - drop, deep + 0.65 - (k % 2) * 0.05),
+        at(s0 + 0.255, py + 3.3, deep + 0.62),
+        at(s0, py + 3.3, deep + 0.62),
+      );
     }
-    B.fbox(hf, gold, mid - 1.7, py + 3.3, deep + 0.56, mid + 1.7, py + 3.38, deep + 0.7, { skip: "" });
+    B.fbox(
+      hf,
+      gold,
+      mid - 1.7,
+      py + 3.3,
+      deep + 0.56,
+      mid + 1.7,
+      py + 3.38,
+      deep + 0.7,
+      { skip: "" },
+    );
     // offering table across the doorway
-    B.fbox(hf, M.lacquer, mid - 1.15, py + 0.78, -1.0, mid + 1.15, py + 0.86, -0.3, { skip: "" });
-    for (const s of [mid - 1.05, mid + 0.95]) B.fbox(hf, M.lacquer, s, py, -0.95, s + 0.1, py + 0.78, -0.35, { skip: "b" });
-    B.fbox(hf, M.lacquer, mid - 1.05, py + 0.55, -0.95, mid + 1.05, py + 0.62, -0.9, { skip: "" });
+    B.fbox(
+      hf,
+      M.lacquer,
+      mid - 1.15,
+      py + 0.78,
+      -1.0,
+      mid + 1.15,
+      py + 0.86,
+      -0.3,
+      { skip: "" },
+    );
+    for (const s of [mid - 1.05, mid + 0.95])
+      B.fbox(hf, M.lacquer, s, py, -0.95, s + 0.1, py + 0.78, -0.35, {
+        skip: "b",
+      });
+    B.fbox(
+      hf,
+      M.lacquer,
+      mid - 1.05,
+      py + 0.55,
+      -0.95,
+      mid + 1.05,
+      py + 0.62,
+      -0.9,
+      { skip: "" },
+    );
     const tp = at(mid, py + 0.86, -0.65);
     kit.prop("brass_pot_01", tp[0], tp[1], tp[2], { scale: 1.3 });
     const flame = kit.glow(0xffb040, 6),
       wax = kit.flat(0xb01a14, { rough: 0.5, key: "wax" });
-    for (const [ds, tall] of [[-0.85, 0.34], [-0.6, 0.22], [0.6, 0.22], [0.85, 0.34]]) {
+    for (const [ds, tall] of [
+      [-0.85, 0.34],
+      [-0.6, 0.22],
+      [0.6, 0.22],
+      [0.85, 0.34],
+    ]) {
       const cp = at(mid + ds, py + 0.86, -0.62);
       kit.cyl(gold, cp[0], cp[1], cp[2], 0.05, 0.03, { seg: 10 });
       kit.cyl(wax, cp[0], cp[1] + 0.03, cp[2], 0.028, tall, { seg: 8 });
-      kit.add(flame, new THREE.SphereGeometry(0.022, 6, 5), kit.xform(cp[0], cp[1] + 0.07 + tall, cp[2], 0, 0, 0, 1, 2.1, 1));
+      kit.add(
+        flame,
+        new THREE.SphereGeometry(0.022, 6, 5),
+        kit.xform(cp[0], cp[1] + 0.07 + tall, cp[2], 0, 0, 0, 1, 2.1, 1),
+      );
     }
     for (const ds of [-0.32, 0.32]) {
       const vp = at(mid + ds, py + 0.86, -0.7);
-      kit.prop("antique_ceramic_vase_01", vp[0], vp[1], vp[2], { yaw: rnd() * 6 });
+      kit.prop("antique_ceramic_vase_01", vp[0], vp[1], vp[2], {
+        yaw: rnd() * 6,
+      });
     }
     B.emit(hf, mid, py + 1.6, -0.2, 0xffa040, 2.4, 9, { flicker: 2 });
   }
