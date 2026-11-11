@@ -2,16 +2,29 @@
   "name": "wok-ing-dead",
   "version": "0.1.0",
   "private": true,
+  "description": "雨夜唐人街打僵尸的浏览器 FPS（Three.js）",
+  "homepage": "https://wok-ing-dead.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dashhuang/wok-ing-dead.git"
+  },
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "build:single": "node scripts/single/build.mjs",
     "preview": "vite preview --host 127.0.0.1",
-    "format": "prettier --write src/*.js src/i18n/*.js src/i18n/locales/*.js src/chinatown/*.js src/engine/*.js src/*.css scripts/assets/*.mjs scripts/single/* index.html vite.config.js",
-    "check": "for f in src/*.js src/i18n/*.js src/i18n/locales/*.js src/chinatown/*.js src/engine/*.js; do node --check \"$f\" || exit 1; done && prettier --check src/*.js src/i18n/*.js src/i18n/locales/*.js src/chinatown/*.js src/engine/*.js src/*.css scripts/assets/*.mjs scripts/single/* index.html vite.config.js"
+    "check": "node scripts/check-syntax.mjs && prettier --check .",
+    "format": "prettier --write .",
+    "test:e2e": "playwright test",
+    "verify": "npm run check && npm run build && npm run test:e2e",
+    "prepare": "git config core.hooksPath .githooks || true"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "prettier": "^3.9.10",
     "three": "^0.180.0",
     "vite": "^8.3.8"

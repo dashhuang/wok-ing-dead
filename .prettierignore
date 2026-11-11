@@ -1,4 +1,19 @@
-upstream/
-src/legacy-v8.txt
+# Build output and reports
 dist/
+dist-single/
+arsenal/dist/
+arsenal/dist-single/
+test-results/
+playwright-report/
+
+# Extracted original, kept byte-for-byte
+upstream/
+
+# Binary-heavy asset folder and generated asset indexes
+public/assets/
+
+# Markdown is written by hand (tables and line breaks are deliberate)
+*.md
+
 node_modules/
+package-lock.json

@@ -1,0 +1,18 @@
+* text=auto eol=lf
+
+# Binary assets
+*.glb binary
+*.webp binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.woff2 binary
+*.ogg binary
+*.mp3 binary
+*.wav binary
+
+# Extracted original bundle: never diff or merge by line
+upstream/** -diff linguist-vendored
+
+# Third-party licence texts keep their original line endings
+public/assets/fonts/**/OFL-*.txt -text

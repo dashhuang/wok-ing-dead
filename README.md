@@ -11,6 +11,9 @@
 
 ## 开始开发
 
+改动走分支和 Pull Request，`main` 上的提交会自动部署到线上，流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+AI 编程助手的工作说明在 [AGENTS.md](AGENTS.md)。
+
 需要 Node.js 22（参见 `.nvmrc`）。
 
 ```sh
@@ -25,6 +28,8 @@ npm run dev
 npm run check    # JavaScript 语法和格式检查
 npm run build    # 生成 dist/，包含本地调试 source map
 npm run preview  # 预览构建产物
+npm run test:e2e # 真实点击冒烟测试（先 build；首次运行前 npx playwright install chromium）
+npm run verify   # check + build + test:e2e
 npm run format   # 格式化开发文件
 npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 MB，可直接双击打开或作为文件发送）
 ```
@@ -62,6 +67,8 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `src/chinatown/audio.js` | 僵尸语音、城市环境声、警报器 |
 | `src/engine/three.js` | 把内嵌的 Three.js 以 `three` 的名字导出，供官方加载器使用 |
 | `src/settings.js` | 设置存储 |
+| `tests/e2e/` | Playwright 冒烟测试：用真实点击走标题 → 开镬 → 暂停 → 死亡 → 重试 |
+| `.github/` | CI、Dependabot、PR 和 issue 模板 |
 | `public/assets/` | 贴图、道具、僵尸、字体（`fonts/ui` 界面字体，`fonts/world` 场景贴图字体）、音效 |
 | `scripts/assets/` | 素材下载与转换脚本、素材清单；`build-ui-fonts.py` 按语言包生成界面字体子集 |
 | `upstream/` | 提取时的原件和来源记录，不应直接编辑 |
