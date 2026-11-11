@@ -1,0 +1,289 @@
+{
+  "source": "https://polyhaven.com (CC0)",
+  "textures": {
+    "brick_red": {
+      "id": "red_brick_03",
+      "tile": 2.0,
+      "size": 1024
+    },
+    "brick_orange": {
+      "id": "brick_wall_006",
+      "tile": 2.2,
+      "size": 1024
+    },
+    "brick_teal": {
+      "id": "painted_brick",
+      "tile": 2.0,
+      "size": 1024
+    },
+    "brick_white": {
+      "id": "whitewashed_brick",
+      "tile": 2.0,
+      "size": 1024
+    },
+    "plaster_worn": {
+      "id": "worn_plaster_wall",
+      "tile": 3.0,
+      "size": 1024
+    },
+    "plaster_peel": {
+      "id": "peeling_painted_wall",
+      "tile": 3.0,
+      "size": 1024
+    },
+    "plaster_yellow": {
+      "id": "yellow_plaster",
+      "tile": 3.0,
+      "size": 512
+    },
+    "plaster_blue": {
+      "id": "blue_plaster_weathered",
+      "tile": 3.0,
+      "size": 512
+    },
+    "concrete_dirty": {
+      "id": "dirty_concrete",
+      "tile": 3.0,
+      "size": 1024
+    },
+    "facade_tiles": {
+      "id": "rectangular_facade_tiles",
+      "tile": 1.6,
+      "size": 1024
+    },
+    "shutter": {
+      "id": "painted_metal_shutter",
+      "tile": 1.6,
+      "size": 1024
+    },
+    "shutter_rust": {
+      "id": "rusted_shutter",
+      "tile": 1.6,
+      "size": 512
+    },
+    "roof_clay": {
+      "id": "clay_roof_tiles_02",
+      "tile": 1.5,
+      "size": 512
+    },
+    "roof_ceramic": {
+      "id": "ceramic_roof_01",
+      "tile": 1.5,
+      "size": 512
+    },
+    "pavers": {
+      "id": "concrete_pavement_02",
+      "tile": 2.4,
+      "size": 1024
+    },
+    "tiles_white": {
+      "id": "long_white_tiles",
+      "tile": 1.4,
+      "size": 512
+    },
+    "tiles_floor": {
+      "id": "worn_tile_floor",
+      "tile": 2.0,
+      "size": 1024
+    },
+    "granite": {
+      "id": "granite_tile_02",
+      "tile": 2.4,
+      "size": 512
+    },
+    "wood_lacquer": {
+      "id": "lacquered_cherry_wood",
+      "tile": 1.2,
+      "size": 512
+    },
+    "wood_planks": {
+      "id": "wood_planks_dirt",
+      "tile": 1.6,
+      "size": 512
+    },
+    "corrugated": {
+      "id": "corrugated_iron_02",
+      "tile": 1.5,
+      "size": 512
+    },
+    "marble": {
+      "id": "marble_01",
+      "tile": 2.0,
+      "size": 512
+    }
+  },
+  "models": {
+    "CoffeeCart_01": {
+      "tris": 6000,
+      "tex": 512
+    },
+    "WetFloorSign_01": {
+      "tris": 228,
+      "tex": 256
+    },
+    "ammo_box": {
+      "tris": 800,
+      "tex": 256
+    },
+    "antique_ceramic_vase_01": {
+      "tris": 1000,
+      "tex": 256
+    },
+    "bananas": {
+      "tris": 500,
+      "tex": 256
+    },
+    "boombox": {
+      "tris": 1500,
+      "tex": 256
+    },
+    "brass_pot_01": {
+      "tris": 1200,
+      "tex": 256
+    },
+    "cardboard_box_01": {
+      "tris": 300,
+      "tex": 256
+    },
+    "chinese_armchair": {
+      "tris": 2000,
+      "tex": 256
+    },
+    "chinese_chandelier": {
+      "tris": 4000,
+      "tex": 512
+    },
+    "chinese_stool": {
+      "tris": 1090,
+      "tex": 256
+    },
+    "chinese_tea_table": {
+      "tris": 1500,
+      "tex": 256
+    },
+    "covered_car": {
+      "tris": 6000,
+      "tex": 512
+    },
+    "fire_hydrant": {
+      "tris": 3000,
+      "tex": 256
+    },
+    "folding_wooden_stool": {
+      "tris": 700,
+      "tex": 256
+    },
+    "food_pears_asian_01": {
+      "tris": 400,
+      "tex": 256
+    },
+    "hand_truck": {
+      "tris": 2000,
+      "tex": 256
+    },
+    "lion_head": {
+      "tris": 5000,
+      "tex": 512
+    },
+    "medical_box": {
+      "tris": 900,
+      "tex": 256
+    },
+    "metal_stool_02": {
+      "tris": 700,
+      "tex": 256
+    },
+    "metal_trash_can": {
+      "tris": 2400,
+      "tex": 256
+    },
+    "old_military_crate": {
+      "tris": 1200,
+      "tex": 256
+    },
+    "painted_wooden_bench": {
+      "tris": 630,
+      "tex": 256
+    },
+    "planter_box_01": {
+      "tris": 400,
+      "tex": 256
+    },
+    "plastic_container": {
+      "tris": 700,
+      "tex": 256
+    },
+    "plastic_crate_02": {
+      "tris": 600,
+      "tex": 256
+    },
+    "plastic_monobloc_chair_01": {
+      "tris": 1200,
+      "tex": 256
+    },
+    "portable_generator": {
+      "tris": 3500,
+      "tex": 512
+    },
+    "portable_searchlight": {
+      "tris": 1500,
+      "tex": 256
+    },
+    "pot_enamel_01": {
+      "tris": 800,
+      "tex": 256
+    },
+    "potted_plant_01": {
+      "tris": 2600,
+      "tex": 512
+    },
+    "potted_plant_02": {
+      "tris": 2200,
+      "tex": 512
+    },
+    "propane_tank": {
+      "tris": 900,
+      "tex": 256
+    },
+    "round_wooden_table_01": {
+      "tris": 1200,
+      "tex": 256
+    },
+    "standing_chalkboard_01": {
+      "tris": 800,
+      "tex": 256
+    },
+    "tea_set_01": {
+      "tris": 1500,
+      "tex": 256
+    },
+    "television_02": {
+      "tris": 1200,
+      "tex": 256
+    },
+    "trashbag": {
+      "tris": 500,
+      "tex": 256
+    },
+    "utility_box_01": {
+      "tris": 800,
+      "tex": 256
+    },
+    "utility_box_02": {
+      "tris": 800,
+      "tex": 256
+    },
+    "wheelchair_01": {
+      "tris": 2600,
+      "tex": 256
+    },
+    "wicker_basket_01": {
+      "tris": 600,
+      "tex": 256
+    },
+    "wooden_ladder": {
+      "tris": 900,
+      "tex": 256
+    }
+  }
+}

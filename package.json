@@ -1,0 +1,18 @@
+{
+  "name": "saltline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "format": "prettier --write src/*.js src/chinatown/*.js src/engine/*.js src/*.css scripts/assets/*.mjs index.html vite.config.js",
+    "check": "for f in src/*.js src/chinatown/*.js src/engine/*.js; do node --check \"$f\" || exit 1; done && prettier --check src/*.js src/chinatown/*.js src/engine/*.js src/*.css scripts/assets/*.mjs index.html vite.config.js"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.10",
+    "three": "^0.180.0",
+    "vite": "^8.3.8"
+  }
+}
