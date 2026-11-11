@@ -162,8 +162,8 @@
       "tex": 256
     },
     "covered_car": {
-      "tris": 6000,
-      "tex": 512
+      "tris": 12600,
+      "tex": 1024
     },
     "fire_hydrant": {
       "tris": 3000,
@@ -180,10 +180,6 @@
     "hand_truck": {
       "tris": 2000,
       "tex": 256
-    },
-    "lion_head": {
-      "tris": 5000,
-      "tex": 512
     },
     "medical_box": {
       "tris": 900,

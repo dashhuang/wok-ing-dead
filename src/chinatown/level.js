@@ -29,7 +29,6 @@ const PROP_IDS = [
   "folding_wooden_stool",
   "food_pears_asian_01",
   "hand_truck",
-  "lion_head",
   "medical_box",
   "metal_stool_02",
   "metal_trash_can",

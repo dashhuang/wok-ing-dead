@@ -113,45 +113,84 @@ export async function createBackdrop(G) {
     block(62.5, -46, 70, -22.5, 11, "w", { lit: 0.5 });
 
     // ---- the horizon: towers with lit windows ----
+    // One facade sheet shared by every tower: 16 bays by 40 floors, concrete spandrels between
+    // window bands. Lit rooms come in runs, most of a floor is dark, a few floors are empty.
     const cv = document.createElement("canvas");
-    cv.width = 256;
-    cv.height = 512;
+    cv.width = 512;
+    cv.height = 1024;
     const c = cv.getContext("2d");
-    c.fillStyle = "#07090d";
-    c.fillRect(0, 0, 256, 512);
-    for (let y = 0; y < 32; y++)
-      for (let x = 0; x < 12; x++) {
-        const r = rnd();
-        if (r > 0.3) {
-          c.fillStyle = "#0c1016";
-          c.fillRect(x * 21.3 + 4, y * 16 + 4, 13, 9);
-          continue;
+    c.fillStyle = "#06080b";
+    c.fillRect(0, 0, 512, 1024);
+    const BAYS = 16,
+      FLOORS = 40,
+      bw = 512 / BAYS,
+      fh = 1024 / FLOORS;
+    for (let y = 0; y < FLOORS; y++) {
+      c.fillStyle = "#0b0e12";
+      c.fillRect(0, y * fh, 512, fh * 0.38); // spandrel
+      const empty = rnd() < 0.18;
+      let run = 0,
+        tone = "#000";
+      for (let x = 0; x < BAYS; x++) {
+        const wx = x * bw + 3,
+          wy = y * fh + fh * 0.42,
+          ww = bw - 6,
+          wh = fh * 0.5;
+        if (run <= 0 && !empty && rnd() < 0.16) {
+          run = 1 + Math.floor(rnd() * 3);
+          tone = pick([
+            "#ffcf8a",
+            "#ffe2b0",
+            "#cfe0f5",
+            "#ffb866",
+            "#fff0d0",
+            "#9cc4ee",
+            "#ffd9a0",
+          ]);
         }
-        c.fillStyle = pick([
-          "#ffd28a",
-          "#ffe6b8",
-          "#d8e8ff",
-          "#ffb86a",
-          "#fff0cf",
-          "#9fd0ff",
-        ]);
-        c.globalAlpha = 0.45 + rnd() * 0.55;
-        c.fillRect(x * 21.3 + 4, y * 16 + 4, 13, 9);
-        c.globalAlpha = 1;
+        if (run > 0) {
+          run--;
+          c.globalAlpha = 0.35 + rnd() * 0.5;
+          c.fillStyle = tone;
+          c.fillRect(wx, wy, ww, wh);
+          // a blind half down, or furniture against the glass
+          c.globalAlpha = 0.5;
+          c.fillStyle = "#06080b";
+          if (rnd() < 0.5) c.fillRect(wx, wy, ww, wh * rnd(0.2, 0.6));
+          else
+            c.fillRect(
+              wx + ww * rnd(0, 0.5),
+              wy + wh * 0.55,
+              ww * 0.4,
+              wh * 0.45,
+            );
+          c.globalAlpha = 1;
+        } else {
+          c.fillStyle = "#0d1218";
+          c.fillRect(wx, wy, ww, wh);
+        }
       }
+    }
+    // a stair core with its lights left on
+    c.globalAlpha = 0.28;
+    c.fillStyle = "#cfe6d8";
+    for (let y = 0; y < FLOORS; y++)
+      c.fillRect(bw * 11 + 9, y * fh + fh * 0.45, bw - 18, fh * 0.4);
+    c.globalAlpha = 1;
     const tex = new THREE.CanvasTexture(cv);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.anisotropy = 4;
-    const towerMat = kit.glowMap(tex, 1.25);
+    tex.anisotropy = 8;
+    const towerMat = kit.glowMap(tex, 1.1);
     towerMat.userData.oneCell = true;
     const beacon = kit.glow(0xff2010, 9);
     const beacons = [];
     const tower = (x, z, w, d, h) => {
       const m = towerMat;
-      const u = (len) => Math.max(1, Math.round(len / 26));
-      const v = h / 52;
-      const off = rnd();
+      // whole bays (3.2 m) and whole floors (3 m), starting at a random bay and floor of the sheet
+      const u = (len) => Math.max(2, Math.round(len / 3.2)) / 16;
+      const v0 = Math.floor(rnd(0, 40)) / 40;
+      const off = Math.floor(rnd(0, 16)) / 16;
       const face = (p0, p1, len) =>
         kit.quad(
           m,
@@ -159,7 +198,16 @@ export async function createBackdrop(G) {
           [p1[0], 0, p1[1]],
           [p1[0], h, p1[1]],
           [p0[0], h, p0[1]],
-          [off, 0, off + u(len), 0, off + u(len), v, off, v],
+          [
+            off,
+            v0,
+            off + u(len),
+            v0,
+            off + u(len),
+            v0 + h / 120,
+            off,
+            v0 + h / 120,
+          ],
         );
       face([x - w / 2, z + d / 2], [x + w / 2, z + d / 2], w);
       face([x + w / 2, z + d / 2], [x + w / 2, z - d / 2], d);
@@ -221,88 +269,15 @@ export async function createBackdrop(G) {
     }
 
     // ---- the convoy waiting beyond the checkpoint ----
-    const olive = kit.flat(0x3f4a34, {
-      rough: 0.7,
-      wet: "metal",
-      key: "truck",
+    const cars = ctx.vehicles;
+    const HALF = Math.PI / 2;
+    cars.place("army", 44.2, 5.7, HALF, {
+      brake: true,
+      far: true,
+      collide: false,
     });
-    const canvas = kit.flat(0x4c5340, {
-      rough: 0.92,
-      wet: [0.25, 0.7, 0.4, 0.4],
-      key: "truckcloth",
-    });
-    const tyre = kit.game("tire");
-    const truck = (x, z, dir) => {
-      const L = 7.2;
-      const xa = dir > 0 ? x : x - L,
-        xb = xa + L;
-      const cab0 = dir > 0 ? xb - 2.2 : xa,
-        cab1 = cab0 + 2.2;
-      const bed0 = dir > 0 ? xa : xa + 2.4,
-        bed1 = bed0 + 4.8;
-      kit.box(olive, xa, 0.75, z - 1.2, xb, 1.05, z + 1.2, { skip: "" });
-      kit.box(olive, cab0, 1.05, z - 1.2, cab1, 2.75, z + 1.2);
-      kit.box(
-        M.darkGlass,
-        dir > 0 ? cab1 - 0.02 : cab0 - 0.02,
-        1.9,
-        z - 1.0,
-        dir > 0 ? cab1 + 0.02 : cab0 + 0.02,
-        2.55,
-        z + 1.0,
-      );
-      kit.box(olive, bed0, 1.05, z - 1.25, bed1, 1.75, z + 1.25);
-      // canvas tilt over hoops
-      const hoop = [
-        [-1.25, 1.75],
-        [-1.25, 2.7],
-        [-0.8, 3.15],
-        [0.8, 3.15],
-        [1.25, 2.7],
-        [1.25, 1.75],
-      ];
-      for (let i = 0; i < hoop.length - 1; i++)
-        kit.quad(
-          canvas,
-          [bed0, hoop[i][1], z + hoop[i][0]],
-          [bed0, hoop[i + 1][1], z + hoop[i + 1][0]],
-          [bed1, hoop[i + 1][1], z + hoop[i + 1][0]],
-          [bed1, hoop[i][1], z + hoop[i][0]],
-        );
-      for (const wx of [xa + 1.1, xa + 2.5, xb - 1.3])
-        for (const wz of [-1.05, 1.05])
-          kit.cyl(tyre, wx, 0.52, z + wz - 0.16, 0.52, 0.32, {
-            seg: 12,
-            axis: "z",
-          });
-      const tail = dir > 0 ? xa : xb;
-      for (const wz of [-1.0, 1.0])
-        kit.box(
-          kit.glow(0xff1a0a, 5),
-          tail - 0.03,
-          1.15,
-          z + wz - 0.12,
-          tail + 0.03,
-          1.32,
-          z + wz + 0.12,
-          { skip: "" },
-        );
-      const head = dir > 0 ? xb : xa;
-      for (const wz of [-0.85, 0.85])
-        kit.box(
-          kit.glow(0xfff2d0, 6),
-          head - 0.03,
-          1.25,
-          z + wz - 0.14,
-          head + 0.03,
-          1.5,
-          z + wz + 0.14,
-          { skip: "" },
-        );
-    };
-    truck(41.6, 5.6, 1);
-    truck(52, 8.2, 1);
-    truck(60.5, 4.2, 1);
+    cars.place("army", 54.5, 8.1, HALF + 0.03, { far: true, collide: false });
+    cars.place("army", 64, 4.3, HALF - 0.02, { far: true, collide: false });
     // floodlight masts over the cordon
     try {
       for (const [x, z, yaw] of [
@@ -324,74 +299,26 @@ export async function createBackdrop(G) {
         });
       }
     } catch {}
-    // the jam on the far side of the gate plaza
-    const CAR = [
-      "covered_car",
-      "covered_car_wheel_01",
-      "covered_car_wheel_02",
-      "covered_car_wheel_03",
-      "covered_car_wheel_04",
-    ];
-    for (const [x, z, yaw] of [
-      [-44, 4, 1.5],
-      [-49.5, 7.9, 1.62],
-      [-55, 4.3, 1.4],
-      [-61, 8.1, 1.7],
-      [-67.5, 4.1, 1.55],
-      [-46, 8.3, 1.2],
-      [2.6, -34, 0.05],
-      [0.4, -41, 3.2],
-      [3.4, 35, 0.1],
-      [0.6, 43, 3.0],
-    ])
-      kit.prop("covered_car", x, 0, z, {
-        parts: CAR,
-        yaw,
-        scale: 1.08,
-        tint: pick([0xb8c0c4, 0x8a9a9a, 0xc9b8a0, 0x9aa6b0]),
-        gain: 1.9,
-        wet: "plaster",
-      });
-    // an abandoned bus slewed across the road
-    const busBody = kit.flat(0xc9c2ad, {
-      rough: 0.5,
-      wet: "metal",
-      key: "bus",
+    // the jam on the far side of the gate plaza, and what was left in the side streets
+    const far = { far: true, collide: false };
+    cars.place("saloon", -44, 4.1, HALF - 0.06, { ...far, color: 0x8a9096 });
+    cars.place("van", -46.2, 8.2, HALF - 0.35, { ...far, color: 0xd9d6cc });
+    cars.place("bus", -53.5, 5.4, HALF + 0.22, { ...far, hazard: true });
+    cars.place("taxi", -61.5, 8.3, HALF + 0.12, { ...far, dead: true });
+    cars.place("hatch", -66, 4.2, HALF - 0.05, { ...far, color: 0x1d2c4a });
+    cars.place("lorry", -72, 7.6, HALF, {
+      ...far,
+      color: 0xc9ccd0,
+      load: "tilt",
     });
-    const busBand = kit.flat(0x8a1f1a, {
-      rough: 0.5,
-      wet: "metal",
-      key: "bus",
+    cars.place("saloon", 2.6, -34.5, 0.05, { ...far, color: 0x1b1d21 });
+    cars.place("minibus", 0.4, -42.5, Math.PI + 0.1, {
+      ...far,
+      color: 0x8f1a16,
+      dead: true,
     });
-    const bx = -52,
-      bz = 5.2;
-    kit.box(busBody, bx - 5.5, 0.45, bz - 1.25, bx + 5.5, 3.1, bz + 1.25);
-    kit.box(busBand, bx - 5.52, 0.9, bz - 1.27, bx + 5.52, 1.25, bz + 1.27);
-    kit.box(M.darkGlass, bx - 5.2, 1.55, bz - 1.28, bx + 5.2, 2.6, bz + 1.28);
-    for (const wx of [-3.8, 3.4])
-      for (const wz of [-1.1, 1.1])
-        kit.cyl(tyre, bx + wx, 0.5, bz + wz - 0.15, 0.5, 0.3, {
-          seg: 12,
-          axis: "z",
-        });
-    const hz = kit.glow(0xffa010, 5);
-    for (const wz of [-1.05, 1.05])
-      kit.box(
-        hz,
-        bx + 5.5,
-        0.8,
-        bz + wz - 0.1,
-        bx + 5.53,
-        0.98,
-        bz + wz + 0.1,
-        { skip: "" },
-      );
-    updaters.push((t) => {
-      hz.color
-        .setScalar(1)
-        .multiply(new THREE.Color(0xffa010))
-        .multiplyScalar(Math.sin(t * 5.2) > 0 ? 5 : 0.2);
-    });
+    cars.place("hatch", 3.4, 35, 0.1, { ...far, color: 0x9a8f78 });
+    cars.place("van", 0.6, 43, Math.PI - 0.1, { ...far, color: 0x30463a });
     // the towers' aircraft lights breathe slowly
     updaters.push((t) => {
       beacon.color

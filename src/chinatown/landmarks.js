@@ -28,10 +28,11 @@ export function buildLandmarks(ctx, PLAN) {
     wet: "glazed",
     key: "gold",
   });
-  const bronze = kit.flat(0x5a4a34, {
-    rough: 0.45,
-    metal: 0.85,
+  const bronze = kit.flat(0x4a3d2a, {
+    rough: 0.48,
+    metal: 0.9,
     wet: "glazed",
+    macro: [0.3, 0.22, 2.4, 0.5],
     key: "bronze",
   });
   const redWall = kit.pbr("plaster_worn", {
@@ -298,6 +299,85 @@ export function buildLandmarks(ctx, PLAN) {
     kit.cyl(gold, x, base + 1.0, z, r + 0.02, 0.08, { seg: 16, open: true });
   }
 
+  // A drum stone (抱鼓石): a carved stone drum on a stepped base, set against the foot of a
+  // gate column. (dx, dz) points away from the column.
+  function drumStone(cx, cz, dx, dz, o = {}) {
+    const r = o.r ?? 0.4,
+      t = 0.26; // radius and thickness of the drum
+    const reach = 0.42 + r + 0.16; // how far the base runs out from the column centre
+    const along = (a, b) => [cx + dx * a + dz * b, cz + dz * a + dx * b];
+    const boxAt = (mat, a0, a1, b, y0, y1) => {
+      const [x0, z0] = along(a0, -b),
+        [x1, z1] = along(a1, b);
+      kit.box(
+        mat,
+        Math.min(x0, x1),
+        y0,
+        Math.min(z0, z1),
+        Math.max(x0, x1),
+        y1,
+        Math.max(z0, z1),
+        { skip: "b" },
+      );
+    };
+    // stepped base
+    boxAt(stone, 0.3, reach + 0.06, 0.3, K, K + 0.16);
+    boxAt(stone, 0.3, reach, 0.24, K + 0.16, K + 0.34);
+    boxAt(stone, 0.3, reach - 0.04, 0.27, K + 0.34, K + 0.42);
+    // cushion the drum sits in, then the drum with a raised rim on both faces and a boss
+    const [mx, mz] = along(reach - r - 0.08, 0);
+    const y = K + 0.42 + r - 0.05;
+    const axis = dx ? "z" : "x";
+    const drum = (rad, th, mat = stone) => {
+      const p = axis === "z" ? [mx, y, mz - th / 2] : [mx - th / 2, y, mz];
+      kit.cyl(mat, p[0], p[1], p[2], rad, th, { axis, seg: 28 });
+    };
+    drum(r, t);
+    drum(r * 1.04, 0.035);
+    for (const side of [-1, 1]) {
+      const off = side * (t / 2 + 0.012);
+      const ring = (rad, th) => {
+        const p =
+          axis === "z"
+            ? [mx, y, mz + off - th / 2]
+            : [mx + off - th / 2, y, mz];
+        kit.cyl(stone, p[0], p[1], p[2], rad, th, { axis, seg: 28 });
+      };
+      ring(r * 0.94, 0.03);
+      ring(r * 0.3, 0.06);
+      // studs round the face, like the nails of a drum skin
+      for (let k2 = 0; k2 < 14; k2++) {
+        const a = (k2 * Math.PI * 2) / 14;
+        const px = Math.cos(a) * r * 0.8,
+          py = Math.sin(a) * r * 0.8;
+        const stud = new THREE.SphereGeometry(0.022, 6, 4);
+        kit.add(
+          stone,
+          stud,
+          axis === "z"
+            ? kit.xform(mx + px, y + py, mz + off + side * 0.012)
+            : kit.xform(mx + off + side * 0.012, y + py, mz + px),
+        );
+      }
+    }
+    // scroll between drum and column
+    const [sx2, sz2] = along(0.36, 0);
+    const sp =
+      axis === "z" ? [sx2, K + 0.6, sz2 - 0.1] : [sx2 - 0.1, K + 0.6, sz2];
+    kit.cyl(stone, sp[0], sp[1], sp[2], 0.16, 0.2, { axis, seg: 16 });
+    const [c0x, c0z] = along(0.3, -0.3),
+      [c1x, c1z] = along(reach + 0.06, 0.3);
+    kit.solid(
+      Math.min(c0x, c1x),
+      0,
+      Math.min(c0z, c1z),
+      Math.max(c0x, c1x),
+      K + 0.42 + 2 * r,
+      Math.max(c0z, c1z),
+      "concrete",
+    );
+  }
+
   // ================= PAIFANG =================
   function paifang() {
     const x = PLAN.gateX;
@@ -483,15 +563,10 @@ export function buildLandmarks(ctx, PLAN) {
         [x, 6.0, z < 6 ? zs[1] : zs[2]],
         0.012,
       );
-    // guardian lions
-    for (const z of [0.9, 11.1]) {
-      kit.box(stone, x - 2.3, K, z - 0.5, x - 1.3, K + 1.05, z + 0.5);
-      kit.box(stone, x - 2.4, K, z - 0.6, x - 1.2, K + 0.22, z + 0.6);
-      kit.prop("lion_head", x - 1.8, K + 1.05, z, {
-        scale: 2.5,
-        yaw: -Math.PI / 2,
-      });
-      kit.solid(x - 2.4, 0, z - 0.6, x - 1.2, 2.2, z + 0.6, "concrete");
+    // drum stones hugging the foot of every column, on both sides
+    for (const z of zs) {
+      drumStone(x, z, -1, 0);
+      drumStone(x, z, 1, 0);
     }
   }
 
@@ -813,14 +888,7 @@ export function buildLandmarks(ctx, PLAN) {
       power: 2.0,
       range: 11,
     });
-    for (const gx of [gx0 - 1.3, gx1 + 1.3]) {
-      kit.box(stone, gx - 0.5, K, gz - 1.9, gx + 0.5, K + 1.0, gz - 0.9);
-      kit.prop("lion_head", gx, K + 1.0, gz - 1.4, {
-        scale: 2.3,
-        yaw: Math.PI,
-      });
-      kit.solid(gx - 0.5, 0, gz - 1.9, gx + 0.5, 2.1, gz - 0.9, "concrete");
-    }
+    for (const gx of [gx0, gx1]) drumStone(gx, gz, 0, -1);
 
     // main hall on a low platform at the south end
     const hx0 = 10.5,
@@ -1011,37 +1079,100 @@ export function buildLandmarks(ctx, PLAN) {
     kit.box(stone, bx - 1.1, K, bz - 1.1, bx + 1.1, K + 0.25, bz + 1.1, {
       skip: "b",
     });
-    for (let i = 0; i < 3; i++) {
-      const a = (i * Math.PI * 2) / 3 + 0.5;
-      kit.cyl(
+    // a ding: round belly on three cabriole legs, flared rim with two upright ears
+    const V2 = (r, y) => new THREE.Vector2(r, y);
+    const by = K + 0.25;
+    const belly = new THREE.LatheGeometry(
+      [
+        V2(0.001, 0.5),
+        V2(0.3, 0.5),
+        V2(0.5, 0.56),
+        V2(0.66, 0.68),
+        V2(0.76, 0.86),
+        V2(0.79, 1.02),
+        V2(0.76, 1.12),
+        V2(0.72, 1.17),
+        V2(0.74, 1.2),
+        V2(0.84, 1.23),
+        V2(0.88, 1.26),
+        V2(0.88, 1.3),
+        V2(0.84, 1.315),
+        V2(0.78, 1.3),
+        V2(0.76, 1.22),
+      ],
+      44,
+    );
+    kit.add(bronze, belly, kit.xform(bx, by, bz));
+    for (const [yy, rr2, th] of [
+      [0.9, 0.785, 0.022],
+      [1.06, 0.79, 0.022],
+    ]) {
+      const band = new THREE.TorusGeometry(rr2, th, 6, 44);
+      band.rotateX(Math.PI / 2);
+      kit.add(bronze, band, kit.xform(bx, by + yy, bz));
+    }
+    // a row of bosses between the two bands
+    for (let i = 0; i < 28; i++) {
+      const a = (i * Math.PI * 2) / 28;
+      kit.add(
         bronze,
-        bx + Math.cos(a) * 0.5,
-        K + 0.25,
-        bz + Math.sin(a) * 0.5,
-        0.1,
-        0.55,
-        { seg: 8, rTop: 0.14 },
+        new THREE.SphereGeometry(0.034, 7, 5),
+        kit.xform(
+          bx + Math.cos(a) * 0.795,
+          by + 0.98,
+          bz + Math.sin(a) * 0.795,
+        ),
       );
     }
-    kit.cyl(bronze, bx, K + 0.75, bz, 0.62, 0.62, { seg: 18, rTop: 0.82 });
-    kit.cyl(bronze, bx, K + 1.37, bz, 0.86, 0.08, { seg: 18 });
+    const leg = new THREE.LatheGeometry(
+      [
+        V2(0.001, 0),
+        V2(0.1, 0),
+        V2(0.12, 0.04),
+        V2(0.085, 0.14),
+        V2(0.075, 0.3),
+        V2(0.1, 0.46),
+        V2(0.16, 0.58),
+        V2(0.2, 0.7),
+      ],
+      14,
+    );
+    for (let i = 0; i < 3; i++) {
+      const a = (i * Math.PI * 2) / 3 + 0.5;
+      kit.add(
+        bronze,
+        leg,
+        kit.xform(
+          bx + Math.cos(a) * 0.5,
+          by,
+          bz + Math.sin(a) * 0.5,
+          Math.sin(a) * 0.14,
+          0,
+          -Math.cos(a) * 0.14,
+        ),
+      );
+    }
+    for (const s2 of [-1, 1]) {
+      const ear = new THREE.TorusGeometry(0.17, 0.04, 8, 18, Math.PI);
+      kit.add(
+        bronze,
+        ear,
+        kit.xform(bx + s2 * 0.84, by + 1.3, bz, 0, Math.PI / 2, 0),
+      );
+      for (const dz2 of [-0.17, 0.17])
+        kit.cyl(bronze, bx + s2 * 0.84, by + 1.26, bz + dz2, 0.04, 0.06, {
+          seg: 8,
+        });
+    }
     kit.cyl(
       kit.flat(0x8a8478, { rough: 1, wet: "plaster", key: "ash" }),
       bx,
-      K + 1.4,
+      by + 1.2,
       bz,
-      0.78,
-      0.04,
-      { seg: 18 },
+      0.76,
+      0.03,
+      { seg: 32 },
     );
-    for (const s2 of [-1, 1])
-      kit.rod(
-        bronze,
-        [bx + s2 * 0.82, K + 1.1, bz],
-        [bx + s2 * 1.02, K + 1.75, bz],
-        0.045,
-        { seg: 6 },
-      );
     const ember = kit.glow(0xff5a1a, 6);
     for (let i = 0; i < 16; i++) {
       const a = rnd() * 6.28,
@@ -1051,15 +1182,15 @@ export function buildLandmarks(ctx, PLAN) {
         h = 0.3 + rnd() * 0.35;
       kit.rod(
         M.lacquer,
-        [ix, K + 1.44, iz],
-        [ix + (rnd() - 0.5) * 0.08, K + 1.44 + h, iz + (rnd() - 0.5) * 0.08],
+        [ix, K + 1.47, iz],
+        [ix + (rnd() - 0.5) * 0.08, K + 1.47 + h, iz + (rnd() - 0.5) * 0.08],
         0.008,
         { seg: 4 },
       );
       kit.add(
         ember,
         new THREE.SphereGeometry(0.014, 5, 4),
-        kit.xform(ix, K + 1.45 + h, iz),
+        kit.xform(ix, K + 1.48 + h, iz),
       );
     }
     kit.solid(bx - 0.9, 0, bz - 0.9, bx + 0.9, K + 1.5, bz + 0.9, "metal");
@@ -1294,7 +1425,12 @@ export function buildLandmarks(ctx, PLAN) {
       gp("jersey_barrier", 38.5, 0, z + 1.5, Math.PI / 2, { seed: 7 });
     }
     // the gate itself: steel frame, sliding mesh leaf standing ajar, warning lights
-    const post = kit.game("steel_dark");
+    const post = kit.flat(0x2c343a, {
+      rough: 0.55,
+      metal: 0.5,
+      wet: "metal",
+      key: "gatepost",
+    });
     for (const z of [3.3, 8.7]) {
       kit.box(post, 38.9, 0, z - 0.14, 39.3, 4.2, z + 0.14, { skip: "b" });
       kit.solid(38.9, 0, z - 0.14, 39.3, 4.2, z + 0.14, "metal");
@@ -1304,17 +1440,21 @@ export function buildLandmarks(ctx, PLAN) {
     }
     kit.box(post, 38.9, 4.0, 3.3, 39.3, 4.3, 8.7, { skip: "" });
     kit.box(hazard, 38.86, 3.3, 3.44, 38.9, 3.95, 8.56, { skip: "" });
-    const sg = signs.board({
+    // lit box in the middle of the striped lintel
+    const sg = signs.neon({
       text: "檢疫站",
       sub: "CHECKPOINT · EVACUEES ONLY",
-      w: 4.6,
+      w: 2.9,
       h: 0.62,
-      bg: "#e8e2d2",
-      fg: "#a01414",
-      kai: false,
+      style: "box",
+      color: "#a01414",
+      face: "#f2efe4",
     });
-    const cf = B.frame("w", 38.84, 3.7, 38.86, 8.3);
-    B.fquad(cf, signs.mats.board, 0, 3.32, 4.6, 3.94, 0.006, sg.uv);
+    const cf = B.frame("w", 38.8, 4.55, 38.86, 7.45);
+    B.fbox(cf, kit.game("steel_dark"), -0.05, 3.28, 0, 2.95, 3.98, 0.06, {
+      skip: "i",
+    });
+    B.fquad(cf, signs.mats.neon, 0, 3.32, 2.9, 3.94, 0.066, sg.uv);
     gp("fence_panel", 39.1, 0, 7.0, Math.PI / 2, { seed: 9 });
     kit.solid(39, 0, 3.3, 39.4, 4, 8.7, "metal", { playerOnly: true });
     ctx.emitters.push({
@@ -1438,6 +1578,120 @@ export function buildLandmarks(ctx, PLAN) {
     blood(36.8, 0.004, 7.6, 1.6, "pool");
     return { x: 37, z: 6 };
   }
+  // One bay of the quarantine hoarding: ribbed steel sheet in a tube frame on concrete feet,
+  // facing into the district on the `inward` side.
+  const sheetA = kit.pbr("corrugated", {
+    color: 0xaab8be,
+    key: "hoard",
+    macro: [0.14, 0.1, 0.5, 0.6],
+  });
+  const sheetB = kit.pbr("corrugated", {
+    color: 0x8a2a22,
+    key: "hoard",
+    macro: [0.14, 0.1, 0.5, 0.6],
+  });
+  const tube = kit.game("steel_galv");
+  function hoarding(x, z, alongX, inward, i, n) {
+    const w = 1.66,
+      h = 2.42,
+      t = 0.03;
+    const bx0 = alongX ? x - w : x - t,
+      bx1 = alongX ? x + w : x + t,
+      bz0 = alongX ? z - t : z - w,
+      bz1 = alongX ? z + t : z + w;
+    kit.box(sheetA, bx0, 0.5, bz0, bx1, h, bz1, { skip: "" });
+    kit.box(sheetB, bx0, 0.12, bz0, bx1, 0.5, bz1, { skip: "" }); // painted kick band
+    kit.solid(bx0, 0, bz0, bx1, h, bz1, "metal", { noNav: true });
+    // frame: posts at both ends, rails top and bottom, feet
+    for (const e of [-1, 1]) {
+      const px = alongX ? x + e * w : x,
+        pz = alongX ? z : z + e * w;
+      kit.box(
+        tube,
+        px - 0.035,
+        0,
+        pz - 0.035,
+        px + 0.035,
+        h + 0.18,
+        pz + 0.035,
+        { skip: "b" },
+      );
+      kit.box(
+        M.trim(0x8f8a80),
+        px - (alongX ? 0.16 : 0.34),
+        0,
+        pz - (alongX ? 0.34 : 0.16),
+        px + (alongX ? 0.16 : 0.34),
+        0.14,
+        pz + (alongX ? 0.34 : 0.16),
+        { skip: "b" },
+      );
+    }
+    for (const yy of [0.1, h])
+      kit.box(
+        tube,
+        bx0 - (alongX ? 0 : 0.012),
+        yy,
+        bz0 - (alongX ? 0.012 : 0),
+        bx1 + (alongX ? 0 : 0.012),
+        yy + 0.045,
+        bz1 + (alongX ? 0.012 : 0),
+        { skip: "" },
+      );
+    // what is fixed to the inside face
+    const side = alongX ? (inward > 0 ? "s" : "n") : inward > 0 ? "e" : "w";
+    const f = B.frame(side, bx0, bz0, bx1, bz1);
+    const mid = Math.floor(n / 2);
+    if (i === mid || (n > 5 && i === 1)) {
+      const b = signs.board({
+        text: "隔離區",
+        sub: "QUARANTINE LINE · KEEP BACK",
+        w: 2.5,
+        h: 0.72,
+        bg: "#d9c21f",
+        fg: "#141414",
+        kai: false,
+      });
+      B.fquad(
+        f,
+        signs.mats.board,
+        f.len / 2 - 1.25,
+        1.2,
+        f.len / 2 + 1.25,
+        1.92,
+        0.012,
+        b.uv,
+      );
+    } else if (rnd() < 0.7) {
+      const px = 0.3 + rnd() * (f.len - 1.1);
+      B.notice(f, px, 1.0 + rnd() * 0.4, 0.012);
+      if (rnd() < 0.5)
+        B.notice(
+          f,
+          Math.min(f.len - 0.6, px + 0.55),
+          1.05 + rnd() * 0.3,
+          0.012,
+        );
+    }
+    if (rnd() < 0.35) {
+      const g = ctx.decal(pick(["graffiti_tag", "grime_streak", "rust_run"]));
+      if (g) {
+        const gw = 0.9 + rnd() * 0.8,
+          gx = rnd() * (f.len - gw),
+          gy = 0.6 + rnd() * 0.5;
+        B.fquad(
+          f,
+          g.material,
+          gx,
+          gy,
+          gx + gw,
+          Math.min(h - 0.1, gy + gw / (g.aspect || 1)),
+          0.014,
+          [0, 0, 1, 1],
+        );
+      }
+    }
+  }
   // a row across a street end: barriers, wire and whatever was left behind
   function barricade(ax, az, bx, bz, o = {}) {
     const gp = ctx.gameProp;
@@ -1449,9 +1703,7 @@ export function buildLandmarks(ctx, PLAN) {
       const x = ax + (bx - ax) * t,
         z = az + (bz - az) * t;
       const yaw = alongX ? 0 : Math.PI / 2;
-      gp("fence_panel", x, o.y || 0, z, yaw + (o.flip ? Math.PI : 0), {
-        seed: i + 3,
-      });
+      hoarding(x, z, alongX, o.inward, i, n);
       const inx = alongX ? 0 : o.inward * 0.75,
         inz = alongX ? o.inward * 0.75 : 0;
       if (i % 2 === 0 || len < 8)

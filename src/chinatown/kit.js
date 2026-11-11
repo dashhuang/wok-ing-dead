@@ -192,6 +192,8 @@ export async function createKit(G) {
       "|" +
       (o.interior ? "i" : "") +
       (o.side ? "d" : "") +
+      (o.reflect ? "r" : "") +
+      (o.coat ? "c" : "") +
       (o.key || "");
     let m = materials.get(key);
     if (m) return m;
@@ -215,7 +217,11 @@ export async function createKit(G) {
         macro.join(","),
         o.interior ? 1 : 0,
         o.side ? 1 : 0,
+        o.reflect ? 1 : 0,
+        o.coat ? 1 : 0,
       ].join("|"),
+      reflect: !!o.reflect,
+      coat: !!o.coat,
       color: new THREE.Color(color),
       rough: o.rough ?? 0.6,
       metal: o.metal ?? 0,
@@ -231,17 +237,28 @@ export async function createKit(G) {
   function flatBase(f) {
     let m = flatBases.get(f.sig);
     if (m) return m;
-    m = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      roughness: f.rough,
-      metalness: f.metal,
-      vertexColors: true,
-    });
+    // coat: lacquered paint, a clear glossy layer over the coloured one
+    m = f.coat
+      ? new THREE.MeshPhysicalMaterial({
+          color: 0xffffff,
+          roughness: f.rough,
+          metalness: f.metal,
+          clearcoat: 1,
+          clearcoatRoughness: 0.06,
+          vertexColors: true,
+        })
+      : new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          roughness: f.rough,
+          metalness: f.metal,
+          vertexColors: true,
+        });
     m.name = "ct_flat_shared";
     if (f.side) m.side = THREE.DoubleSide;
     G.mats.adopt(m, { wet: f.wet, macro: f.macro, interior: f.interior });
     m.userData.oneCell = true;
-    m.userData.noReflect = true;
+    // small details stay out of the wet-street reflection pass; big things (vehicles) opt in
+    m.userData.noReflect = !f.reflect;
     flatBases.set(f.sig, m);
     return m;
   }

@@ -3,6 +3,7 @@
 // the buildings and landmarks; collision is added for anything a body cannot pass through.
 import * as THREE from "three";
 import { MENUS } from "./eggs.js";
+import { createVehicles } from "./vehicles.js";
 
 export function dressStreets(ctx, PLAN, marks) {
   const { kit, signs, B, G } = ctx;
@@ -279,6 +280,8 @@ export function dressStreets(ctx, PLAN, marks) {
   drop(pl[4], [-3, 6.2, 26]);
 
   // ---------- vehicles ----------
+  const cars = createVehicles(ctx);
+  ctx.vehicles = cars;
   const CAR = [
     "covered_car",
     "covered_car_wheel_01",
@@ -317,15 +320,36 @@ export function dressStreets(ctx, PLAN, marks) {
       "metal",
     );
   }
-  car(-18.5, 3.0, Math.PI / 2 + 0.03, 0xb8c0c4);
-  car(-13.2, 9.05, -Math.PI / 2 - 0.05, 0x8a9a9a);
-  car(-5.8, 6.9, 0.62, 0xc9b8a0); // slewed across the crossroads
-  car(14.4, 9.0, Math.PI / 2, 0x9aa6b0);
-  car(25.2, 3.05, Math.PI / 2 - 0.04, 0xb0a898);
-  car(3.9, -12.5, 0.04, 0xa8b0b4);
-  car(0.2, -21.5, Math.PI + 0.05, 0xc0c4c0);
-  car(3.85, 22.6, -0.05, 0x98a0a8);
-  car(-36.8, 1.4, 0.4, 0xb4b8b0);
+  // Most of the street was left where it stopped; only two cars had been put away under covers.
+  const HALF = Math.PI / 2;
+  cars.place("hatch", -18.5, 3.05, HALF + 0.03, { color: 0x8a9096 });
+  cars.place("van", -13.2, 9.0, -HALF - 0.04, {
+    color: 0xd9d6cc,
+    livery: true,
+    rack: true,
+  });
+  // a taxi slewed across the crossroads, lamps still burning
+  cars.place("taxi", -5.6, 6.7, 0.62, {
+    lights: true,
+    hazard: true,
+    cabin: true,
+    steer: 0.5,
+  });
+  car(14.4, 9.0, HALF, 0x9aa6b0);
+  cars.place("lorry", 24.6, 3.25, HALF - 0.03, {
+    color: 0xc9ccd0,
+    load: "tilt",
+    tilt: 0x2f5a46,
+  });
+  cars.place("saloon", 3.9, -12.5, 0.04, { color: 0x1b1d21 });
+  cars.place("minibus", 0.25, -21.6, Math.PI + 0.04, {
+    color: 0x1c6a3c,
+    hazard: true,
+  });
+  cars.place("hatch", 3.85, 22.6, -0.05, { color: 0x5a1a16, flat: 1 });
+  cars.place("taxi", 1.0, 13.9, Math.PI - 0.3, { dead: true, steer: -0.4 });
+  cars.place("saloon", -36.6, 1.3, 0.42, { color: 0x30463a, brake: true });
+  car(19.6, 9.05, -HALF + 0.06, 0xb0a898);
 
   // ---------- street furniture ----------
   const HYD = [
