@@ -83679,11 +83679,12 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         <div class="m-langs" role="group" data-i18n-aria="lang.label">${gmLangs("m-lang")}</div>
       </header>
       <div class="m-title-main">
-        <h1 class="m-word" id="m-word" aria-label="\u9B3C\u5E02 Ghost Market">
-          <span class="m-word-cjk" aria-hidden="true">\u9B3C\u5E02</span>
-          <span class="m-word-lat" aria-hidden="true"><span>Ghost</span><span>Market</span></span>
+        <h1 class="m-word" id="m-word" aria-label="Wok-ing Dead">
+          <span class="m-seal" aria-hidden="true"><i>\u884C</i><i>\u5C4D</i><i>\u8D70</i><i>\u944A</i></span>
+          <span class="m-word-lat" aria-hidden="true"><span><b>Wok</b>-ing</span><span>Dead</span></span>
         </h1>
-        <p class="m-place"><i class="m-seal" aria-hidden="true">\u5510\u4EBA\u8857</i><span data-i18n="title.place"></span></p>
+        <p class="m-tagline" data-i18n="brand.tagline"></p>
+        <p class="m-place"><span data-i18n="title.place"></span></p>
         <p class="m-premise" data-i18n="title.premise"></p>
         <div class="m-actions">
           <button class="btn primary" data-act="deploy"><span data-i18n="act.deploy"></span></button>
@@ -83769,7 +83770,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         <p class="panel-note" data-i18n-html="ctl.notePadHtml"></p>
       </div>
       <div class="panel-b panel-about" data-pane="about" hidden>
-        <div class="about-mark" aria-hidden="true"><span class="about-seal">\u9B3C\u5E02</span><span class="about-word">Ghost Market</span></div>
+        <div class="about-mark" aria-hidden="true"><span class="about-seal"><i>\u884C</i><i>\u5C4D</i><i>\u8D70</i><i>\u944A</i></span><span class="about-word"><b>Wok</b>-ing Dead</span></div>
         <h3 data-i18n="about.title"></h3>
         <p class="panel-p" data-i18n="about.body"></p>
         <a class="btn small about-link" href="https://claude.ai/artifact/BGY1SztrAYcJQHSsnHHGmp" target="_blank" rel="noopener" data-i18n="about.link"></a>
@@ -85841,7 +85842,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
               g = v[v.length >> 1],
               E = n.render.stats ? n.render.stats() : {},
               M = n.renderer.getDrawingBufferSize(new We());
-            e.textContent = `GHOST MARKET BENCH  t=${o.toFixed(0)}s
+            e.textContent = `WOK-ING DEAD BENCH  t=${o.toFixed(0)}s
 GPU: ${t}
 buffer ${M.x}x${M.y}  quality ${n.quality.name}  dpr ${window.devicePixelRatio}
 frame ms avg ${y.toFixed(1)}  median ${g.toFixed(1)}  p99 ${b.toFixed(1)}  => ${(1e3 / y).toFixed(0)} fps

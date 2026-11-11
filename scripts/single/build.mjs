@@ -1,4 +1,4 @@
-// Builds dist-single/ghost-market.html: one self-contained file (code, CSS, textures, models,
+// Builds dist-single/wok-ing-dead.html: one self-contained file (code, CSS, textures, models,
 // audio, fonts) that opens straight from disk, e.g. after being sent as a WeChat file.
 //
 //   npm run build:single
@@ -14,7 +14,7 @@ import path from "node:path";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const tmp = path.join(root, "dist-single", ".tmp");
-const out = path.join(root, "dist-single", "ghost-market.html");
+const out = path.join(root, "dist-single", "wok-ing-dead.html");
 
 // ---------- 1. bundle all JS into one ES module ----------
 await fs.rm(tmp, { recursive: true, force: true });

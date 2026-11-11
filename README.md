@@ -1,4 +1,4 @@
-# 鬼市 Ghost Market
+# 行尸走镬 Wok-ing Dead
 
 雨夜的唐人街已经沦陷。三座疏散警报还在长鸣，把整座城的尸群引进街区——让它们闭嘴，然后冲到东端的检疫关卡。
 
@@ -26,7 +26,7 @@ npm run check    # JavaScript 语法和格式检查
 npm run build    # 生成 dist/，包含本地调试 source map
 npm run preview  # 预览构建产物
 npm run format   # 格式化开发文件
-npm run build:single  # 生成单文件 dist-single/ghost-market.html（约 35 MB，可直接双击打开或作为文件发送）
+npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 MB，可直接双击打开或作为文件发送）
 ```
 
 单文件版把脚本、样式、贴图、模型、音效和字体都以 base64 嵌在页面里，由页面开头的小段代码把 `assets/...` 请求转到这些内嵌数据。
@@ -77,7 +77,7 @@ npm run build:single  # 生成单文件 dist-single/ghost-market.html（约 35 M
 - `/?lang=ja`：指定界面语言（不写入存储）。
 
 后台标签页的帧率会被浏览器限制，不应把自动检查时的后台帧率当作真实性能。
-设置和纪录保存在当前站点的 localStorage；为了不丢失旧存档，设置和纪录仍沿用 `saltline.*` 键名，语言选择存于 `ghostmarket.lang`。
+设置和纪录保存在当前站点的 localStorage；为了不丢失旧存档，设置和纪录仍沿用 `saltline.*` 键名，语言选择存于 `wokingdead.lang`。
 
 ## 说明
 

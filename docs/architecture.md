@@ -1,4 +1,4 @@
-# 鬼市 Ghost Market 架构与代码导航
+# 行尸走镬 Wok-ing Dead 架构与代码导航
 
 ## 先看什么
 
@@ -32,7 +32,7 @@
 
 - **语言包**：`src/i18n/locales/{en,zh-CN,zh-TW,ja}.js`，扁平的键值表。英文是基准，其他语言缺键时回退到英文；
   `{n}` 这样的占位符由 `t(key, vars)` 填入；键名以 `Html` 结尾的值是受信任的标记（只用 `<kbd>`）。
-- **选择顺序**：`?lang=` → localStorage `ghostmarket.lang` → 浏览器语言 → 英文。`setLocale()` 设置 `<html lang>` 和
+- **选择顺序**：`?lang=` → localStorage `wokingdead.lang`（兼容旧的 `ghostmarket.lang`） → 浏览器语言 → 英文。`setLocale()` 设置 `<html lang>` 和
   `data-script`（`latin`/`sc`/`tc`/`jp`），CSS 据此收紧中日文的字距和行高。
 - **静态文字**：菜单和 HUD 的标记里用 `data-i18n`（文本）、`data-i18n-html`（标记）、`data-i18n-aria`（无障碍标签），
   切换语言时 `applyDom()` 统一刷新。

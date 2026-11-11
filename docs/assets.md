@@ -62,7 +62,7 @@ python scripts/assets/build-fonts.py <放有两个原始 TTF 的目录> public/a
 | `gm-display.woff2` | Noto Serif Display（字重 500–900、字宽 62.5–100%） | 标题、弹药与生命数字、评价 |
 | `gm-sans-{sc,tc,jp}.woff2` | Noto Sans SC / TC / JP | 对应语言的界面正文 |
 | `gm-serif-{sc,tc,jp}.woff2` | Noto Serif SC / TC / JP（字重 600–900） | 对应语言的标题 |
-| `gm-logo.woff2` | Noto Serif TC Black | 标志「鬼市」与印章「唐人街」 |
+| `gm-logo.woff2` | Noto Serif TC Black | 四字方印「行屍走鑊」 |
 | `gm-names.woff2` | Noto Sans SC | 语言选择器里的「简体中文 / 繁體中文 / 日本語」 |
 
 中日文文件只保留各自语言包（`src/i18n/locales/*.js`）里出现的字，每个 100–160 KB；只有当前语言的文件会被下载。

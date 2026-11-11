@@ -1,6 +1,7 @@
 export default {
-  "doc.title": "鬼市 ─ チャイナタウン",
-  "brand.name": "鬼市",
+  "doc.title": "Wok-ing Dead ─ チャイナタウン",
+  "brand.name": "Wok-ing Dead",
+  "brand.tagline": "チャイナタウン、大炎上。",
   "brand.sub": "チャイナタウン · 雨の夜",
   "lang.label": "言語",
 
@@ -15,7 +16,7 @@ export default {
   "boot.dead": "死者を目覚めさせる",
   "boot.light": "最後の灯りを待つ",
   "boot.ready": "準備完了",
-  "boot.fatal": "鬼市を起動できません：{error}",
+  "boot.fatal": "Wok-ing Dead を起動できません：{error}",
 
   "title.unit": "夜警 · ランタン管制",
   "title.place": "金龍街 · 19:42 · 雨",
@@ -157,7 +158,7 @@ export default {
 
   "about.title": "このバージョンについて",
   "about.body":
-    "『鬼市』はブラウザ用シューター Saltline を元に作られました。Saltline は Claude が制作し Felix が磨き上げた作品で、レンダラー・武器・ミッションの仕組みはそこから受け継いでいます。街並み・死者・サウンド・UI はこのバージョンのために作り直しました。",
+    "『Wok-ing Dead（行屍走鑊）』はブラウザ用シューター Saltline を元に作られました。Saltline は Claude が制作し Felix が磨き上げた作品で、レンダラー・武器・ミッションの仕組みはそこから受け継いでいます。街並み・死者・サウンド・UI はこのバージョンのために作り直しました。",
   "about.link": "オリジナルの Saltline を遊ぶ",
   "about.assets":
     "フォント：Noto Sans、Noto Serif、Inter（SIL Open Font License）。テクスチャ・小道具・効果音の出典はプロジェクトの素材ノートを参照してください。",

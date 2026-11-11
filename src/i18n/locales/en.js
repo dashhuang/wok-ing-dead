@@ -1,8 +1,9 @@
 // English is the reference locale: every key exists here, other locales fall back to it.
 // Values may contain {placeholders}; keys ending in "Html" are trusted markup (<kbd> only).
 export default {
-  "doc.title": "Ghost Market — Chinatown",
-  "brand.name": "Ghost Market",
+  "doc.title": "Wok-ing Dead — Chinatown",
+  "brand.name": "Wok-ing Dead",
+  "brand.tagline": "Chinatown is cooked.",
   "brand.sub": "Chinatown · a night of rain",
   "lang.label": "Language",
 
@@ -17,7 +18,7 @@ export default {
   "boot.dead": "Waking the dead",
   "boot.light": "Waiting for the last light",
   "boot.ready": "Ready",
-  "boot.fatal": "Ghost Market could not start: {error}",
+  "boot.fatal": "Wok-ing Dead could not start: {error}",
 
   "title.unit": "Night Warden · Lantern Control",
   "title.place": "Golden Dragon Street · 19:42 · Rain",
@@ -160,7 +161,7 @@ export default {
 
   "about.title": "About this build",
   "about.body":
-    "Ghost Market grew out of Saltline, a browser shooter built with Claude and refined by Felix. The renderer, weapons and mission framework come from that game; the streets, the dead, the sound and the interface were rebuilt for this version.",
+    "Wok-ing Dead grew out of Saltline, a browser shooter built with Claude and refined by Felix. The renderer, weapons and mission framework come from that game; the streets, the dead, the sound and the interface were rebuilt for this version.",
   "about.link": "Play the original Saltline",
   "about.assets":
     "Fonts: Noto Sans, Noto Serif and Inter (SIL Open Font License). Texture, prop and sound sources are listed in the project's asset notes.",

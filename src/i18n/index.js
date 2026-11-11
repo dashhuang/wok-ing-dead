@@ -17,7 +17,8 @@ export const LOCALES = [
   { code: "en", name: "English", short: "EN", cjk: null, dict: en },
   { code: "ja", name: "日本語", short: "日", cjk: "jp", dict: ja },
 ];
-const STORAGE_KEY = "ghostmarket.lang";
+const STORAGE_KEY = "wokingdead.lang";
+const OLD_STORAGE_KEY = "ghostmarket.lang";
 const byCode = new Map(LOCALES.map((l) => [l.code, l]));
 const listeners = new Set();
 let current = byCode.get("en");
@@ -40,7 +41,9 @@ function detect() {
     if (match(q)) return match(q);
   } catch {}
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved =
+      localStorage.getItem(STORAGE_KEY) ||
+      localStorage.getItem(OLD_STORAGE_KEY);
     if (byCode.has(saved)) return saved;
   } catch {}
   const tags = (

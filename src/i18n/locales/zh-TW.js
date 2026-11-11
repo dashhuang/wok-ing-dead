@@ -1,6 +1,7 @@
 export default {
-  "doc.title": "鬼市 · 唐人街",
-  "brand.name": "鬼市",
+  "doc.title": "行屍走鑊 · 唐人街",
+  "brand.name": "行屍走鑊",
+  "brand.tagline": "唐人街，炸鍋了。",
   "brand.sub": "唐人街 · 雨夜",
   "lang.label": "語言",
 
@@ -15,7 +16,7 @@ export default {
   "boot.dead": "喚醒死者",
   "boot.light": "等待最後一盞燈",
   "boot.ready": "就緒",
-  "boot.fatal": "鬼市無法啟動：{error}",
+  "boot.fatal": "行屍走鑊無法啟動：{error}",
 
   "title.unit": "守夜人 · 燈籠臺",
   "title.place": "金龍街 · 19:42 · 雨",
@@ -155,7 +156,7 @@ export default {
 
   "about.title": "關於這個版本",
   "about.body":
-    "《鬼市》由瀏覽器射擊遊戲 Saltline 改造而來。Saltline 由 Claude 製作、Felix 打磨，算繪、武器與任務框架沿用自原作；街區、死者、聲音和介面為這一版本重新製作。",
+    "《行屍走鑊》（Wok-ing Dead）由瀏覽器射擊遊戲 Saltline 改造而來。Saltline 由 Claude 製作、Felix 打磨，算繪、武器與任務框架沿用自原作；街區、死者、聲音和介面為這一版本重新製作。",
   "about.link": "玩原版 Saltline",
   "about.assets":
     "字型：Noto Sans、Noto Serif 與 Inter（SIL 開源字型授權）。貼圖、道具和音效來源見專案的素材說明。",
