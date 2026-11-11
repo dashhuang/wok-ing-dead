@@ -1,10 +1,7 @@
 // Published bundle: engine and gameplay retain their original shared scope.
 // See docs/architecture.md for subsystem names, lifecycle and safe edit points.
 import { createSettingsStore } from "./settings.js";
-import {
-  hasLegacyVersion as rT,
-  switchToLegacyVersion as aT,
-} from "./legacy.js";
+import * as L10N from "./i18n/index.js";
 
 (() => {
   var bT = Object.defineProperty;
@@ -35104,7 +35101,7 @@ void main() {
         magSize: 30,
         reserve: 120,
         state: "idle",
-        name: "KR-7",
+        name: "LK-9",
         ads: 0,
         spread: 0.01,
       }),
@@ -67709,15 +67706,17 @@ void main() {
         f.push(ne);
       },
       describeMode() {
-        return m.mode === "touch"
-          ? "Touch controls active"
-          : m.device === "pad"
-            ? "Controller active"
-            : m.mode === "drag"
-              ? "Mouse capture unavailable \u2014 move the mouse to look, rest it at a screen edge to keep turning \xB7 click fires \xB7 arrows or IJKL also turn"
-              : m.locked
-                ? "Mouse captured \u2014 Esc releases it"
-                : "Click once to capture the mouse";
+        return L10N.t(
+          m.mode === "touch"
+            ? "input.touch"
+            : m.device === "pad"
+              ? "input.pad"
+              : m.mode === "drag"
+                ? "input.drag"
+                : m.locked
+                  ? "input.locked"
+                  : "input.click",
+        );
       },
     };
     function x(ne) {
@@ -67885,7 +67884,21 @@ void main() {
       let ne = document.createElement("div");
       ((ne.className = "touch"),
         (ne.innerHTML =
-          '<div class="t-stick"><i class="t-ring"></i><i class="t-nub"></i></div><button class="t-btn t-fire" data-a="fire" aria-label="Fire"><span>FIRE</span></button><button class="t-btn t-ads" data-a="ads" aria-label="Aim"><span>AIM</span></button><button class="t-btn t-reload" data-a="reload" aria-label="Reload"><span>RLD</span></button><button class="t-btn t-swap" data-a="swap" aria-label="Swap weapon"><span>SWAP</span></button><button class="t-btn t-jump" data-a="jump" aria-label="Jump"><span>JUMP</span></button><button class="t-btn t-interact" data-a="interact" aria-label="Interact"><span>USE</span></button><button class="t-btn t-pause" data-a="pause" aria-label="Pause"><span>II</span></button>'),
+          '<div class="t-stick"><i class="t-ring"></i><i class="t-nub"></i></div>' +
+          [
+            ["fire", "fire"],
+            ["ads", "aim"],
+            ["reload", "reload"],
+            ["swap", "swap"],
+            ["jump", "jump"],
+            ["interact", "use"],
+          ]
+            .map(
+              ([a, k]) =>
+                `<button class="t-btn t-${a}" data-a="${a}" data-i18n-aria="touch.${k}" aria-label="${L10N.t("touch." + k)}"><span data-i18n="touch.${k}">${L10N.t("touch." + k)}</span></button>`,
+            )
+            .join("") +
+          `<button class="t-btn t-pause" data-a="pause" data-i18n-aria="touch.pause" aria-label="${L10N.t("touch.pause")}"><span>II</span></button>`),
         t.appendChild(ne));
       let ye = (Re) => ne.querySelector(Re),
         Te = {
@@ -69212,16 +69225,21 @@ void main() {
       r = "rgba(158,160,158,0.92)",
       a = "rgba(206,198,160,0.92)",
       l = "rgba(196,52,36,0.95)";
-    (t("model", "PAC-9", `700 104px ${o}`, r),
-      t("maker", "LONGSHORE ARMS WORKS  \xB7  SALTLINE", `600 44px ${i}`, r),
-      t("cal", "CAL 5.8\xD740   SN PA-004217", `500 38px ${s}`, r),
+    (t("model", "LK-9", `700 104px ${o}`, r),
+      t(
+        "maker",
+        "LANTERN CONTROL ARMOURY  \xB7  CHINATOWN",
+        `600 44px ${i}`,
+        r,
+      ),
+      t("cal", "CAL 5.8\xD740   SN LC-004217", `500 38px ${s}`, r),
       t(
         "prop",
-        "PROPERTY OF PORT AUTHORITY \u2014 BERTH 4 ARMOURY",
+        "PROPERTY OF LANTERN CONTROL \u2014 QUARANTINE DIV.",
         `600 40px ${i}`,
         r,
       ),
-      t("sn", "PA-004217", `500 40px ${s}`, r, "center"),
+      t("sn", "LC-004217", `500 40px ${s}`, r, "center"),
       t(
         "nm",
         "BARREL NUT 54 N\xB7m  \xB7  DO NOT OIL THREADS",
@@ -69231,7 +69249,7 @@ void main() {
       t("safe", "S", `700 46px ${i}`, r, "center"),
       t("semi", "1", `700 46px ${i}`, r, "center"),
       t("auto", "A", `700 46px ${i}`, l, "center"),
-      t("rack", "B4-07", `800 142px ${o}`, a, "center"));
+      t("rack", "Q7-07", `800 142px ${o}`, a, "center"));
     for (let h = 0; h < 20; h++)
       t(
         "r" + (2 + h * 2),
@@ -69242,15 +69260,20 @@ void main() {
       );
     (t("optic", "HX-2 REFLEX", `700 62px ${i}`, r, "center"),
       t("light", "900 LM  IPX8", `600 56px ${i}`, r, "center"),
-      t("p_model", "PAC-4", `700 104px ${o}`, r),
-      t("p_name", "BOSUN", `600 70px ${i}`, r),
-      t("p_cal", "9\xD719  PA-SVC", `500 38px ${s}`, r),
-      t("p_sn", "SN PB-011902", `500 38px ${s}`, r),
-      t("p_rack", "B4-11", `800 112px ${o}`, a, "center"),
-      t("p_maker", "LONGSHORE ARMS WORKS  \xB7  SALTLINE", `600 44px ${i}`, r),
+      t("p_model", "LK-4", `700 104px ${o}`, r),
+      t("p_name", "WARDEN", `600 70px ${i}`, r),
+      t("p_cal", "9\xD719  LC-SVC", `500 38px ${s}`, r),
+      t("p_sn", "SN LC-011902", `500 38px ${s}`, r),
+      t("p_rack", "Q7-11", `800 112px ${o}`, a, "center"),
+      t(
+        "p_maker",
+        "LANTERN CONTROL ARMOURY  \xB7  CHINATOWN",
+        `600 44px ${i}`,
+        r,
+      ),
       t(
         "p_prop",
-        "PROPERTY OF PORT AUTHORITY \u2014 BERTH 4",
+        "PROPERTY OF LANTERN CONTROL \u2014 QUARANTINE DIV.",
         `600 40px ${i}`,
         r,
       ));
@@ -70574,7 +70597,7 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
       return 1 - u5(0, c, Math.hypot(u, f, h));
     },
     wn = {
-      name: "PAC-9 Longshore",
+      name: "LK-9 Carbine",
       muzzle: [0, 0, -0.531],
       eject: [0.023, 0.004, -0.028],
       sightY: 0.069,
@@ -76675,7 +76698,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     SS = [-0.309, -0.951],
     RS = 0.1185,
     G0 = {
-      name: "PAC-4 Bosun",
+      name: "LK-4 Sidearm",
       muzzle: [0, 0, -0.1075],
       eject: [0.017, 0.007, -0.01],
       sightY: No,
@@ -82998,20 +83021,24 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       t = si("div", "hud");
     t.setAttribute("aria-hidden", "true");
     let i = si("div", "h-compass"),
-      s = si("div", "h-tape"),
-      o = "";
-    for (let he = ob; he <= JD; he += 5) {
-      let V = (he - ob) * sb,
-        ne = ((he % 360) + 360) % 360,
-        ye = ne % 45 === 0,
-        Te = ne % 15 === 0;
-      ((o += `<i class="${ye ? "mj" : Te ? "md" : "mn"}" style="left:${V}px"></i>`),
-        ye
-          ? (o += `<b class="${ne % 90 === 0 ? "card" : "ic"}" style="left:${V}px">${QD[ne]}</b>`)
-          : ne % 15 === 0 &&
-            (o += `<b class="num" style="left:${V}px">${String(ne).padStart(3, "0")}</b>`));
-    }
-    s.innerHTML = o;
+      s = si("div", "h-tape");
+    // Compass tape; rebuilt when the language changes (cardinal labels are localized).
+    let buildTape = () => {
+      let o = "";
+      for (let he = ob; he <= JD; he += 5) {
+        let V = (he - ob) * sb,
+          ne = ((he % 360) + 360) % 360,
+          ye = ne % 45 === 0,
+          Te = ne % 15 === 0;
+        ((o += `<i class="${ye ? "mj" : Te ? "md" : "mn"}" style="left:${V}px"></i>`),
+          ye
+            ? (o += `<b class="${ne % 90 === 0 ? "card" : "ic"}" style="left:${V}px">${L10N.t("compass." + ne)}</b>`)
+            : ne % 15 === 0 &&
+              (o += `<b class="num" style="left:${V}px">${String(ne).padStart(3, "0")}</b>`));
+      }
+      s.innerHTML = o;
+    };
+    buildTape();
     let r = si("div", "h-tape-wrap");
     r.appendChild(s);
     let a = si("div", "h-cmarks"),
@@ -83020,7 +83047,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     let c = si(
         "div",
         "h-obj",
-        '<div class="h-k">Objective</div><div class="h-obj-t"></div><div class="h-relays"><span>Sirens</span><i></i><i></i><i></i><b>0/3</b></div>',
+        `<div class="h-k" data-i18n="hud.objective">${L10N.t("hud.objective")}</div><div class="h-obj-t"></div><div class="h-relays"><span>${L10N.t("hud.sirens")}</span><i></i><i></i><i></i><b>0/3</b></div>`,
       ),
       u = c.querySelector(".h-obj-t"),
       f = c.querySelector(".h-relays"),
@@ -83059,7 +83086,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       R = si(
         "div",
         "h-health",
-        '<div class="h-k">Vitals</div><div class="h-hp-row"><b class="h-hp-n">100</b><div class="h-hp-bar">' +
+        `<div class="h-k" data-i18n="hud.vitals">${L10N.t("hud.vitals")}</div><div class="h-hp-row"><b class="h-hp-n">100</b><div class="h-hp-bar">` +
           "<i></i>".repeat(10) +
           "</div></div>",
       ),
@@ -83081,7 +83108,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     let Z = si(
       "div",
       "comms",
-      '<span class="comms-who">Control</span><span class="comms-t"></span>',
+      `<span class="comms-who" data-i18n="hud.who">${L10N.t("hud.who")}</span><span class="comms-t"></span>`,
     );
     (Z.setAttribute("role", "status"), Z.setAttribute("aria-live", "polite"));
     let Q = Z.querySelector(".comms-t");
@@ -83151,13 +83178,18 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
             P &&
             D === n.time.frame &&
             !P.weak &&
-            ((P.weak = !0), (P.el.innerHTML += "<em>Head shot</em>")));
+            ((P.weak = !0),
+            (P.el.innerHTML += `<em>${L10N.t("hud.headshot")}</em>`)));
       }),
       n.events.on("enemy:killed", (he) => {
-        let V = String(
-          (he && (he.type || (he.enemy && he.enemy.type))) || "zombie",
-        ).toUpperCase();
-        ((P = X.feed(`<b>${V}</b> put down`)), (D = n.time.frame));
+        let V = L10N.t(
+          "enemy." +
+            String(
+              (he && (he.type || (he.enemy && he.enemy.type))) || "zombie",
+            ).toLowerCase(),
+        );
+        ((P = X.feed(L10N.t("hud.kill", { who: `<b>${V}</b>` }))),
+          (D = n.time.frame));
       }),
       n.events.on("player:hit", (he) => {
         if (!he || !he.fromPos) return;
@@ -83191,7 +83223,19 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       },
       setTally(he) {
         let V = he != null;
-        (f.classList.toggle("tally", V), (p.textContent = V ? he : "Sirens"));
+        (f.classList.toggle("tally", V),
+          (p.textContent = V ? he : L10N.t("hud.sirens")));
+      },
+      relocalize() {
+        (buildTape(),
+          (oe.tapeX = 1e9),
+          (oe.name = null),
+          (oe.cue = null),
+          (oe.alt = null),
+          (oe.promptText = null),
+          (oe.promptKey = null),
+          f.classList.contains("tally") ||
+            (p.textContent = L10N.t("hud.sirens")));
       },
       setRelays(he, V) {
         if (!(he === oe.done && V === oe.total)) {
@@ -83249,12 +83293,16 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           !ne)
         )
           return;
-        let ye = n.input.touch ? "USE" : n.input.device === "pad" ? "X" : "E";
+        let ye = n.input.touch
+          ? L10N.t("hud.useKey")
+          : n.input.device === "pad"
+            ? "X"
+            : "E";
         ye !== oe.promptKey &&
           ((oe.promptKey = ye),
           (_.textContent = ye),
           _.classList.toggle("wide", ye.length > 1));
-        let Te = `Hold ${ye} \u2014 ${he}`;
+        let Te = L10N.t("hud.holdTo", { key: ye, action: he });
         Te !== oe.promptText && ((oe.promptText = Te), (T.textContent = Te));
         let Re = Math.round(V * 200) / 200;
         Re !== oe.promptT &&
@@ -83439,8 +83487,11 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       (ke !== oe.reserve &&
         ((oe.reserve = ke),
         (k.textContent = ke >= 9999 ? "\u221E" : String(ke).padStart(3, "0"))),
-        ne.name !== oe.name &&
-          ((oe.name = ne.name), (A.textContent = ne.name || "")));
+        ((ne.current ? L10N.t("weapon." + ne.current) : ne.name) || "") !==
+          oe.name &&
+          ((oe.name =
+            (ne.current ? L10N.t("weapon." + ne.current) : ne.name) || ""),
+          (A.textContent = oe.name)));
       let je = "";
       if (ne.slots && ne.slots.length > 1) {
         let $e = ne.slots[0].id === ne.current ? ne.slots[1] : ne.slots[0],
@@ -83451,31 +83502,31 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
             : Ke === "touch" || n.input.touch
               ? ""
               : "<kbd>Q</kbd>") +
-          `<b>${$e.name || ""}</b> ${String(Math.max(0, $e.ammo | 0)).padStart(2, "0")} / ${$e.reserve === 1 / 0 ? "\u221E" : Math.max(0, $e.reserve | 0)}`;
+          `<b>${$e.id ? L10N.t("weapon." + $e.id) : $e.name || ""}</b> ${String(Math.max(0, $e.ammo | 0)).padStart(2, "0")} / ${$e.reserve === 1 / 0 ? "\u221E" : Math.max(0, $e.reserve | 0)}`;
       }
       je !== oe.alt && ((oe.alt = je), (H.innerHTML = je));
       let Ze = Ne <= Math.ceil(_e * 0.27),
         qe =
           ne.state === "reloading"
-            ? "Reloading"
+            ? L10N.t("hud.reloading")
             : ne.state === "switching"
               ? ""
               : Ne === 0
                 ? ke > 0
                   ? n.input.touch
-                    ? "Reload"
-                    : n.input.device === "pad"
-                      ? "X \u2014 Reload"
-                      : "R \u2014 Reload"
+                    ? L10N.t("hud.reload")
+                    : L10N.t("hud.reloadKey", {
+                        key: n.input.device === "pad" ? "X" : "R",
+                      })
                   : ne.slots && ne.slots.length > 1
-                    ? n.input.device === "pad"
-                      ? "Empty \u2014 Y swaps"
-                      : n.input.touch
-                        ? "Empty \u2014 swap"
-                        : "Empty \u2014 Q swaps"
-                    : "Empty"
+                    ? n.input.touch
+                      ? L10N.t("hud.emptySwapTouch")
+                      : L10N.t("hud.emptySwap", {
+                          key: n.input.device === "pad" ? "Y" : "Q",
+                        })
+                    : L10N.t("hud.empty")
                 : Ze
-                  ? "Low ammo"
+                  ? L10N.t("hud.low")
                   : "";
       (qe !== oe.cue &&
         ((oe.cue = qe),
@@ -83549,58 +83600,65 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         (($ -= he),
           $ <= 0 && ((q = null), O.length || Z.classList.remove("on")));
     }
-    return (B(), X);
+    return (L10N.onLocale(() => X.relocalize()), B(), X);
   }
   // Settings keep their bundle aliases here to minimize changes to the menu.
   const {
-    defaults: tL,
     viewOptions: cT,
     modeOptions: uT,
-    modeDescriptions: nL,
     difficultyOptions: ab,
     qualityOptions: fT,
     load: iL,
     save: cc,
   } = createSettingsStore(zi.fov);
-  var sL = `
+  // Control reference lists: labels are bound to locale keys, key caps stay literal.
+  var gmRow = (k, dd) => `<div><dt data-i18n="${k}"></dt><dd>${dd}</dd></div>`,
+    gmTxt = (k) => `<span data-i18n="${k}"></span>`,
+    gmHtml = (k) => `<span data-i18n-html="${k}"></span>`,
+    sL = `
   <dl class="keys">
-    <div><dt>Move</dt><dd><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dd></div>
-    <div><dt>Look</dt><dd>Mouse</dd></div>
-    <div><dt>Fire</dt><dd>Left button</dd></div>
-    <div><dt>Aim</dt><dd>Right button</dd></div>
-    <div><dt>Reload</dt><dd><kbd>R</kbd></dd></div>
-    <div><dt>Swap weapon</dt><dd><kbd>Q</kbd>, wheel, or <kbd>1</kbd> <kbd>2</kbd></dd></div>
-    <div><dt>Cut siren</dt><dd>Hold <kbd>E</kbd></dd></div>
-    <div><dt>Jump</dt><dd><kbd>Space</kbd></dd></div>
-    <div><dt>Sprint</dt><dd><kbd>Shift</kbd></dd></div>
-    <div><dt>Crouch</dt><dd><kbd>C</kbd> or <kbd>Ctrl</kbd></dd></div>
-    <div><dt>Melee</dt><dd><kbd>F</kbd></dd></div>
-    <div><dt>Pause</dt><dd><kbd>Esc</kbd> or <kbd>P</kbd></dd></div>
+    ${gmRow("ctl.move", "<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>")}
+    ${gmRow("ctl.look", gmTxt("ctl.mouse"))}
+    ${gmRow("ctl.fire", gmTxt("ctl.lmb"))}
+    ${gmRow("ctl.aim", gmTxt("ctl.rmb"))}
+    ${gmRow("ctl.reload", "<kbd>R</kbd>")}
+    ${gmRow("ctl.swap", gmHtml("ctl.swapKeysHtml"))}
+    ${gmRow("ctl.cut", gmHtml("ctl.holdEHtml"))}
+    ${gmRow("ctl.jump", "<kbd>Space</kbd>")}
+    ${gmRow("ctl.sprint", "<kbd>Shift</kbd>")}
+    ${gmRow("ctl.crouch", gmHtml("ctl.crouchKeysHtml"))}
+    ${gmRow("ctl.melee", "<kbd>F</kbd>")}
+    ${gmRow("ctl.pause", gmHtml("ctl.pauseKeysHtml"))}
   </dl>`,
     oL = `
   <dl class="keys">
-    <div><dt>Move \xB7 Look</dt><dd>Left stick \xB7 Right stick</dd></div>
-    <div><dt>Fire \xB7 Aim</dt><dd><kbd>RT</kbd> \xB7 <kbd>LT</kbd></dd></div>
-    <div><dt>Reload</dt><dd><kbd>X</kbd></dd></div>
-    <div><dt>Cut siren</dt><dd>Hold <kbd>X</kbd> at a siren box</dd></div>
-    <div><dt>Swap weapon</dt><dd><kbd>Y</kbd> or D-pad</dd></div>
-    <div><dt>Jump</dt><dd><kbd>A</kbd></dd></div>
-    <div><dt>Crouch</dt><dd><kbd>B</kbd> or <kbd>LB</kbd></dd></div>
-    <div><dt>Sprint</dt><dd>Click the left stick</dd></div>
-    <div><dt>Melee</dt><dd><kbd>RB</kbd> or click the right stick</dd></div>
-    <div><dt>Pause</dt><dd><kbd>Start</kbd></dd></div>
+    ${gmRow("ctl.moveLook", gmTxt("ctl.sticks"))}
+    ${gmRow("ctl.fireAim", "<kbd>RT</kbd> \xB7 <kbd>LT</kbd>")}
+    ${gmRow("ctl.reload", "<kbd>X</kbd>")}
+    ${gmRow("ctl.cut", gmHtml("ctl.padCutHtml"))}
+    ${gmRow("ctl.swap", gmHtml("ctl.padSwapHtml"))}
+    ${gmRow("ctl.jump", "<kbd>A</kbd>")}
+    ${gmRow("ctl.crouch", gmHtml("ctl.padCrouchHtml"))}
+    ${gmRow("ctl.sprint", gmTxt("ctl.padSprint"))}
+    ${gmRow("ctl.melee", gmHtml("ctl.padMeleeHtml"))}
+    ${gmRow("ctl.pause", "<kbd>Start</kbd>")}
   </dl>`,
     rL = `
   <dl class="keys">
-    <div><dt>Move</dt><dd>Left thumb, anywhere</dd></div>
-    <div><dt>Look</dt><dd>Drag the right side</dd></div>
-    <div><dt>Fire</dt><dd>Hold FIRE, drag to track</dd></div>
-    <div><dt>Aim</dt><dd>AIM toggles</dd></div>
-    <div><dt>Reload</dt><dd>RLD</dd></div>
-    <div><dt>Jump</dt><dd>JUMP</dd></div>
-    <div><dt>Cut siren</dt><dd>Hold USE at a siren box</dd></div>
-    <div><dt>Sprint</dt><dd>Push the stick fully forward</dd></div>
-  </dl>`;
+    ${gmRow("ctl.move", gmTxt("ctl.touchMove"))}
+    ${gmRow("ctl.look", gmTxt("ctl.touchLook"))}
+    ${gmRow("ctl.fire", gmTxt("ctl.touchFire"))}
+    ${gmRow("ctl.aim", gmTxt("ctl.touchAim"))}
+    ${gmRow("ctl.reload", gmTxt("ctl.touchReload"))}
+    ${gmRow("ctl.jump", gmTxt("ctl.touchJump"))}
+    ${gmRow("ctl.cut", gmTxt("ctl.touchCut"))}
+    ${gmRow("ctl.sprint", gmTxt("ctl.touchSprint"))}
+  </dl>`,
+    gmLangs = (cls) =>
+      L10N.LOCALES.map(
+        (l) =>
+          `<button class="${cls}" data-lang="${l.code}" lang="${l.code}" aria-pressed="false">${l.name}</button>`,
+      ).join("");
   // === Menus and settings UI ===
   function hT(n, e) {
     let t = document.getElementById("ui"),
@@ -83610,106 +83668,113 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       (s.dataset.screen = "none"),
       (s.innerHTML = `
     <div class="m-veil"></div>
-    <div class="m-bars"><i></i><i></i></div>
+    <div class="m-frame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 
-    <section class="m-screen m-title" data-s="title" aria-label="Saltline">
+    <section class="m-screen m-title" data-s="title" aria-labelledby="m-word">
+      <header class="m-top">
+        <div class="m-unit"><span class="m-tag">07</span><span data-i18n="title.unit"></span></div>
+        <div class="m-langs" role="group" data-i18n-aria="lang.label">${gmLangs("m-lang")}</div>
+      </header>
       <div class="m-title-main">
-        <div class="m-eyebrow"><span class="m-tag">Q7</span><span>Quarantine Warden Unit</span><span class="m-dim">Chinatown \xB7 Golden Dragon Street \xB7 19:42</span></div>
-        <h1 class="m-word">SALTLINE</h1>
-        <p class="m-premise">Chinatown has fallen to the dead. Cut the three evac sirens. Reach the checkpoint.</p>
+        <h1 class="m-word" id="m-word" aria-label="\u9B3C\u5E02 Ghost Market">
+          <span class="m-word-cjk" aria-hidden="true">\u9B3C\u5E02</span>
+          <span class="m-word-lat" aria-hidden="true"><span>Ghost</span><span>Market</span></span>
+        </h1>
+        <p class="m-place"><i class="m-seal" aria-hidden="true">\u5510\u4EBA\u8857</i><span data-i18n="title.place"></span></p>
+        <p class="m-premise" data-i18n="title.premise"></p>
         <div class="m-actions">
-          <button class="btn primary" data-act="deploy">Deploy</button>
-          <button class="btn" data-act="settings">Settings</button>
-          <button class="btn m-only-narrow" data-act="controls">Controls</button>
+          <button class="btn primary" data-act="deploy"><span data-i18n="act.deploy"></span></button>
+          <button class="btn" data-act="settings" data-i18n="act.settings"></button>
+          <button class="btn" data-act="controls" data-i18n="act.controls"></button>
         </div>
         <div class="m-pick">
-          <label id="l-tm">Mode</label><div class="seg" role="group" aria-labelledby="l-tm">${uT.map((W) => `<button data-m="${W[0]}" aria-pressed="false">${W[1]}</button>`).join("")}</div>
-          <label id="l-td">Difficulty</label><div class="seg" role="group" aria-labelledby="l-td">${ab.map((W) => `<button data-d="${W[0]}" aria-pressed="false">${W[1]}</button>`).join("")}</div>
+          <label id="l-tm" data-i18n="title.mode"></label><div class="seg" role="group" aria-labelledby="l-tm">${uT.map((W) => `<button data-m="${W[0]}" aria-pressed="false" data-i18n="mode.${W[0]}"></button>`).join("")}</div>
+          <label id="l-td" data-i18n="title.difficulty"></label><div class="seg" role="group" aria-labelledby="l-td">${ab.map((W) => `<button data-d="${W[0]}" aria-pressed="false" data-i18n="diff.${W[0]}"></button>`).join("")}</div>
           <div class="m-pick-note" data-f="modenote"></div>
         </div>
-        <p class="m-note">Streets, signs and weather are built in your browser. Characters, props and surfaces are free-licensed assets.</p>
       </div>
-      <aside class="m-legend" aria-label="Controls at a glance">
-        <div><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</span><span><kbd>Mouse</kbd> Look</span><span><kbd>LMB</kbd> Fire</span><span><kbd>RMB</kbd> Aim</span><span><kbd>R</kbd> Reload</span></div>
-        <div><span><kbd>Q</kbd> Sidearm</span><span><kbd>E</kbd> Cut siren</span><span><kbd>Space</kbd> Jump</span><span><kbd>Shift</kbd> Sprint</span><span><kbd>C</kbd> Crouch</span><span><kbd>Esc</kbd> Pause</span></div>
-        <div class="lg-pad"><em>Controller</em><span>Sticks move and look</span><span><kbd>RT</kbd> Fire</span><span><kbd>LT</kbd> Aim</span><span><kbd>X</kbd> Reload / cut</span><span><kbd>Y</kbd> Sidearm</span><span><kbd>A</kbd> Deploy</span></div>
-        <div class="lg-touch"><em>Touch</em><span>Left thumb moves</span><span>Right thumb looks</span><span>Fire \xB7 Aim \xB7 Reload \xB7 Jump on screen</span></div>
+      <aside class="m-legend" data-i18n-aria="act.controls">
+        <div><em data-i18n="legend.keys"></em><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> <b data-i18n="ctl.move"></b></span><span><kbd data-i18n="ctl.mouse"></kbd> <b data-i18n="ctl.look"></b></span><span><kbd>LMB</kbd> <b data-i18n="ctl.fire"></b></span><span><kbd>RMB</kbd> <b data-i18n="ctl.aim"></b></span><span><kbd>R</kbd> <b data-i18n="ctl.reload"></b></span></div>
+        <div><span><kbd>Q</kbd> <b data-i18n="legend.sidearm"></b></span><span><kbd>E</kbd> <b data-i18n="ctl.cut"></b></span><span><kbd>Space</kbd> <b data-i18n="ctl.jump"></b></span><span><kbd>Shift</kbd> <b data-i18n="ctl.sprint"></b></span><span><kbd>C</kbd> <b data-i18n="ctl.crouch"></b></span><span><kbd>Esc</kbd> <b data-i18n="ctl.pause"></b></span></div>
+        <div class="lg-pad"><em data-i18n="legend.pad"></em><span data-i18n="legend.padSticks"></span><span><kbd>RT</kbd> <b data-i18n="ctl.fire"></b></span><span><kbd>LT</kbd> <b data-i18n="ctl.aim"></b></span><span><kbd>X</kbd> <b data-i18n="legend.padReload"></b></span><span><kbd>Y</kbd> <b data-i18n="legend.sidearm"></b></span><span><kbd>A</kbd> <b data-i18n="act.deploy"></b></span></div>
       </aside>
-      <aside class="m-callout" aria-label="A note from Felix" hidden>
-        <button class="m-callout-tab" data-act="note" aria-expanded="false">A note from Felix</button>
-        <div class="m-callout-body">
-          <button class="m-callout-x" data-act="note" aria-label="Dismiss this note">&times;</button>
-          <p>Hi, Felix here. People online were impressed with the one-shotted version of this game - Claude Fable 5.2 built something pretty good without any human feedback. However, I really wanted to fix the weapon models, sounds, and some gameplay work. I spent an additional two hours to improve this game.</p>
-          <p>If you'd rather see the first version that didn't receive any human feedback, click here:</p>
-          <a class="btn small" href="https://claude.ai/artifact/2UXyB49DrVHFfhTMdNDFTA" style="display:flex;align-items:center;justify-content:center;text-align:center;padding-left:18px;padding-right:18px;text-decoration:none">See the one-shotted version</a>
-        </div>
-      </aside>
+      <p class="m-note" data-i18n="title.note"></p>
     </section>
 
-    <section class="m-screen m-card" data-s="paused" aria-label="Paused">
-      <div class="m-k">Operation on hold</div>
-      <h2 class="m-h">Paused</h2>
+    <section class="m-screen m-card" data-s="paused" data-i18n-aria="pause.title">
+      <div class="m-k" data-i18n="pause.kicker"></div>
+      <h2 class="m-h" data-i18n="pause.title"></h2>
       <p class="m-line" data-f="lookmode"></p>
       <div class="m-actions col">
-        <button class="btn primary" data-act="resume">Resume</button>
-        <button class="btn" data-act="settings">Settings</button>
-        <button class="btn" data-act="controls">Controls</button>
-        <button class="btn" data-act="restart">Restart mission</button>
+        <button class="btn primary" data-act="resume" data-i18n="act.resume"></button>
+        <button class="btn" data-act="settings" data-i18n="act.settings"></button>
+        <button class="btn" data-act="controls" data-i18n="act.controls"></button>
+        <button class="btn" data-act="restart" data-i18n="act.restart"></button>
       </div>
     </section>
 
-    <section class="m-screen m-card m-dead" data-s="dead" aria-label="Signal lost">
-      <div class="m-k">Warden down</div>
-      <h2 class="m-h">Signal lost</h2>
-      <dl class="m-stats"><div><dt>Time survived</dt><dd data-f="dead-time">00:00</dd></div><div data-only="mission"><dt>Sirens cut</dt><dd data-f="dead-relays">0/3</dd></div><div data-only="holdout"><dt>Waves cleared</dt><dd data-f="dead-wave">0</dd></div><div data-only="holdout"><dt>Dead put down</dt><dd data-f="dead-kills">0</dd></div><div data-only="holdout"><dt>Score</dt><dd data-f="dead-score">0</dd></div><div data-only="holdout"><dt>Best</dt><dd data-f="dead-best">0</dd></div></dl>
-      <div class="m-actions col"><button class="btn primary" data-act="retry">Retry</button></div>
+    <section class="m-screen m-card m-dead" data-s="dead" data-i18n-aria="dead.title">
+      <div class="m-k" data-i18n="dead.kicker"></div>
+      <h2 class="m-h" data-i18n="dead.title"></h2>
+      <dl class="m-stats"><div><dt data-i18n="dead.time"></dt><dd data-f="dead-time">00:00</dd></div><div data-only="mission"><dt data-i18n="dead.sirens"></dt><dd data-f="dead-relays">0/3</dd></div><div data-only="holdout"><dt data-i18n="dead.waves"></dt><dd data-f="dead-wave">0</dd></div><div data-only="holdout"><dt data-i18n="dead.kills"></dt><dd data-f="dead-kills">0</dd></div><div data-only="holdout"><dt data-i18n="dead.score"></dt><dd data-f="dead-score">0</dd></div><div data-only="holdout"><dt data-i18n="dead.best"></dt><dd data-f="dead-best">0</dd></div></dl>
+      <div class="m-actions col"><button class="btn primary" data-act="retry" data-i18n="act.retry"></button></div>
     </section>
 
-    <section class="m-screen m-card m-debrief" data-s="complete" aria-label="Debrief">
-      <div class="m-k">Golden Dragon Street \xB7 Debrief</div>
-      <h2 class="m-h">Chinatown is sealed</h2>
-      <div class="m-rating"><span>Rating</span><b data-f="rating">Clean</b></div>
+    <section class="m-screen m-card m-debrief" data-s="complete" data-i18n-aria="debrief.title">
+      <div class="m-k" data-i18n="debrief.kicker"></div>
+      <h2 class="m-h" data-i18n="debrief.title"></h2>
+      <div class="m-rating"><span data-i18n="debrief.rating"></span><b data-f="rating"></b></div>
       <dl class="m-stats">
-        <div><dt>Time</dt><dd data-f="time">00:00</dd></div>
-        <div><dt>Accuracy</dt><dd data-f="acc">0%</dd></div>
-        <div><dt>Dead put down</dt><dd data-f="kills">0</dd></div>
-        <div><dt>Retries</dt><dd data-f="retries">0</dd></div>
+        <div><dt data-i18n="debrief.time"></dt><dd data-f="time">00:00</dd></div>
+        <div><dt data-i18n="debrief.accuracy"></dt><dd data-f="acc">0%</dd></div>
+        <div><dt data-i18n="debrief.kills"></dt><dd data-f="kills">0</dd></div>
+        <div><dt data-i18n="debrief.retries"></dt><dd data-f="retries">0</dd></div>
       </dl>
-      <div class="m-actions col"><button class="btn primary" data-act="redeploy">Redeploy</button></div>
+      <div class="m-actions col"><button class="btn primary" data-act="redeploy" data-i18n="act.redeploy"></button></div>
     </section>
 
-    <div class="panel" role="dialog" aria-modal="true" aria-label="Settings and controls" tabindex="-1" hidden>
+    <div class="panel" role="dialog" aria-modal="true" data-i18n-aria="panel.label" tabindex="-1" hidden>
       <header class="panel-h">
         <div class="tabs" role="tablist">
-          <button class="tab" role="tab" data-tab="settings" aria-selected="true">Settings</button>
-          <button class="tab" role="tab" data-tab="controls" aria-selected="false">Controls</button>
+          <button class="tab" role="tab" data-tab="settings" aria-selected="true" data-i18n="panel.settings"></button>
+          <button class="tab" role="tab" data-tab="controls" aria-selected="false" data-i18n="panel.controls"></button>
+          <button class="tab" role="tab" data-tab="about" aria-selected="false" data-i18n="panel.about"></button>
         </div>
-        <button class="btn small" data-act="close-panel">Close</button>
+        <button class="btn small" data-act="close-panel" data-i18n="act.close"></button>
       </header>
       <div class="panel-b" data-pane="settings">
-        <div class="row"><label id="l-d">Difficulty</label>
-          <div class="seg" role="group" aria-labelledby="l-d">${ab.map((W) => `<button data-d="${W[0]}" aria-pressed="false">${W[1]}</button>`).join("")}</div></div>
-        <div class="row"><label id="l-v">Weapon position</label>
-          <div class="seg" role="group" aria-labelledby="l-v">${cT.map((W) => `<button data-v="${W[0]}" aria-pressed="false">${W[1]}</button>`).join("")}</div></div>
-        <div class="row"><label id="l-q">Graphics quality</label>
-          <div class="seg" role="group" aria-labelledby="l-q">${fT.map((W) => `<button data-q="${W}" aria-pressed="false">${W}</button>`).join("")}</div></div>
-        <div class="row"><label for="s-sens">Mouse sensitivity</label><div class="slider"><input id="s-sens" type="range" min="0.2" max="3" step="0.05"><output data-o="sens"></output></div></div>
-        <div class="row"><label id="l-inv">Invert Y</label><button class="toggle" data-act="invert" aria-labelledby="l-inv" aria-pressed="false"><i></i><span>Off</span></button></div>
-        <div class="row"><label for="s-vol">Master volume</label><div class="slider"><input id="s-vol" type="range" min="0" max="100" step="1"><output data-o="vol"></output></div></div>
-        <div class="row"><label for="s-fov">Field of view</label><div class="slider"><input id="s-fov" type="range" min="60" max="95" step="1"><output data-o="fov"></output></div></div>
-        <div class="row" data-row="fs"><label id="l-fs">Display</label><button class="btn small" data-act="fullscreen" aria-labelledby="l-fs fs-t"><span id="fs-t">Enter fullscreen</span></button></div>
+        <div class="row"><label id="l-lang" data-i18n="lang.label"></label>
+          <div class="seg seg-lang" role="group" aria-labelledby="l-lang">${gmLangs("")}</div></div>
+        <div class="row"><label id="l-d" data-i18n="set.difficulty"></label>
+          <div class="seg" role="group" aria-labelledby="l-d">${ab.map((W) => `<button data-d="${W[0]}" aria-pressed="false" data-i18n="diff.${W[0]}"></button>`).join("")}</div></div>
+        <div class="row"><label id="l-v" data-i18n="set.view"></label>
+          <div class="seg" role="group" aria-labelledby="l-v">${cT.map((W) => `<button data-v="${W[0]}" aria-pressed="false" data-i18n="view.${W[0]}"></button>`).join("")}</div></div>
+        <div class="row"><label id="l-q" data-i18n="set.quality"></label>
+          <div class="seg" role="group" aria-labelledby="l-q">${fT.map((W) => `<button data-q="${W}" aria-pressed="false" data-i18n="quality.${W}"></button>`).join("")}</div></div>
+        <div class="row"><label for="s-sens" data-i18n="set.sens"></label><div class="slider"><input id="s-sens" type="range" min="0.2" max="3" step="0.05"><output data-o="sens"></output></div></div>
+        <div class="row row-inline"><label id="l-inv" data-i18n="set.invert"></label><button class="toggle" data-act="invert" aria-labelledby="l-inv" aria-pressed="false"><i></i><span></span></button></div>
+        <div class="row"><label for="s-vol" data-i18n="set.volume"></label><div class="slider"><input id="s-vol" type="range" min="0" max="100" step="1"><output data-o="vol"></output></div></div>
+        <div class="row"><label for="s-fov" data-i18n="set.fov"></label><div class="slider"><input id="s-fov" type="range" min="60" max="95" step="1"><output data-o="fov"></output></div></div>
+        <div class="row row-inline" data-row="fs"><label id="l-fs" data-i18n="set.display"></label><button class="btn small" data-act="fullscreen" aria-labelledby="l-fs fs-t"><span id="fs-t"></span></button></div>
         <p class="panel-note" data-f="qnote"></p>
       </div>
       <div class="panel-b" data-pane="controls" hidden>
-        <h3>Keyboard \xB7 Mouse</h3>${sL}
-        <p class="panel-note">If the browser will not capture the mouse, hold a mouse button and drag to look (left also fires, right also aims). Arrow keys or <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> turn, <kbd>Enter</kbd> fires.</p>
-        <h3>Touch</h3>${rL}
-        <h3>Controller</h3>${oL}
-        <p class="panel-note">In menus the D-pad or left stick moves the selection, <kbd>A</kbd> accepts and <kbd>B</kbd> goes back. Browsers only start sound after a click or key press, so click once if a controller-only start is silent.</p>
+        <h3 data-i18n="ctl.keyboard"></h3>${sL}
+        <p class="panel-note" data-i18n-html="ctl.noteMouseHtml"></p>
+        <h3 data-i18n="ctl.touch"></h3>${rL}
+        <h3 data-i18n="ctl.pad"></h3>${oL}
+        <p class="panel-note" data-i18n-html="ctl.notePadHtml"></p>
+      </div>
+      <div class="panel-b panel-about" data-pane="about" hidden>
+        <div class="about-mark" aria-hidden="true"><span class="about-seal">\u9B3C\u5E02</span><span class="about-word">Ghost Market</span></div>
+        <h3 data-i18n="about.title"></h3>
+        <p class="panel-p" data-i18n="about.body"></p>
+        <a class="btn small about-link" href="https://claude.ai/artifact/BGY1SztrAYcJQHSsnHHGmp" target="_blank" rel="noopener" data-i18n="about.link"></a>
+        <p class="panel-note" data-i18n="about.assets"></p>
       </div>
     </div>
 
-    <div class="loc-card" aria-hidden="true"><i></i><b>Chinatown \xB7 Golden Dragon Street \xB7 19:42</b><span>Quarantine Warden Unit \u2014 one warden, no backup</span></div>
+    <div class="loc-card" aria-hidden="true"><i></i><b data-i18n="loc.place"></b><span data-i18n="loc.unit"></span></div>
   `),
       t.appendChild(s));
     let o = (W) => s.querySelector(W),
@@ -83773,7 +83838,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       for (let G of r(".seg button[data-m]"))
         G.setAttribute("aria-pressed", String(G.dataset.m === i.mode));
       ((s.dataset.mode = i.mode),
-        (c("modenote").textContent = nL[i.mode] || ""),
+        (c("modenote").textContent = L10N.t("modeNote." + i.mode)),
         (u.value = i.sens),
         (f.value = Math.round(i.volume * 100)),
         (h.value = i.fov),
@@ -83782,13 +83847,17 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         (o('[data-o="fov"]').textContent = Math.round(i.fov) + "\xB0"));
       let J = o('[data-act="invert"]');
       (J.setAttribute("aria-pressed", String(i.invertY)),
-        (J.querySelector("span").textContent = i.invertY ? "On" : "Off"),
+        (J.querySelector("span").textContent = L10N.t(
+          i.invertY ? "set.on" : "set.off",
+        )),
         (c("qnote").textContent =
-          i.quality === "auto"
-            ? `Quality was picked for this device (${W || "default"}). Lower it if the frame rate struggles.`
-            : "Quality changes apply at once; shadows and reflections may take a moment to rebuild."),
-        (c("qnote").textContent +=
-          " Difficulty applies to the dead that arrive from now on."));
+          (i.quality === "auto"
+            ? L10N.t("set.qAuto", {
+                q: W ? L10N.t("quality." + W) : "\u2014",
+              })
+            : L10N.t("set.qManual")) +
+          " " +
+          L10N.t("set.qDiff")));
     }
     (u.addEventListener("input", () => {
       ((i.sens = +u.value), m("sens"), x(), cc(i));
@@ -83809,8 +83878,9 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       document.fullscreenEnabled !== !1 &&
       document.webkitFullscreenEnabled !== !1) ||
       (v.hidden = !0);
+    let fsNone = !1;
     function M() {
-      y.textContent = "Fullscreen is not available here";
+      ((fsNone = !0), (y.textContent = L10N.t("set.fsNone")));
     }
     function _() {
       try {
@@ -83827,8 +83897,11 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       }
     }
     let T = () => {
-      y.textContent = b() ? "Exit fullscreen" : "Enter fullscreen";
+      y.textContent = L10N.t(
+        fsNone ? "set.fsNone" : b() ? "set.fsExit" : "set.fsEnter",
+      );
     };
+    T();
     (document.addEventListener("fullscreenchange", T),
       document.addEventListener("webkitfullscreenchange", T));
     function w(W) {
@@ -83860,37 +83933,14 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           W.focus({ preventScroll: !0 });
         } catch {}
     }
-    let I = s.querySelector(".m-callout"),
-      L = I.querySelector(".m-callout-tab"),
-      U = "saltline.note";
-    function k(W, J) {
-      if (
-        (I.classList.toggle("open", W),
-        L.setAttribute("aria-expanded", String(W)),
-        J)
-      )
-        try {
-          localStorage.setItem(U, W ? "1" : "0");
-        } catch {}
-    }
-    {
-      let W = null;
-      try {
-        W = localStorage.getItem(U);
-      } catch {}
-      (k(
-        W
-          ? W === "1"
-          : typeof matchMedia == "function" &&
-              matchMedia("(min-width: 1100px) and (min-height: 600px)").matches,
-        !1,
-      ),
-        (I.hidden = !rT()));
-    }
     (s.addEventListener("click", (W) => {
       let J = W.target.closest("button");
       if (!J || !s.contains(J)) return;
-      if ((n.events.emit("ui:click", {}), J.dataset.q)) {
+      if ((n.events.emit("ui:click", {}), J.dataset.lang)) {
+        L10N.setLocale(J.dataset.lang);
+        return;
+      }
+      if (J.dataset.q) {
         ((i.quality = J.dataset.q), m("quality"), x(), cc(i));
         return;
       }
@@ -83924,17 +83974,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
               ? ((i.invertY = !i.invertY), m("invertY"), x(), cc(i))
               : G === "fullscreen"
                 ? _()
-                : G === "note"
-                  ? (k(!I.classList.contains("open"), !0),
-                    (I.classList.contains("open")
-                      ? I.querySelector(".m-callout-x")
-                      : L
-                    ).focus())
-                  : G === "legacy"
-                    ? ((J.disabled = !0),
-                      (J.textContent = "Loading version 8"),
-                      requestAnimationFrame(() => setTimeout(() => aT(n), 30)))
-                    : G && e[G] && e[G](W);
+                : G && e[G] && e[G](W);
     }),
       s.addEventListener("mouseover", (W) => {
         let J = W.target.closest("button");
@@ -84050,33 +84090,47 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         setLookMode(W) {
           c("lookmode").textContent = W || "";
         },
-        setDead({ time: W, relays: J, total: G, holdout: te }) {
+        setDead(dd) {
+          lastDead = dd;
+          let { time: W, relays: J, total: G, holdout: te } = dd;
           ((c("dead-time").textContent = Z(W)),
             (c("dead-relays").textContent = `${J}/${G}`),
             te &&
               ((c("dead-wave").textContent = String(te.waves)),
               (c("dead-kills").textContent = String(te.kills)),
-              (c("dead-score").textContent = te.score.toLocaleString("en-US")),
-              (c("dead-best").textContent =
-                te.best.toLocaleString("en-US") + (te.record ? "  NEW" : ""))));
+              (c("dead-score").textContent = L10N.fmtNum(te.score)),
+              (c("dead-best").innerHTML =
+                L10N.fmtNum(te.best) +
+                (te.record
+                  ? ` <em class="m-badge">${L10N.t("dead.record")}</em>`
+                  : ""))));
         },
-        setDebrief({
-          time: W,
-          accuracy: J,
-          kills: G,
-          retries: te,
-          rating: oe,
-        }) {
+        setDebrief(db) {
+          lastDebrief = db;
+          let { time: W, accuracy: J, kills: G, retries: te, rating: oe } = db;
           ((c("time").textContent = Z(W)),
             (c("acc").textContent =
               J == null ? "\u2014" : Math.round(J * 100) + "%"),
             (c("kills").textContent = String(G)),
             (c("retries").textContent = String(te)),
-            (c("rating").textContent = oe));
+            (c("rating").textContent =
+              typeof oe == "number" ? L10N.t("rating." + oe) : oe));
         },
         applySettings: m,
       };
-    return (x(), Q);
+    let lastDead = null,
+      lastDebrief = null;
+    return (
+      L10N.applyDom(s),
+      L10N.onLocale(() => {
+        (x(),
+          T(),
+          lastDead && Q.setDead(lastDead),
+          lastDebrief && Q.setDebrief(lastDebrief));
+      }),
+      x(),
+      Q
+    );
   }
   // === Mission and holdout rules ===
   var xi = {
@@ -84168,28 +84222,27 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       waveBonus: 500,
       bestKey: "saltline.holdout.best",
     },
-    dT = [
-      "NORTH",
-      "NORTH-EAST",
-      "EAST",
-      "SOUTH-EAST",
-      "SOUTH",
-      "SOUTH-WEST",
-      "WEST",
-      "NORTH-WEST",
-    ],
+    dT = (i) => L10N.t("dir." + i),
+    // Radio lines resolve at the moment they are queued, in the current language.
     Vu = {
-      intro:
-        "Warden, this is Lantern Control. Chinatown is lost. Three evac sirens are still calling the dead in. Cut them \u2014 gate, market, temple.",
-      contact:
-        "They have your scent. Head shots put them down. Do not let them close.",
-      cut: [
-        "One siren dead. The whole street heard it go \u2014 here they come.",
-        "Two silent. They are pouring out of every doorway now.",
-      ],
-      all: "All three silent. The truck is at the east checkpoint, engine running. Move.",
-      low: "You are bleeding badly. Break contact and breathe.",
-      done: "Warden is through the wire. Chinatown is sealed. Good work.",
+      get intro() {
+        return L10N.t("radio.intro");
+      },
+      get contact() {
+        return L10N.t("radio.contact");
+      },
+      get cut() {
+        return [L10N.t("radio.cut1"), L10N.t("radio.cut2")];
+      },
+      get all() {
+        return L10N.t("radio.all");
+      },
+      get low() {
+        return L10N.t("radio.low");
+      },
+      get done() {
+        return L10N.t("radio.done");
+      },
     };
   // === Game state machine and objective progression ===
   function pT(n) {
@@ -84258,12 +84311,14 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         (C.difficulty = lb[Y] ? Y : "hard"));
     }
     let p = () => g.mode === "holdout",
-      d = (Y) => Math.round(Y).toLocaleString("en-US");
+      d = (Y) => L10N.fmtNum(Y);
     function m() {
       p() &&
         o.setTally &&
         o.setTally(
-          g.wave > 0 ? `Wave ${g.wave} \xB7 ${d(g.score)}` : "Stand by",
+          g.wave > 0
+            ? L10N.t("wave.tally", { n: g.wave, score: d(g.score) })
+            : L10N.t("wave.standby"),
         );
     }
     function x() {
@@ -84306,8 +84361,12 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         (g.waveOn = !0),
         (g.waveHot = 30));
       let Ve = ((Math.atan2(Te, -Re) * 180) / Math.PI + 360) % 360;
-      (o.warn && o.warn(`Wave ${Y} \u2014 ${dT[Math.round(Ve / 45) % 8]}`, 3.6),
-        o.setObjective("Hold the street"),
+      (o.warn &&
+        o.warn(
+          L10N.t("wave.warn", { n: Y, dir: dT(Math.round(Ve / 45) % 8) }),
+          3.6,
+        ),
+        o.setObjective(L10N.t("obj.hold")),
         m(),
         n.events.emit("holdout:wave", { wave: Y, count: V }));
     }
@@ -84325,11 +84384,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       (i.heal(cs.heal),
         g.wave % 2 === 0 && a(n.explosives, "reset"),
         o.radio &&
-          o.radio(
-            `Wave ${g.wave} down. Resupply dropped \u2014 ${cs.breather} seconds.`,
-            3.4,
-          ),
-        o.setObjective("Catch your breath"),
+          o.radio(L10N.t("wave.down", { n: g.wave, s: cs.breather }), 3.4),
+        o.setObjective(L10N.t("obj.breathe")),
         m(),
         n.events.emit("objective:done", {
           id: "wave",
@@ -84346,7 +84402,13 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
             : g.wave > 0 &&
               g.breakT < 3.05 &&
               Math.ceil(g.breakT) !== Math.ceil(g.breakT + Y) &&
-              o.message(`Wave ${g.wave + 1} in ${Math.ceil(g.breakT)}`, 1));
+              o.message(
+                L10N.t("wave.next", {
+                  n: g.wave + 1,
+                  s: Math.ceil(g.breakT),
+                }),
+                1,
+              ));
     }
     n.events.on("enemy:killed", (Y) => {
       !p() ||
@@ -84566,7 +84628,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       }
       (J(),
         o.setRelays && o.setRelays(0, g.relays.length),
-        o.setTally && o.setTally(p() ? "Stand by" : null),
+        o.setTally && o.setTally(p() ? L10N.t("wave.standby") : null),
         p() || ue());
     }
     function W(Y, he) {
@@ -84640,18 +84702,16 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     }
     function oe() {
       if (p())
-        return g.waveOn
-          ? "Hold the street"
-          : g.wave
-            ? "Catch your breath"
-            : "The dead are coming";
-      if (g.allCut) return "Get to the checkpoint";
+        return L10N.t(
+          g.waveOn ? "obj.hold" : g.wave ? "obj.breathe" : "obj.coming",
+        );
+      if (g.allCut) return L10N.t("obj.extract");
       let Y = g.relays.length - g.cut;
       return g.cut === 0
-        ? "Cut the three evac sirens"
+        ? L10N.t("obj.cutAll")
         : Y === 1
-          ? "Cut the last siren"
-          : `Cut the remaining ${Y} sirens`;
+          ? L10N.t("obj.cutLast")
+          : L10N.t("obj.cutN", { n: Y });
     }
     function ee(Y) {
       let he = r.describeMode ? r.describeMode() : "";
@@ -84701,7 +84761,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
               ? r.describeMode()
               : r.touch
                 ? ""
-                : "Resume recaptures the mouse.",
+                : L10N.t("pause.lookmode"),
           ),
           o.show(!1),
           l.show("paused"),
@@ -84814,7 +84874,11 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       }),
         (g.waveHot = 30));
       let Te = ((Math.atan2(ne, -ye) * 180) / Math.PI + 360) % 360;
-      o.warn && o.warn("Contact \u2014 " + dT[Math.round(Te / 45) % 8], 3.4);
+      o.warn &&
+        o.warn(
+          L10N.t("wave.contact", { dir: dT(Math.round(Te / 45) % 8) }),
+          3.4,
+        );
     }
     function $(Y) {
       let he = se();
@@ -84884,7 +84948,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         g.alertT = Math.max(g.alertT, 8);
       }),
       n.events.on("player:rescued", () => {
-        C.state === "playing" && o.message("Hauled out of the water", 2.5);
+        C.state === "playing" && o.message(L10N.t("obj.rescued"), 2.5);
       }));
     function me() {
       let Y = null,
@@ -84923,7 +84987,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
                 W(ne.o, "live"),
                 n.events.emit("objective:progress", { id: ne.id, t: 0 }))));
       he && !he.cut
-        ? o.setPrompt && o.setPrompt("Cut siren " + he.short, Is(he.t))
+        ? o.setPrompt &&
+          o.setPrompt(L10N.t("obj.prompt", { id: he.short }), Is(he.t))
         : o.setPrompt && o.setPrompt(null);
       let V = s.extraction;
       if (V && V.pos) {
@@ -84935,11 +85000,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
             !g.allCut &&
             !p() &&
             g.extractHint <= 0 &&
-            ((g.extractHint = 8),
-            o.message(
-              "Sirens still live \u2014 the truck stays shut while they howl",
-              3.5,
-            )),
+            ((g.extractHint = 8), o.message(L10N.t("obj.extractLocked"), 3.5)),
           (g.extractHint = Math.max(0, g.extractHint - Y)));
       }
     }
@@ -84950,8 +85011,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           Number.isFinite(Y.reserve) &&
           xi.cutAmmo > 0 &&
           ((Y.reserve = Math.min(cs.reserveCap, Y.reserve + xi.cutAmmo)),
-          o.message &&
-            o.message(`Siren box cache \u2014 +${xi.cutAmmo} rounds`, 2.6));
+          o.message && o.message(L10N.t("obj.cache", { n: xi.cutAmmo }), 2.6));
       } catch {}
     }
     function ce(Y) {
@@ -85005,7 +85065,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           (g.time < 270 ? 2 : g.time < 400 ? 1 : 0) +
           (he >= 0.5 ? 2 : he >= 0.3 ? 1 : 0) +
           (g.retries === 0 ? 1 : 0),
-        ne = ["Messy", "Loud", "Steady", "Clean", "Sharp", "Surgical"][V];
+        ne = V;
       (l.setDebrief({
         time: g.time,
         accuracy: he,
@@ -85054,6 +85114,17 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       }),
       n.events.on("input:device", () => {
         ee(!0);
+      }),
+      L10N.onLocale(() => {
+        (C.state !== "title" && (o.setObjective(oe()), m()),
+          C.state === "paused" &&
+            l.setLookMode(
+              r.mode === "drag"
+                ? r.describeMode()
+                : r.touch
+                  ? ""
+                  : L10N.t("pause.lookmode"),
+            ));
       }));
     function X() {
       !r.uiPressed ||
@@ -85193,7 +85264,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       ((e = document.createElement("div")),
       (e.id = "fatal"),
       document.getElementById("app").appendChild(e)),
-      (e.textContent = "Saltline could not start: " + n));
+      (e.textContent = L10N.t("boot.fatal", { error: n })));
   }
   window.addEventListener("error", (n) => {
     window.__errors.push(String(n.message));
@@ -85447,13 +85518,13 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       y > 150 && console.log(`[boot] ${p} ${y.toFixed(0)}ms`);
     }
     if (
-      (await fa("Waking the renderer", 0.04),
+      (await fa(L10N.t("boot.renderer"), 0.04),
       await r("render", "render", () => ov(t), !0),
       (t.renderer = t.render.renderer),
       (t.scene = t.render.scene),
       (t.camera = t.render.camera),
       (t.viewCamera = t.render.viewCamera),
-      await fa("Mixing paint, rust and rain", 0.12),
+      await fa(L10N.t("boot.materials"), 0.12),
       await r("mats", "materials", () => lv(t)),
       (t.physics = v_(t)),
       (t.props = fv(t)),
@@ -85509,7 +85580,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     } else {
       if (
         (await fa(
-          ctHarbor ? "Stacking containers" : "Raising the paifang",
+          ctHarbor ? "Stacking containers" : L10N.t("boot.level"),
           0.34,
         ),
         await r(
@@ -85522,7 +85593,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           !0,
         ),
         await fa(
-          ctHarbor ? "Raising the cranes" : "Lighting the lanterns",
+          ctHarbor ? "Raising the cranes" : L10N.t("boot.lanterns"),
           0.5,
         ),
         await r("backdrop", "backdrop", async () =>
@@ -85530,7 +85601,10 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
             ? Iv(t)
             : (await import("./chinatown/backdrop.js")).createBackdrop(t),
         ),
-        await fa(ctHarbor ? "Flooding the apron" : "Soaking the streets", 0.58),
+        await fa(
+          ctHarbor ? "Flooding the apron" : L10N.t("boot.streets"),
+          0.58,
+        ),
         await r("ground", "ground", () => Vg(t)),
         t.ground.stub)
       ) {
@@ -85542,7 +85616,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         t.scene.add(p);
       }
       (t.physics.build(),
-        await fa("Loading tracers and smoke", 0.66),
+        await fa(L10N.t("boot.fx"), 0.66),
         await r("fx", "fx", () => f1(t)),
         await r("audio", "audio", () => (n.noaudio ? Sr.audio() : cE(t))),
         (t.player = xE(t)),
@@ -85553,16 +85627,16 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         (console.error("[boot] explosives failed: " + ((p && p.stack) || p)),
           (t.explosives = { items: [], reset() {}, update() {} }));
       }
-      (await fa("Checking the rifle", 0.74),
+      (await fa(L10N.t("boot.weapon"), 0.74),
         await r("weapon", "weapon", () => I5(t)),
-        await fa("Waking the dead", 0.82),
+        await fa(L10N.t("boot.dead"), 0.82),
         await r("enemies", "enemies", async () =>
           (await import("./chinatown/zombies.js")).createZombies(t),
         ),
         await r("hud", "hud", () => sT(t)),
         (t.game = pT(t)));
     }
-    await fa("Waiting for first light", 0.92);
+    await fa(L10N.t("boot.light"), 0.92);
     try {
       await t.render.onLevelReady();
     } catch (p) {
@@ -85588,7 +85662,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       }
     (n.noweapon && t.weapon.setVisible && t.weapon.setVisible(!1),
       e && uL(t),
-      await fa("Ready", 1),
+      await fa(L10N.t("boot.ready"), 1),
       gT.classList.add("done"),
       setTimeout(() => {
         gT.hidden = !0;
@@ -85764,7 +85838,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
               g = v[v.length >> 1],
               E = n.render.stats ? n.render.stats() : {},
               M = n.renderer.getDrawingBufferSize(new We());
-            e.textContent = `SALTLINE BENCH  t=${o.toFixed(0)}s
+            e.textContent = `GHOST MARKET BENCH  t=${o.toFixed(0)}s
 GPU: ${t}
 buffer ${M.x}x${M.y}  quality ${n.quality.name}  dpr ${window.devicePixelRatio}
 frame ms avg ${y.toFixed(1)}  median ${g.toFixed(1)}  p99 ${b.toFixed(1)}  => ${(1e3 / y).toFixed(0)} fps

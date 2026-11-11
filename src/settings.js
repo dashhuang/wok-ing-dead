@@ -11,25 +11,10 @@ export function createSettingsStore(defaultFov) {
       mode: "mission",
       view: 1,
     },
-    viewOptions = [
-      [1, "Close"],
-      [2, "Three-quarter"],
-      [3, "Compact"],
-    ],
-    modeOptions = [
-      ["mission", "Mission"],
-      ["holdout", "Holdout"],
-    ],
-    modeDescriptions = {
-      mission: "Cut three sirens and reach the checkpoint. About six minutes.",
-      holdout:
-        "Endless waves that keep growing. Resupply between waves. How long can you hold?",
-    },
-    difficultyOptions = [
-      ["standard", "Standard"],
-      ["hard", "Hard"],
-      ["brutal", "Brutal"],
-    ],
+    // Labels live in src/i18n/locales (view.*, mode.*, modeNote.*, diff.*, quality.*).
+    viewOptions = [[1], [2], [3]],
+    modeOptions = [["mission"], ["holdout"]],
+    difficultyOptions = [["standard"], ["hard"], ["brutal"]],
     qualityOptions = ["low", "medium", "high", "ultra"];
   function load() {
     const settings = { ...defaults };
@@ -69,7 +54,6 @@ export function createSettingsStore(defaultFov) {
     defaults,
     viewOptions,
     modeOptions,
-    modeDescriptions,
     difficultyOptions,
     qualityOptions,
     load,

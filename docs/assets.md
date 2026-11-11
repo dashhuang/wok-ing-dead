@@ -11,6 +11,8 @@
 | 街头道具模型（43 个） | `public/assets/props/` | [Poly Haven](https://polyhaven.com) | CC0 |
 | 僵尸角色与动作 | `public/assets/zombies/` | Adobe Mixamo（经公开 GitHub 仓库获取） | Mixamo 使用条款，**不是 CC0**，见下文 |
 | 招牌字体（子集） | `public/assets/fonts/` | Noto Serif TC、LXGW WenKai TC（Google Fonts 仓库） | SIL OFL 1.1 |
+| 界面字体（子集） | `public/assets/fonts/ui/` | Inter、Noto Serif Display、Noto Sans / Serif SC·TC·JP（Google Fonts 仓库） | SIL OFL 1.1 |
+| 场景贴图用的拉丁字体 | `public/assets/fonts/world/` | Big Shoulders Display、Barlow Condensed、IBM Plex Mono（Google Fonts，拉丁子集） | SIL OFL 1.1 |
 | 僵尸嗓音（24 段） | `public/assets/audio/zombie/` | OpenGameArt | CC0，详见 [assets-audio.md](assets-audio.md) |
 
 招牌、霓虹灯、橱窗、海报、血迹、牌楼彩画等图案不是下载的图片，而是加载时用 Canvas 现画的（`src/chinatown/signs.js`）。
@@ -51,6 +53,28 @@ python scripts/assets/build-fonts.py <放有两个原始 TTF 的目录> public/a
 ```
 
 脚本会扫描 `src/chinatown/*.js` 里的汉字以及 `src/game.js` 中路面喷字用到的字。字体加载失败时回退到系统中文字体。
+
+### 界面字体
+
+| 文件 | 字体 | 用途 |
+| --- | --- | --- |
+| `gm-sans.woff2` | Inter（可变字重 400–800） | 界面正文、数字、按钮的拉丁字符 |
+| `gm-display.woff2` | Noto Serif Display（字重 500–900、字宽 62.5–100%） | 标题、弹药与生命数字、评价 |
+| `gm-sans-{sc,tc,jp}.woff2` | Noto Sans SC / TC / JP | 对应语言的界面正文 |
+| `gm-serif-{sc,tc,jp}.woff2` | Noto Serif SC / TC / JP（字重 600–900） | 对应语言的标题 |
+| `gm-logo.woff2` | Noto Serif TC Black | 标志「鬼市」与印章「唐人街」 |
+| `gm-names.woff2` | Noto Sans SC | 语言选择器里的「简体中文 / 繁體中文 / 日本語」 |
+
+中日文文件只保留各自语言包（`src/i18n/locales/*.js`）里出现的字，每个 100–160 KB；只有当前语言的文件会被下载。
+**改动或新增任何界面文案后都要重新生成**，否则新字会回退到系统字体：
+
+```sh
+# 需要 fonttools 和 brotli；源文件来自 github.com/google/fonts 的 ofl/ 目录，脚本开头列出了具体路径
+python scripts/assets/build-ui-fonts.py <放有原始可变字体 TTF 的目录>
+```
+
+`world/` 下是原版用于在场景贴图上写字（路面喷字、警示牌、枪身刻字）的三款拉丁字体，原先从 Google Fonts 在线加载，
+现改为本地文件，取自 Google Fonts 提供的 latin 子集。各目录都附有许可全文 `OFL-*.txt`。
 
 ## 仍然由代码生成的部分
 

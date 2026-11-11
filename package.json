@@ -1,14 +1,15 @@
 {
-  "name": "saltline",
+  "name": "ghost-market",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
+    "build:single": "node scripts/single/build.mjs",
     "preview": "vite preview --host 127.0.0.1",
-    "format": "prettier --write src/*.js src/chinatown/*.js src/engine/*.js src/*.css scripts/assets/*.mjs index.html vite.config.js",
-    "check": "for f in src/*.js src/chinatown/*.js src/engine/*.js; do node --check \"$f\" || exit 1; done && prettier --check src/*.js src/chinatown/*.js src/engine/*.js src/*.css scripts/assets/*.mjs index.html vite.config.js"
+    "format": "prettier --write src/*.js src/i18n/*.js src/i18n/locales/*.js src/chinatown/*.js src/engine/*.js src/*.css scripts/assets/*.mjs scripts/single/* index.html vite.config.js",
+    "check": "for f in src/*.js src/i18n/*.js src/i18n/locales/*.js src/chinatown/*.js src/engine/*.js; do node --check \"$f\" || exit 1; done && prettier --check src/*.js src/i18n/*.js src/i18n/locales/*.js src/chinatown/*.js src/engine/*.js src/*.css scripts/assets/*.mjs scripts/single/* index.html vite.config.js"
   },
   "devDependencies": {
     "prettier": "^3.9.10",
