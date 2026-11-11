@@ -4,14 +4,16 @@ const PORT = 5199;
 
 export default defineConfig({
   testDir: "tests/e2e",
-  // The game builds the whole street on load; under software WebGL (CI) that takes ~30-60 s.
+  // The game builds the whole street on load: ~30 s on a GPU, 30-60 s under software WebGL.
   timeout: 240_000,
   expect: { timeout: 90_000 },
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
+  reporter: process.env.CI
+    ? [["list"], ["github"], ["html", { open: "never" }]]
+    : "list",
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
     trace: "retain-on-failure",
@@ -23,10 +25,16 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1280, height: 720 },
-        launchOptions: {
-          // Software WebGL 2 so the test runs the same on CI runners without a GPU.
-          args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-        },
+        // Machines without a GPU (Linux CI, containers) fall back to software WebGL 2.
+        launchOptions:
+          process.platform === "linux"
+            ? {
+                args: [
+                  "--use-angle=swiftshader",
+                  "--enable-unsafe-swiftshader",
+                ],
+              }
+            : {},
       },
     },
   ],

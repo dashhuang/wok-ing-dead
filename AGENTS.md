@@ -19,7 +19,7 @@ npm run dev            # 开发服务器 http://127.0.0.1:5173/（有热重载�
 npm run check          # 全仓库 JS 语法 + Prettier 格式检查
 npm run format         # 自动修格式
 npm run build          # 生产构建到 dist/
-npm run test:e2e       # Playwright 真实点击冒烟测试（先 build；端口 5199）
+npm run test:e2e       # Playwright 真实点击冒烟测试（先 build；端口 5199；CI 上跑在 Mac Studio 自托管 runner）
 npm run verify         # check + build + test:e2e
 npm run build:single   # 单文件版 dist-single/wok-ing-dead.html（约 35 MB）
 ```

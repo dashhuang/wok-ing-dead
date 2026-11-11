@@ -35,8 +35,10 @@ jobs:
 
   e2e:
     name: Smoke test (real clicks)
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # The game needs ~10 GB of browser memory to build the street; GitHub-hosted runners
+    # for private repos have 7 GB. This job runs on Dash's Mac Studio (self-hosted runner).
+    runs-on: [self-hosted, macOS, saltline-e2e]
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -46,7 +48,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
       - name: Title → deploy → pause → die → retry
         run: npm run test:e2e
       - name: Upload report

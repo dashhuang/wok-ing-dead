@@ -27,6 +27,9 @@ const probeButtons = (page) =>
         const hit = inView && document.elementFromPoint(x, y);
         return {
           act: b.dataset.act,
+          hit: hit
+            ? `${hit.tagName.toLowerCase()}.${hit.className}`
+            : "nothing",
           x,
           y,
           inView,
@@ -70,16 +73,20 @@ async function waitForScreen(page, name) {
  * Every visible on-screen button must take clicks at its centre. Screens animate in, so
  * keep checking for a while; a button that stays covered fails the test.
  */
-async function expectButtonsReachable(page) {
-  await expect
-    .poll(
-      async () =>
-        (await probeButtons(page))
-          .filter((b) => b.inView && !b.reachable)
-          .map((b) => b.act),
-      { message: "buttons covered by other elements", timeout: 5_000 },
-    )
-    .toEqual([]);
+async function expectButtonsReachable(page, timeout = 10_000) {
+  const deadline = Date.now() + timeout;
+  let covered;
+  do {
+    covered = (await probeButtons(page)).filter(
+      (b) => b.inView && !b.reachable,
+    );
+    if (!covered.length) return;
+    await page.waitForTimeout(250);
+  } while (Date.now() < deadline);
+  expect(
+    covered.map((b) => `${b.act} (under ${b.hit})`),
+    "buttons covered by other elements",
+  ).toEqual([]);
 }
 
 /** Clicks a menu button with the real mouse once nothing covers it. */
@@ -136,14 +143,15 @@ test("a player can start, pause, die and retry with real input", async ({
   expect(pageErrors).toEqual([]);
 });
 
-for (const [name, viewport] of [
-  ["phone portrait", { width: 390, height: 844 }],
-  ["phone landscape", { width: 844, height: 390 }],
-]) {
-  test(`title buttons are reachable on a ${name}`, async ({ page }) => {
+test("title buttons are reachable on phones", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/?lang=zh-CN");
+  await waitForTitle(page);
+  for (const viewport of [
+    { width: 390, height: 844 }, // portrait
+    { width: 844, height: 390 }, // landscape
+  ]) {
     await page.setViewportSize(viewport);
-    await page.goto("/?lang=zh-CN");
-    await waitForTitle(page);
     await expectButtonsReachable(page);
-  });
-}
+  }
+});
