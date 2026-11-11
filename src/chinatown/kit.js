@@ -70,8 +70,12 @@ const SURFACE_WET = {
 
 export async function createKit(G) {
   const base = import.meta.env.BASE_URL || "/";
-  const aniso = Math.min(8, G.renderer.capabilities.getMaxAnisotropy());
   const lowTex = (G.quality.tex || 1024) < 1024;
+  // anisotropic filtering multiplies texture reads on every surface seen at an angle
+  const aniso = Math.min(
+    lowTex ? 2 : 8,
+    G.renderer.capabilities.getMaxAnisotropy(),
+  );
   const texLoader = new THREE.TextureLoader();
   const gltfLoader = new GLTFLoader();
   const sets = new Map();
@@ -402,6 +406,8 @@ export async function createKit(G) {
           b.cast && lit && !b.mat.transparent && o.cast !== false;
         mesh.receiveShadow = lit;
         mesh.matrixAutoUpdate = false;
+        // merged in world space and never moved: drawn once into the cached shadow map
+        mesh.userData.staticShadow = true;
         // small stuff is left out of the wet-street reflection pass (layer 2 = main view only)
         if (b.mat.userData.noReflect) mesh.layers.set(2);
         if (o.renderOrder) mesh.renderOrder = o.renderOrder;
@@ -793,11 +799,27 @@ export async function createKit(G) {
       }),
     );
   }
+  // GLB exports bring MeshPhysicalMaterial. None of the props use clearcoat, sheen or
+  // iridescence, so they become plain standard materials (a cheaper shader). Transmission is
+  // the expensive one: any transmissive mesh in view makes three.js re-render every opaque
+  // object into an extra multisampled target each frame, so glass becomes simple alpha glass.
+  function standardOf(src) {
+    if (!src.isMeshPhysicalMaterial) return src.clone();
+    // the standard copy() takes only the standard fields
+    const m = new THREE.MeshStandardMaterial().copy(src);
+    if (src.transmission > 0) {
+      m.transparent = true;
+      m.opacity = Math.min(m.opacity, 0.35);
+      m.depthWrite = false;
+      m.roughness = Math.min(m.roughness, 0.15);
+    }
+    return m;
+  }
   function propMaterial(src, o) {
     const key = src.uuid + (o.interior ? "i" : "") + (o.tint ?? "");
     let m = propMats.get(key);
     if (m) return m;
-    m = src.clone();
+    m = standardOf(src);
     if (m.map) m.map.anisotropy = Math.min(4, aniso);
     if (o.tint !== undefined)
       m.color.multiply(new THREE.Color(o.tint)).multiplyScalar(o.gain ?? 1);

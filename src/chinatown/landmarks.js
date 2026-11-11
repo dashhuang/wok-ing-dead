@@ -204,8 +204,14 @@ export function buildLandmarks(ctx, PLAN) {
         trims.instanceMatrix.needsUpdate = true;
     };
     place();
+    // the sway is slow (under 0.5 Hz): on the low preset 20 updates a second are plenty
+    const step = G.quality.name === "low" ? 1 / 20 : 0;
+    let acc = 0;
     ctx.updaters.push((dt) => {
       t += dt;
+      acc += dt;
+      if (acc < step) return;
+      acc = 0;
       place();
     });
   }
@@ -584,20 +590,22 @@ export function buildLandmarks(ctx, PLAN) {
     };
     const steel = kit.game("steel_galv"),
       dark = kit.game("steel_dark"),
-      yellow = kit.game("paint_yellow");
+      yellow = kit.game("paint_yellow"),
+      // the open horns are seen from inside: their own double-sided copy, so the shared
+      // yellow paint everywhere else stays single-sided
+      yellowHorn = kit.game("paint_yellow", { doubleSide: true });
     mesh(new THREE.CylinderGeometry(0.07, 0.09, h, 10), steel, 0, h / 2, 0);
     mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.22, 10), dark, 0, 0.11, 0);
     // twin horns
     for (const s of [-1, 1]) {
       const horn = mesh(
         new THREE.CylinderGeometry(0.36, 0.09, 0.62, 14, 1, true),
-        yellow,
+        yellowHorn,
         s * 0.42,
         h - 0.25,
         0,
       );
       horn.rotation.z = (s * Math.PI) / 2;
-      horn.material.side = THREE.DoubleSide;
     }
     mesh(new THREE.BoxGeometry(0.34, 0.3, 0.3), dark, 0, h - 0.25, 0);
     // beacon
@@ -1872,9 +1880,20 @@ export function buildLandmarks(ctx, PLAN) {
 
   ctx.finalizeLanterns = finalizeLanterns;
   ctx.finalizeGameProps = () => {
+    const originals = new Set();
+    gameStatic.traverse((o) => o.isMesh && originals.add(o));
     const merged = G.util.mergeStatic(gameStatic);
     merged.name = "ct-gameprops";
-    merged.traverse((o) => o.isMesh && o.layers.set(2));
+    merged.traverse((o) => {
+      if (!o.isMesh) return;
+      o.layers.set(2);
+      // new meshes are batches baked in world space; what the merger passed through as-is
+      // (instanced, skinned, noMerge) may still move
+      if (!originals.has(o)) {
+        o.matrixAutoUpdate = false;
+        o.userData.staticShadow = true;
+      }
+    });
     ctx.root.add(merged);
   };
   const explosives = [

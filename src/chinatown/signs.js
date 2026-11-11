@@ -1394,9 +1394,25 @@ export async function createSigns(kit) {
       glass: glassAtlas,
       decal: decalAtlas,
     },
-    finish() {
-      for (const a of [neonAtlas, boardAtlas, glassAtlas, decalAtlas])
+    // final: nothing more will be drawn. On the low preset the atlases are then uploaded at
+    // half resolution (4096 -> 2048): about 80 MB less GPU memory, and the full-size canvases
+    // are released.
+    finish({ final = false } = {}) {
+      const half = final && (kit.G.quality.tex || 1024) < 1024;
+      for (const a of [neonAtlas, boardAtlas, glassAtlas, decalAtlas]) {
+        if (half && a.canvas.width > 1024) {
+          const c = document.createElement("canvas");
+          c.width = c.height = a.canvas.width >> 1;
+          const x = c.getContext("2d");
+          x.imageSmoothingQuality = "high";
+          x.drawImage(a.canvas, 0, 0, c.width, c.height);
+          a.canvas.width = a.canvas.height = 1;
+          a.canvas = c;
+          a.ctx = x;
+          a.tex.image = c;
+        }
         a.tex.needsUpdate = true;
+      }
     },
   };
 }

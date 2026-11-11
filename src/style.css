@@ -1194,7 +1194,6 @@ kbd {
   inset: 0;
   opacity: 0;
   background: rgba(5, 6, 8, 0.6);
-  -webkit-backdrop-filter: blur(0px);
   transition: opacity 0.5s ease;
 }
 .menu.open .m-veil {
@@ -2227,4 +2226,34 @@ kbd {
   .comms-who::before {
     animation: none;
   }
+}
+
+/* Low preset (phones, tablets, weak GPUs): no backdrop blur. Every blurred element re-reads
+   and re-blurs the WebGL canvas behind it each frame, which on a phone costs as much as a
+   post pass. Slightly denser fills keep the text readable without it. */
+[data-quality="low"] .h-plabel,
+[data-quality="low"] .m-langs,
+[data-quality="low"] .m-pick .seg,
+[data-quality="low"] .btn,
+[data-quality="low"] .m-card,
+[data-quality="low"] .panel {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+[data-quality="low"] .h-plabel {
+  background: rgba(7, 8, 10, 0.72);
+}
+[data-quality="low"] .m-card {
+  background: linear-gradient(
+    180deg,
+    rgba(16, 18, 21, 0.97),
+    rgba(8, 9, 11, 0.97)
+  );
+}
+[data-quality="low"] .panel {
+  background: rgba(9, 10, 12, 0.99);
+}
+[data-quality="low"] .m-langs,
+[data-quality="low"] .m-pick .seg {
+  background-color: rgba(7, 8, 10, 0.62);
 }

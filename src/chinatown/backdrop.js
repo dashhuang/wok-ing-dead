@@ -327,7 +327,7 @@ export async function createBackdrop(G) {
     });
     void beacons;
   });
-  signs.finish();
+  signs.finish({ final: true });
   kit.flush("backdrop", root);
   B.fit.finish(root);
   Object.assign(ctx, keep);

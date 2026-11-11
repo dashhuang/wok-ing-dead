@@ -724,23 +724,19 @@ export async function createLevel(G) {
       c = Math.cos(p.a) * h,
       s = Math.sin(p.a) * h,
       o = p.i * 12;
-    poolPos.set(
-      [
-        p.x - c + s,
-        p.y,
-        p.z - s - c,
-        p.x - c - s,
-        p.y,
-        p.z - s + c,
-        p.x + c - s,
-        p.y,
-        p.z + s + c,
-        p.x + c + s,
-        p.y,
-        p.z + s - c,
-      ],
-      o,
-    );
+    // written in place: this runs every frame for each growing pool
+    poolPos[o] = p.x - c + s;
+    poolPos[o + 1] = p.y;
+    poolPos[o + 2] = p.z - s - c;
+    poolPos[o + 3] = p.x - c - s;
+    poolPos[o + 4] = p.y;
+    poolPos[o + 5] = p.z - s + c;
+    poolPos[o + 6] = p.x + c - s;
+    poolPos[o + 7] = p.y;
+    poolPos[o + 8] = p.z + s + c;
+    poolPos[o + 9] = p.x + c + s;
+    poolPos[o + 10] = p.y;
+    poolPos[o + 11] = p.z + s - c;
     poolGeo.attributes.position.needsUpdate = true;
   };
   G.events.on("enemy:killed", (e) => {

@@ -37,6 +37,7 @@ export function createLights(ctx) {
   }
   const cam = new THREE.Vector3();
   const fwd = new THREE.Vector3();
+  const ranked = new Array(count);
   let tick = 0;
   let clock = 0;
 
@@ -58,18 +59,34 @@ export function createLights(ctx) {
       if (e.slot) s *= 1.3; // hysteresis: keep what is already lit
       e.score = s;
     }
-    const ranked = emitters
-      .slice()
-      .sort((a, b) => b.score - a.score)
-      .slice(0, pool.length);
-    const keep = new Set(ranked.filter((e) => e.score > 0));
-    for (const p of pool) if (p.emitter && !keep.has(p.emitter)) p.target = 0;
-    for (const e of keep) {
+    // top pool.length by score: a partial insertion into a reused array (no sort, no garbage)
+    let n = 0;
+    for (const e of emitters) {
+      if (!(e.score > 0)) continue;
+      let i = n < pool.length ? n++ : pool.length;
+      if (i === pool.length && e.score <= ranked[i - 1].score) continue;
+      if (i === pool.length) i--;
+      while (i > 0 && ranked[i - 1].score < e.score) {
+        ranked[i] = ranked[i - 1];
+        i--;
+      }
+      ranked[i] = e;
+    }
+    for (const e of emitters) e.keep = false;
+    for (let i = 0; i < n; i++) ranked[i].keep = true;
+    for (const p of pool) if (p.emitter && !p.emitter.keep) p.target = 0;
+    for (let i = 0; i < n; i++) {
+      const e = ranked[i];
       if (e.slot) {
         e.slot.target = 1;
         continue;
       }
-      const free = pool.find((p) => !p.emitter);
+      let free = null;
+      for (const p of pool)
+        if (!p.emitter) {
+          free = p;
+          break;
+        }
       if (!free) continue;
       free.emitter = e;
       free.level = 0;

@@ -89,6 +89,61 @@ export async function createZombies(G) {
     );
   });
 
+  // The characters ship 2048 px maps (about 300 MB of GPU memory for all four). The low
+  // preset keeps them at 1024, which is what a phone screen can resolve on a zombie anyway.
+  const texLimit = (G.quality.tex || 1024) < 1024 ? 1024 : 0;
+  // keyed by image source: the occlusion/roughness/metalness maps share one image
+  const toShrink = new Map();
+  const wantShrink = (tex) => {
+    const img = tex && tex.image;
+    if (texLimit && img && img.width > texLimit) {
+      if (!toShrink.has(tex.source)) toShrink.set(tex.source, []);
+      toShrink.get(tex.source).push(tex);
+    }
+  };
+  // Resized by the browser into a new ImageBitmap (same raw, unpremultiplied, unconverted
+  // pixels as the GLTF loader's); a canvas is the fallback where resize options are missing.
+  async function shrink([source, users]) {
+    const img = source.data;
+    const k = texLimit / Math.max(img.width, img.height);
+    const w = Math.round(img.width * k),
+      h = Math.round(img.height * k);
+    let out = null;
+    try {
+      out = await createImageBitmap(img, {
+        resizeWidth: w,
+        resizeHeight: h,
+        resizeQuality: "high",
+        premultiplyAlpha: "none",
+        colorSpaceConversion: "none",
+      });
+      if (out.width !== w) out = null;
+    } catch {
+      out = null;
+    }
+    if (!out) {
+      out = document.createElement("canvas");
+      out.width = w;
+      out.height = h;
+      const x = out.getContext("2d");
+      x.imageSmoothingQuality = "high";
+      x.drawImage(img, 0, 0, w, h);
+    }
+    if (typeof img.close === "function") img.close();
+    source.data = out;
+    source.needsUpdate = true;
+    for (const tex of users) tex.needsUpdate = true;
+  }
+  const MAPS = [
+    "map",
+    "normalMap",
+    "roughnessMap",
+    "metalnessMap",
+    "aoMap",
+    "emissiveMap",
+    "alphaMap",
+  ];
+
   const templates = {};
   Object.keys(CHARACTERS).forEach((name, i) => {
     const scene = charFiles[i].scene;
@@ -99,6 +154,7 @@ export async function createZombies(G) {
       o.castShadow = true;
       o.receiveShadow = true;
       if (!materials.has(o.material)) materials.set(o.material, o.material);
+      for (const k of MAPS) wantShrink(o.material[k]);
     });
     templates[name] = {
       name,
@@ -114,6 +170,8 @@ export async function createZombies(G) {
       );
   });
 
+  await Promise.all([...toShrink].map(shrink));
+
   // ---------- shared state ----------
   const list = [];
   const corpses = [];
@@ -123,12 +181,18 @@ export async function createZombies(G) {
     b: new V3(),
     c: new V3(),
     d: new V3(),
+    e: new V3(),
     q: new T.Quaternion(),
   };
   const UP = new V3(0, 1, 0);
   let clock = 0;
   let nextId = 1;
   let noiseGate = 0;
+  // grid searches allowed per frame; the rest wait a frame (straight-line checks are free)
+  const PATHS_PER_FRAME = 3;
+  let pathBudget = PATHS_PER_FRAME;
+  const lowShadows = G.quality && G.quality.name === "low";
+  const LOW_SHADOW_D2 = 22 * 22;
 
   const emit = (name, data) => G.events.emit(name, data);
   const nav = () => G.physics.nav;
@@ -153,17 +217,68 @@ export async function createZombies(G) {
     });
   }
 
+  // The clone gives every skinned mesh its own copy of the skeleton, so each zombie would
+  // compute and upload the same bone matrices once per mesh (hair, eyes, body, clothes...).
+  // Meshes that shared a skeleton in the source share one again.
+  function shareSkeletons(source, rig) {
+    const src = [];
+    const dst = [];
+    source.traverse((o) => o.isSkinnedMesh && src.push(o));
+    rig.traverse((o) => o.isSkinnedMesh && dst.push(o));
+    if (src.length !== dst.length) return;
+    const shared = new Map();
+    dst.forEach((m, i) => {
+      const key = src[i].skeleton;
+      const s = shared.get(key);
+      if (s) m.skeleton = s;
+      else shared.set(key, m.skeleton);
+    });
+  }
+
   function createZombie(template) {
     const rig = cloneSkinned(template.scene);
+    shareSkeletons(template.scene, rig);
     // pallid, slightly green skin and clothes: kept light so they read under street light
     const k = rand(0.92, 1.2);
     const tint = new T.Color()
       .setHSL(rand(0.18, 0.36), rand(0.0, 0.16), 0.8)
       .multiplyScalar(k / 0.8);
     makeMaterials(rig, tint);
+    // Pooled rigs join the scene graph only while in use: the renderer walks every child's
+    // matrices each frame, visible or not, and a rig is ~70 bones.
     rig.visible = false;
-    root.add(rig);
-    const mixer = new T.AnimationMixer(rig);
+    const meshes = [];
+    rig.traverse((o) => o.isMesh && meshes.push(o));
+    // The skeleton lives outside the scene graph. Skinning only needs each bone's world
+    // matrix, so there is no reason for the renderer to walk ~65 bones per zombie every frame
+    // (matrix update and culling traversal). Bones are re-posed here, and only on frames where
+    // the zombie moved or its animation advanced (see sync()). Each top-level bone hangs from
+    // a pivot that keeps the transform of its old parent inside the rig.
+    rig.updateMatrixWorld(true);
+    const tops = [];
+    rig.traverse((o) => o.isBone && !o.parent.isBone && tops.push(o));
+    const holder = new T.Object3D();
+    holder.name = "skeleton";
+    holder.matrixAutoUpdate = false;
+    for (const b of tops) {
+      const pivot = new T.Object3D();
+      pivot.matrixAutoUpdate = false;
+      pivot.matrix.copy(b.parent.matrixWorld);
+      holder.add(pivot);
+      pivot.add(b);
+    }
+    // local matrices are composed by hand: bones in pose(), the rest of the rig never moves
+    rig.traverse((o) => {
+      o.updateMatrix();
+      o.matrixAutoUpdate = false;
+    });
+    const skel = [];
+    for (const b of tops)
+      b.traverse((o) => {
+        o.matrixAutoUpdate = false;
+        skel.push(o);
+      });
+    const mixer = new T.AnimationMixer(holder);
     const actions = {};
     for (const [name, clip] of Object.entries(template.clips)) {
       const a = mixer.clipAction(clip);
@@ -173,7 +288,7 @@ export async function createZombies(G) {
       }
       actions[name] = a;
     }
-    const bone = (n) => rig.getObjectByName(n);
+    const bone = (n) => holder.getObjectByName(n);
     const bones = {
       head: bone("Head"),
       neck: bone("Neck"),
@@ -245,6 +360,11 @@ export async function createZombies(G) {
       lodT: 0,
       lodAcc: 0,
       screamT: 0,
+      meshes,
+      skel,
+      holder,
+      dirty: true,
+      shadow: true,
 
       _activate(pos, opts = {}) {
         const tune = TUNE[z.type];
@@ -287,9 +407,11 @@ export async function createZombies(G) {
         play(z, "idle", 0);
         actions.idle.time = rand(0, 4);
         rig.visible = true;
+        if (rig.parent !== root) root.add(rig);
         place(z);
         mixer.update(0);
-        rig.updateMatrixWorld(true);
+        pose(z);
+        sync(z);
         readBones(z);
       },
 
@@ -297,6 +419,7 @@ export async function createZombies(G) {
         z.active = false;
         z.alive = false;
         rig.visible = false;
+        if (rig.parent) rig.parent.remove(rig);
         mixer.stopAllAction();
         z.anim = "";
       },
@@ -355,6 +478,28 @@ export async function createZombies(G) {
   // when does the swing actually land? sample the clip once and take the furthest forward reach of a hand
   const hitTime = measureHit(pool.find((z) => z.kind === "romero"));
 
+  // One rig per character waits far below the street until the first spawn, so the shader
+  // pre-compile at level-ready includes the skinned materials (no hitch on the first wave).
+  let warm = [];
+  for (const name of Object.keys(CHARACTERS)) {
+    const z = pool.find((p) => p.kind === name);
+    if (!z) continue;
+    z.rig.position.set(0, -200, 0);
+    z.rig.updateMatrix();
+    sync(z);
+    z.rig.visible = true;
+    root.add(z.rig);
+    warm.push(z);
+  }
+  function coolDown() {
+    for (const z of warm)
+      if (!z.active) {
+        z.rig.visible = false;
+        root.remove(z.rig);
+      }
+    warm = null;
+  }
+
   // ---------- animation ----------
   function play(z, name, fade = 0.22, timeScale = 1) {
     const next = z.actions[name];
@@ -374,9 +519,34 @@ export async function createZombies(G) {
   }
 
   function place(z) {
-    z.rig.position.set(z.pos.x, z.pos.y - z.sink, z.pos.z);
-    z.rig.rotation.y = z.yaw;
+    const r = z.rig;
+    const y = z.pos.y - z.sink;
+    if (
+      r.position.x !== z.pos.x ||
+      r.position.y !== y ||
+      r.position.z !== z.pos.z ||
+      r.rotation.y !== z.yaw
+    ) {
+      r.position.set(z.pos.x, y, z.pos.z);
+      r.rotation.y = z.yaw;
+      r.updateMatrix();
+      z.dirty = true;
+    }
     z.fwd.set(Math.sin(z.yaw), 0, Math.cos(z.yaw));
+  }
+
+  // after the mixer has written bone rotations
+  function pose(z) {
+    const s = z.skel;
+    for (let i = 0; i < s.length; i++) s[i].updateMatrix();
+    z.dirty = true;
+  }
+
+  // bone world matrices = rig placement x pose (the zombie root group sits at the origin)
+  function sync(z) {
+    z.holder.matrix.copy(z.rig.matrix);
+    z.holder.updateMatrixWorld(true);
+    z.dirty = false;
   }
 
   function readBones(z) {
@@ -394,6 +564,7 @@ export async function createZombies(G) {
     const a = z.actions.attack;
     z.rig.position.set(0, 0, 0);
     z.rig.rotation.y = 0;
+    z.rig.updateMatrix();
     a.reset().play();
     let best = 0;
     let bestT = clip.duration * 0.4;
@@ -401,7 +572,8 @@ export async function createZombies(G) {
       const t = (clip.duration * i) / 48;
       a.time = t;
       z.mixer.update(0);
-      z.rig.updateMatrixWorld(true);
+      pose(z);
+      sync(z);
       for (const hand of [z.bones.lHand, z.bones.rHand]) {
         if (!hand) continue;
         const p = tmp.a.setFromMatrixPosition(hand.matrixWorld);
@@ -503,7 +675,9 @@ export async function createZombies(G) {
   function follow(z, goal, dt, speed) {
     z.repathT -= dt;
     const n = nav();
-    if (z.repathT <= 0) {
+    if (z.repathT <= 0 && pathBudget <= 0) z.repathT = 0.016;
+    else if (z.repathT <= 0) {
+      pathBudget--;
       const dist = Math.hypot(goal.x - z.pos.x, goal.z - z.pos.z);
       z.repathT = dist < 6 ? rand(0.25, 0.45) : rand(0.6, 1.1);
       let direct = false;
@@ -547,6 +721,8 @@ export async function createZombies(G) {
     if (!z.alive) return updateCorpse(z, dt);
     const player = G.player;
     const tune = TUNE[z.type];
+    // hit volumes and the eye follow the pose the renderer last drew
+    readBones(z);
 
     sense(z, dt);
     z.cooldown -= dt;
@@ -680,6 +856,7 @@ export async function createZombies(G) {
 
     place(z);
     tickAnimation(z, dt);
+    if (z.dirty) sync(z);
 
     // ---- sound ----
     z.voiceT -= dt;
@@ -707,11 +884,31 @@ export async function createZombies(G) {
     }
   }
 
+  const camFwd = new V3();
+  let camFwdFrame = -1;
   function tickAnimation(z, dt) {
     // far or unseen zombies animate at a reduced rate
     const cam = G.camera ? G.camera.position : z.pos;
     const d2 = cam.distanceToSquared(z.pos);
-    const every = d2 > 1600 ? 3 : d2 > 500 ? 2 : 1;
+    let every = d2 > 1600 ? 3 : d2 > 500 ? 2 : 1;
+    if (G.camera && d2 > 9) {
+      if (camFwdFrame !== G.time.frame) {
+        G.camera.getWorldDirection(camFwd);
+        camFwdFrame = G.time.frame;
+      }
+      const ahead =
+        (z.pos.x - cam.x) * camFwd.x +
+        (z.pos.y + 0.9 - cam.y) * camFwd.y +
+        (z.pos.z - cam.z) * camFwd.z;
+      // behind the camera only its shadow can show: a lower rate is enough
+      if (ahead < -2) every = Math.max(every, d2 > 400 ? 4 : 2);
+    }
+    // on the low preset only nearby zombies cast shadows
+    const shadow = !lowShadows || d2 < LOW_SHADOW_D2;
+    if (shadow !== z.shadow) {
+      z.shadow = shadow;
+      for (const m of z.meshes) m.castShadow = shadow;
+    }
     z.lodAcc += dt;
     if (++z.lodT % every !== 0) return;
     z.mixer.update(z.lodAcc);
@@ -724,8 +921,7 @@ export async function createZombies(G) {
       z.bones.spine.quaternion.premultiply(tmp.q);
       z.flinch *= Math.exp(-dt * every * 9);
     }
-    z.rig.updateMatrixWorld(true);
-    readBones(z);
+    pose(z);
   }
 
   function kill(z, dir, part, dealt) {
@@ -775,8 +971,9 @@ export async function createZombies(G) {
     place(z);
     if (z.deadT < 4.5) {
       z.mixer.update(dt);
-      z.rig.updateMatrixWorld(true);
+      pose(z);
     }
+    if (z.dirty) sync(z);
   }
 
   function retire(z) {
@@ -833,7 +1030,8 @@ export async function createZombies(G) {
   }
   function rayCapsule(o, d, a, b, r, max) {
     // closest point on the segment to the ray, then a sphere test there
-    const ab = tmp.c.subVectors(b, a);
+    // (ab needs its own scratch vector: the closest point is written to tmp.c below)
+    const ab = tmp.e.subVectors(b, a);
     const ao = tmp.d.subVectors(o, a);
     const abab = ab.dot(ab);
     const abd = ab.dot(d);
@@ -860,7 +1058,14 @@ export async function createZombies(G) {
     tmp.a.copy(P.head);
     tmp.a.y += 0.085 * s;
     test(raySphere(o, d, tmp.a, HEAD_R * s, max), "weak");
-    test(rayCapsule(o, d, P.hips, P.neck, 0.2 * s, max), "body");
+    // the torso capsule stops one radius short of the neck, so its rounded top ends at the
+    // neck and does not swallow the head sphere
+    tmp.b.subVectors(P.neck, P.hips);
+    const torso = tmp.b.length();
+    tmp.b
+      .multiplyScalar(Math.max(0, torso - 0.2 * s) / (torso || 1))
+      .add(P.hips);
+    test(rayCapsule(o, d, P.hips, tmp.b, 0.2 * s, max), "body");
     test(rayCapsule(o, d, P.lArm, P.lFore, 0.075 * s, max), "arm");
     test(rayCapsule(o, d, P.lFore, P.lHand, 0.065 * s, max), "arm");
     test(rayCapsule(o, d, P.rArm, P.rFore, 0.075 * s, max), "arm");
@@ -883,6 +1088,7 @@ export async function createZombies(G) {
     list,
     TUNE,
     spawn(type, pos, opts = {}) {
+      if (warm) coolDown();
       const kind = type === "brute" ? "brute" : "walker";
       let free = pool.filter((z) => !z.active && z.type === kind);
       if (!free.length) {
@@ -909,6 +1115,8 @@ export async function createZombies(G) {
         const along = dx * dir.x + dy * dir.y + dz * dir.z;
         if (along < -1.5 || along > maxDist + 1.5) continue;
         if (dx * dx + dy * dy + dz * dz - along * along > 2.6) continue;
+        // the pose on screen right now (the renderer updated the bones after our update)
+        readBones(z);
         if (!out)
           out = {
             dist: Infinity,
@@ -939,7 +1147,8 @@ export async function createZombies(G) {
         if (z.mode === "patrol") emit("enemy:alert", { enemy: z, noise: true });
         z.mode = "investigate";
         z.modeT = rand(9, 13);
-        z.repathT = 0;
+        // spread the path searches of everyone who heard it over a few frames
+        z.repathT = rand(0, 0.35);
       }
     },
     update(dt) {
@@ -947,6 +1156,7 @@ export async function createZombies(G) {
       if (dt > 0.05) dt = 0.05;
       clock += dt;
       noiseGate -= dt;
+      pathBudget = PATHS_PER_FRAME;
       for (let i = list.length - 1; i >= 0; i--) list[i]._update(dt);
       separate();
     },

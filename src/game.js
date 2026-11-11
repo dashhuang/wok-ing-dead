@@ -29781,6 +29781,8 @@ void main() {
 	float std_dev = sqrt( squared_mean - mean * mean );
 	gl_FragColor = pack2HalfToRGBA( vec2( mean, std_dev ) );
 }`;
+  // 0: draw every caster, 1: only static casters, 2: only moving casters
+  var shadowCachePass = 0;
   function P9(n, e, t) {
     let i = new wa(),
       s = new We(),
@@ -29864,15 +29866,69 @@ void main() {
             (A.map.texture.name = C.name + ".shadowMap"),
             A.camera.updateProjectionMatrix());
         }
-        (n.setRenderTarget(A.map), n.clear());
         let H = A.getViewportCount();
-        for (let N = 0; N < H; N++) {
-          let Z = A.getViewport(N);
+        // Static shadow cache (game addition): casters flagged userData.staticShadow are
+        // drawn once into a second target; each update copies that depth in and draws only
+        // the moving casters on top. The sun and the level never move, so the cache is only
+        // rebuilt when the map is reallocated, the shadow camera moves or someone asks.
+        if (A.staticCache === !0 && H === 1 && this.type !== _r) {
+          let Z = A.getViewport(0);
           (r.set(o.x * Z.x, o.y * Z.y, o.x * Z.z, o.y * Z.w),
+            A.updateMatrices(C, 0),
+            (i = A.getFrustum()));
+          let N = A.staticMap;
+          ((!N || N.width !== A.map.width || N.height !== A.map.height) &&
+            (N && N.dispose(),
+            (N = A.staticMap =
+              new Zn(A.map.width, A.map.height, {
+                minFilter: Dn,
+                magFilter: Dn,
+              })),
+            (A.staticDirty = !0)),
+            (A.staticMatrix || (A.staticMatrix = new Je()),
+            A.staticMatrix.equals(A.matrix) ||
+              (A.staticMatrix.copy(A.matrix), (A.staticDirty = !0))));
+          A.staticDirty &&
+            (n.setRenderTarget(N),
+            n.clear(),
             z.viewport(r),
-            A.updateMatrices(C, N),
-            (i = A.getFrustum()),
-            g(_, T, A.camera, C, this.type));
+            (shadowCachePass = 1),
+            g(_, T, A.camera, C, this.type),
+            (shadowCachePass = 0),
+            (A.staticDirty = !1));
+          n.setRenderTarget(A.map);
+          let Q = n.getContext(),
+            W = n.properties.get(N).__webglFramebuffer,
+            J = n.properties.get(A.map).__webglFramebuffer;
+          (Q.bindFramebuffer(Q.READ_FRAMEBUFFER, W),
+            Q.bindFramebuffer(Q.DRAW_FRAMEBUFFER, J),
+            Q.blitFramebuffer(
+              0,
+              0,
+              N.width,
+              N.height,
+              0,
+              0,
+              A.map.width,
+              A.map.height,
+              Q.COLOR_BUFFER_BIT | Q.DEPTH_BUFFER_BIT,
+              Q.NEAREST,
+            ),
+            Q.bindFramebuffer(Q.FRAMEBUFFER, J),
+            z.viewport(r),
+            (shadowCachePass = 2),
+            g(_, T, A.camera, C, this.type),
+            (shadowCachePass = 0));
+        } else {
+          (n.setRenderTarget(A.map), n.clear());
+          for (let N = 0; N < H; N++) {
+            let Z = A.getViewport(N);
+            (r.set(o.x * Z.x, o.y * Z.y, o.x * Z.z, o.y * Z.w),
+              z.viewport(r),
+              A.updateMatrices(C, N),
+              (i = A.getFrustum()),
+              g(_, T, A.camera, C, this.type));
+          }
         }
         (A.isPointLightShadow !== !0 && this.type === _r && y(A, T),
           (A.needsUpdate = !1));
@@ -29957,6 +30013,8 @@ void main() {
         M.layers.test(_.layers) &&
         (M.isMesh || M.isLine || M.isPoints) &&
         (M.castShadow || (M.receiveShadow && S === _r)) &&
+        (shadowCachePass === 0 ||
+          (shadowCachePass === 1) === (M.userData.staticShadow === !0)) &&
         (!M.frustumCulled || i.intersectsObject(M))
       ) {
         M.modelViewMatrix.multiplyMatrices(T.matrixWorldInverse, M.matrixWorld);
@@ -34918,12 +34976,12 @@ void main() {
         msaa: 0,
         shadow: 2048,
         tex: 512,
-        volSteps: 12,
+        volSteps: 10,
         ao: !1,
         planar: 0,
         bloom: !0,
         motionBlur: !1,
-        rain: 0.5,
+        rain: 0.4,
       },
       medium: {
         name: "medium",
@@ -34965,14 +35023,21 @@ void main() {
         rain: 1,
       },
     };
-  function UM(n) {
-    if (n && jr[n]) return { ...jr[n] };
-    if (
-      /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) ||
+  // Phones and tablets: user agent, plus iPadOS, which reports itself as a Mac with touch.
+  function isHandheld() {
+    return (
+      /Android|iPhone|iPad|iPod|Mobile|Silk|Kindle/i.test(
+        navigator.userAgent,
+      ) ||
+      (/Macintosh|MacIntel/i.test(navigator.userAgent + navigator.platform) &&
+        navigator.maxTouchPoints > 1) ||
       (navigator.maxTouchPoints > 1 &&
         Math.min(screen.width, screen.height) < 900)
-    )
-      return { ...jr.low };
+    );
+  }
+  function UM(n) {
+    if (n && jr[n]) return { ...jr[n] };
+    if (isHandheld()) return { ...jr.low };
     let t = "";
     try {
       let s = document.createElement("canvas"),
@@ -36963,15 +37028,23 @@ ${ge}`,
       (f.shadow.normalBias = 0.02),
       (f.shadow.radius = 1),
       (f.shadow.autoUpdate = !0),
+      (f.shadow.staticCache = !0),
       r.add(f, f.target),
       f.layers.enable(Ro));
     let d = !1;
     try {
-      d = jM(h, { taps: n.quality.name === "low" ? 10 : 16, searchTaps: 8 });
+      d = jM(
+        h,
+        n.quality.name === "low"
+          ? { taps: 8, searchTaps: 6 }
+          : { taps: 16, searchTaps: 8 },
+      );
     } catch (G) {
       console.warn("[render] soft shadows unavailable: " + G);
     }
-    let m = 6,
+    // Every point light costs every lit pixel, lit or not; the low preset keeps four for
+    // muzzle flashes, sparks and fires. (The count is fixed once shaders are compiled.)
+    let m = n.quality.name === "low" ? 4 : 6,
       x = [];
     for (let G = 0; G < m; G++) {
       let te = new Aa(16777215, 0, 12, 2);
@@ -37165,11 +37238,16 @@ ${ge}`,
         i.clearDepth(),
         i.render(r, l));
     }
-    let H = new Il(new Qe(0.78, 0.86, 1), 0.9);
+    // The weapon key light is a distant, undecayed spot rather than a second directional light:
+    // the world pass sees sun + weapon torch (a spot), so the weapon pass must also see exactly
+    // one directional and one spot light. Otherwise three.js finds a different light layout on
+    // each of the two passes, bumps the light-state version twice a frame and re-derives the
+    // program parameters of every visible material every frame.
+    let H = new jd(new Qe(0.78, 0.86, 1), 0.9, 0, 0.6, 0.25, 0);
     ((H.name = "viewmodel-key"),
       (H.castShadow = !1),
       H.layers.set(Ro),
-      H.position.set(-0.55, 0.75, 0.6),
+      H.position.set(-3.45, 4.54, 5.06),
       H.target.position.set(0.1, -0.1, -0.4),
       a.add(H, H.target));
     let N = () => {
@@ -37312,8 +37390,30 @@ ${ge}`,
               (i.toneMappingExposure = xe));
           }
         },
+        // a frame was deliberately not drawn: the gap must not count as a slow frame
+        skipFrame() {
+          C = 0;
+        },
+        // call after adding, removing or hiding a mesh flagged userData.staticShadow
+        invalidateStaticShadows() {
+          f.shadow.staticDirty = !0;
+        },
         async onLevelReady() {
-          i.shadowMap.needsUpdate = !0;
+          ((i.shadowMap.needsUpdate = !0), (f.shadow.staticDirty = !0));
+          // Transparent double-sided materials are drawn back-then-front by default, which
+          // flips material.side and bumps material.version twice per draw, so three.js
+          // re-derives their program parameters every frame. Ours are all thin panes,
+          // decals and additive beams that do not need the two-pass sort.
+          r.traverse((G) => {
+            if (G.material)
+              for (let te of Array.isArray(G.material)
+                ? G.material
+                : [G.material])
+                te &&
+                  te.transparent &&
+                  te.side === ln &&
+                  (te.forceSinglePass = !0);
+          });
           try {
             J();
           } catch (G) {
@@ -37339,7 +37439,21 @@ ${ge}`,
           (i.setRenderTarget(null), (S.settle = 3.5), (S.acc = 0), (S.n = 0));
         },
         setQuality(G) {
-          n.quality = G;
+          let wasLite = slLite,
+            hadRefl = (n.quality.planar || 0) > 0;
+          ((n.quality = G),
+            (slLite = G.name === "low"),
+            (document.documentElement.dataset.quality = G.name));
+          (wasLite !== slLite || hadRefl !== (G.planar || 0) > 0) &&
+            r.traverse((te) => {
+              let oe = te.material;
+              if (oe)
+                for (let ee of Array.isArray(oe) ? oe : [oe])
+                  ee &&
+                    ee.userData &&
+                    (ee.userData.sl || ee.userData.qualityKeyed) &&
+                    (ee.needsUpdate = !0);
+            });
           let te = p();
           f.shadow.mapSize.x !== te &&
             (f.shadow.mapSize.set(te, te),
@@ -37355,7 +37469,11 @@ ${ge}`,
             oe = Math.min(window.devicePixelRatio || 1, 2),
             ee = n.quality.scale || 1;
           if (M) {
-            (i.setPixelRatio(oe), i.setSize(G, te, !1));
+            // The scene renders into its own scaled targets; the canvas only receives the
+            // final sharpen/grain pass. On the low preset that pass (and the swap chain)
+            // stays at 1.5x instead of the full 2x of a phone screen.
+            (i.setPixelRatio(n.quality.name === "low" ? Math.min(oe, 1.5) : oe),
+              i.setSize(G, te, !1));
             let le = ee * S.scale,
               xe =
                 { low: 1e6, medium: 15e5, high: 23e5, ultra: 37e5 }[
@@ -39659,7 +39777,12 @@ float slN3(vec3 x){
     #endif
     vec3 slWN = inverseTransformDirection(slVN, viewMatrix);
     vec3 slMp = vSlPos * uSlMacro.z;
-    slMac = slN3(slMp); slMac2 = slN3(slMp * 3.7 + 11.3);
+    slMac = slN3(slMp);
+    #ifdef SL_LITE
+      slMac2 = slMac;
+    #else
+      slMac2 = slN3(slMp * 3.7 + 11.3);
+    #endif
     float slM = slMac * 0.65 + slMac2 * 0.35 - 0.5;
     sampledDiffuseColor.rgb *= 1.0 + uSlMacro.x * slM * 2.0;
     float slGr = smoothstep(0.5, 0.85, slMac * 0.6 + slMac2 * 0.4 + (1.0 - slORM.r) * 0.3) * uSlMacro.w;
@@ -39671,7 +39794,9 @@ float slN3(vec3 x){
     slUp = smoothstep(0.15, 0.85, slWN.y);
     float slExpo = smoothstep(-0.4, -0.05, slWN.y);
     float slStreak = 0.0;
-    #ifndef SL_TRIPLANAR
+    #if defined( SL_LITE ) && !defined( SL_TRIPLANAR )
+      slStreak = 0.25;   // the average of the streak pattern, without its three noise lookups
+    #elif !defined( SL_TRIPLANAR )
       float slSc = vSlPos.x + vSlPos.z;
       slStreak = slN3(vec3(slSc * 9.0, vSlPos.y * 0.55, slSc * 0.7 + 3.0)) * slN3(vec3(slSc * 29.0, vSlPos.y * 1.1, 7.0));
       slStreak = smoothstep(0.12, 0.42, slStreak) * smoothstep(0.3, 0.7, slN3(vec3(slSc * 1.1, vSlPos.y * 0.25, 1.7)));
@@ -39689,11 +39814,13 @@ float slN3(vec3 x){
       }
     #endif
     slWetK = clamp(slWetK, 0.0, 1.0);
+    #ifndef SL_LITE
     float slBf = clamp(1.0 - length(fwidth(vSlPos)) * 120.0, 0.0, 1.0);
     if (uSlWetP.w > 0.0 && slBf > 0.0) {
       float slB = slN3(vSlPos * 170.0) * 0.6 + slN3(vSlPos * 410.0 + 5.0) * 0.4;
       slBead = smoothstep(0.6, 0.68, slB) * uSlWetP.w * slW * slBf * (0.4 + 0.6 * slUp + 0.5 * slStreak);
     }
+    #endif
   }
 #endif
 #if SL_TINT == 1
@@ -39730,7 +39857,7 @@ float roughnessFactor = roughness * slORM.g;
   roughnessFactor = mix(roughnessFactor, roughnessFactor * uSlWetP.y, slWetK);
   roughnessFactor = mix(roughnessFactor, 0.05, slBead);
 #endif
-#if defined( USE_NORMALMAP_TANGENTSPACE ) && !defined( SL_TRIPLANAR )
+#if defined( USE_NORMALMAP_TANGENTSPACE ) && !defined( SL_TRIPLANAR ) && !defined( SL_LITE )
   { float slNl = length(texture2D(normalMap, slUv).xyz * 2.0 - 1.0);
     roughnessFactor = sqrt(roughnessFactor * roughnessFactor + clamp(1.0 - slNl, 0.0, 1.0) * 0.6); }
 #endif
@@ -39759,8 +39886,13 @@ float metalnessFactor = metalness * slORM.b;
 #endif
 `,
     yk = Yt.aomap_fragment.replace("texture2D( aoMap, vAoMapUv ).r", "slORM.r");
+  // Low preset: cheaper rain/wetness shading on every world material (one macro noise
+  // octave, average streaks, no beads, no second normal-map read). Part of the program
+  // cache keys, so switching quality recompiles (see render.setQuality).
+  var slLite = !1;
   function g_(n, e) {
     (Object.assign(n.uniforms, e),
+      slLite && (n.fragmentShader = "#define SL_LITE\n" + n.fragmentShader),
       (n.vertexShader = n.vertexShader
         .replace(
           "#include <common>",
@@ -39790,7 +39922,7 @@ float metalnessFactor = metalness * slORM.b;
       i = +(t.tex || 0) || (n.quality && n.quality.tex) || 1024,
       s = Math.min(i, 1024),
       o = Math.min(
-        8,
+        i < 1024 ? 2 : 8,
         e.capabilities.getMaxAnisotropy ? e.capabilities.getMaxAnisotropy() : 1,
       ),
       r = { wet: { value: t.wet !== void 0 ? +t.wet : 1 } },
@@ -40016,7 +40148,11 @@ float metalnessFactor = metalness * slORM.b;
         (F ? "t" : "") +
         (H ? "f" : "") +
         (C.alphaCut ? "a" : "");
-      return ((k.customProgramCacheKey = () => Z), _.set(U, k), k);
+      return (
+        (k.customProgramCacheKey = () => Z + (slLite ? "L" : "")),
+        _.set(U, k),
+        k
+      );
     }
     function S(I = 16777215, L = 4) {
       let U = "em|" + I + "|" + L;
@@ -40046,7 +40182,11 @@ float metalnessFactor = metalness * slORM.b;
         L.interior && (I.userData.interior = !0),
         (I.onBeforeCompile = (A) => g_(A, C)));
       let F = "sl2a|" + U + (k ? "f" : "") + (I.aoMap ? "o" : "");
-      return ((I.customProgramCacheKey = () => F), (I.needsUpdate = !0), I);
+      return (
+        (I.customProgramCacheKey = () => F + (slLite ? "L" : "")),
+        (I.needsUpdate = !0),
+        I
+      );
     }
     return {
       get: w,
@@ -56317,7 +56457,11 @@ vec2 gRipple(vec2 p, float t, float cell, float seed){
   // ---- unique large-scale masks (puddle height, dampness, oil, wear) ----
   vec2 muv = (gxz - uMaskRect.xy) * uMaskRect.z;
   float mIn = smoothstep(0.0, 0.05, min(min(muv.x, 1.0 - muv.x), min(muv.y, 1.0 - muv.y)));
+#ifdef G_LITE
+  vec4 mk = mix(vec4(0.66, 0.5, 0.0, 0.5), textureLod(uMask, muv, 0.0), mIn);
+#else
   vec4 mk = mix(vec4(0.66, 0.5, 0.0, 0.5), gBicubic(uMask, muv, uMaskRes), mIn);
+#endif
   // ---- tiling detail ----
   vec4 d1 = texture2D(uDetail, gxz * 0.21);
   vec4 d2 = texture2D(uDetail, gxz * 1.37 + 0.37);
@@ -56354,14 +56498,20 @@ vec2 gRipple(vec2 p, float t, float cell, float seed){
   float kIn = step(0.0, kuv.x) * step(kuv.x, 1.0) * step(0.0, kuv.y) * step(kuv.y, 1.0);
   vec3 mp = texture2D(uMarks, kuv).rgb;
   float kpx = max(fwidth(kuv.x), fwidth(kuv.y)) * uMarkRes;
+#ifndef G_LITE
   if (kpx < 1.0) mp = mix(gBicubic(uMarks, kuv, uMarkRes).rgb, mp, smoothstep(0.5, 1.0, kpx));   // magnified: no texel blocks
+#endif
   mp *= kIn;
   float kw = clamp(kpx * 0.5, 0.16, 0.5);
   // chips: world-space procedural noise down to sub-centimetre (never the texels of a map)
   float chipN = 0.5;
   if (max(mp.r, mp.g) > 0.02) {
     float cf2 = 1.0 - smoothstep(6.0, 18.0, gDist), cf3 = 1.0 - smoothstep(2.5, 7.0, gDist);
+#ifdef G_LITE
+    chipN = gVN(gxz * 17.0) * 0.55 + mix(0.5, gVN(gxz * 57.0 + 11.0), cf2) * 0.45;
+#else
     chipN = gVN(gxz * 17.0) * 0.45 + mix(0.5, gVN(gxz * 57.0 + 11.0), cf2) * 0.33 + mix(0.5, gVN(gxz * 181.0 + 5.0), cf3) * 0.22;
+#endif
   }
   float chip = chipN * 0.62 + d1.a * 0.38;
   float wear = clamp(mk.a * 1.25 - 0.22 + mp.b * 0.6, 0.0, 1.0);
@@ -56378,7 +56528,11 @@ vec2 gRipple(vec2 p, float t, float cell, float seed){
   // ---- water: one continuous gradient  standing water -> soaked band -> damp -> drier patches ----
   // organic shoreline: world-space noise (40 / 15 / 5 cm) on the water-level comparison, independent of the mask res
   float sf2 = 1.0 - smoothstep(25.0, 60.0, gDist), sf3 = 1.0 - smoothstep(8.0, 22.0, gDist);
+#ifdef G_LITE
+  float sn1 = gVN(gxz * 2.5 + 3.0), sn2 = mix(0.5, gVN(gxz * 6.7 + 17.0), sf2), sn3 = 0.5;
+#else
   float sn1 = gVN(gxz * 2.5 + 3.0), sn2 = mix(0.5, gVN(gxz * 6.7 + 17.0), sf2), sn3 = mix(0.5, gVN(gxz * 20.0 + 9.0), sf3);
+#endif
   float sn = sn1 * 0.5 + sn2 * 0.3 + sn3 * 0.2;
   float depth = 0.5 - mk.r + (sn - 0.5) * 0.11 + (d1.g - 0.5) * 0.03 + (grain - 0.5) * 0.012 + groove * 0.04 + crack * 0.02 - paint * 0.01;
   float puddle = smoothstep(0.0, 0.035, depth) * uWetG;                 // mirror weight (~5 cm ramp)
@@ -56407,14 +56561,22 @@ vec2 gRipple(vec2 p, float t, float cell, float seed){
   nxz *= 1.0 - puddle;
   float wsum = puddle + film * 0.2;
   vec2 wv = texture2D(uDetailN, gxz * 0.13 + uTime * vec2(0.031, 0.017)).ba - 0.5;
+#ifdef G_LITE
+  vec2 wv2 = vec2(0.0);
+#else
   vec2 wv2 = texture2D(uDetailN, gxz.yx * 0.31 - uTime * vec2(0.043, 0.027)).ba - 0.5;
+#endif
   if (wsum > 0.004) {
     float rf = 1.0 - smoothstep(10.0, 34.0, gDist);
     vec2 rip = vec2(0.0);
     if (rf > 0.0) {
+#ifdef G_LITE
+      rip = gRipple(gxz, uTime, 0.83, 1.0) * 1.5 + gRipple(gxz.yx, uTime * 1.13, 0.57, 3.0).yx * 0.6;
+#else
       vec2 gp2 = vec2(0.8 * gxz.x - 0.6 * gxz.y, 0.6 * gxz.x + 0.8 * gxz.y);
       vec2 r2 = gRipple(gp2, uTime * 0.87, 1.31, 2.0);
       rip = gRipple(gxz, uTime, 0.83, 1.0) + vec2(0.8 * r2.x + 0.6 * r2.y, -0.6 * r2.x + 0.8 * r2.y) * 0.9 + gRipple(gxz.yx, uTime * 1.13, 0.57, 3.0).yx * 0.6;
+#endif
       rip *= rf * (0.3 + 0.7 * uRain) * 0.3 * smoothstep(0.0, 0.08, depth);
     }
     nxz += (rip + (wv * 0.03 + wv2 * 0.018) * (0.4 + 0.6 * deep)) * wsum;
@@ -56425,6 +56587,7 @@ vec2 gRipple(vec2 p, float t, float cell, float seed){
 }
 `,
     RP = `
+#ifndef G_NOREFL
 {
   vec3 gV = normalize(cameraPosition - vGWorld);
   vec4 rc = uReflMatrix * vec4(vGWorld.x, 0.0, vGWorld.z, 1.0);
@@ -56451,6 +56614,7 @@ vec2 gRipple(vec2 p, float t, float cell, float seed){
   float pw = mix(1.0 - smoothstep(0.55, 0.9, r), 1.0, max(gPuddle, gSoak)) * uReflOn;
   radiance = mix(radiance, pr, pw);
 }
+#endif
 `;
   function Nw(n, e) {
     let t = {
@@ -56485,39 +56649,46 @@ vec2 gRipple(vec2 p, float t, float cell, float seed){
               `#include <begin_vertex>
   vGWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;`,
             )),
-          (r.fragmentShader = r.fragmentShader
-            .replace(
-              "#include <common>",
-              `#include <common>
+          (r.fragmentShader =
+            (n.quality.name === "low" ? "#define G_LITE\n" : "") +
+            ((n.quality.planar || 0) > 0 ? "" : "#define G_NOREFL\n") +
+            r.fragmentShader
+              .replace(
+                "#include <common>",
+                `#include <common>
 ` + TP,
-            )
-            .replace("#include <map_fragment>", CT.on ? CT.asphalt(AP) : AP)
-            .replace(
-              "#include <roughnessmap_fragment>",
-              "float roughnessFactor = gRough;",
-            )
-            .replace(
-              "#include <normal_fragment_maps>",
-              `#include <normal_fragment_maps>
+              )
+              .replace("#include <map_fragment>", CT.on ? CT.asphalt(AP) : AP)
+              .replace(
+                "#include <roughnessmap_fragment>",
+                "float roughnessFactor = gRough;",
+              )
+              .replace(
+                "#include <normal_fragment_maps>",
+                `#include <normal_fragment_maps>
   normal = normalize(mat3(viewMatrix) * normalize(vec3(-gNxz.x, 1.0, -gNxz.y)));`,
-            )
-            .replace(
-              "#include <lights_physical_fragment>",
-              `#include <lights_physical_fragment>
+              )
+              .replace(
+                "#include <lights_physical_fragment>",
+                `#include <lights_physical_fragment>
   material.specularColor = mix(material.specularColor, vec3(0.075), max(gPuddle, gSoak * 0.5));`,
-            )
-            .replace(
-              "#include <lights_fragment_maps>",
-              `#include <lights_fragment_maps>
+              )
+              .replace(
+                "#include <lights_fragment_maps>",
+                `#include <lights_fragment_maps>
 ` + RP,
-            )
-            .replace(
-              "#include <lights_fragment_end>",
-              `#include <lights_fragment_end>
+              )
+              .replace(
+                "#include <lights_fragment_end>",
+                `#include <lights_fragment_end>
   reflectedLight.directSpecular = min(reflectedLight.directSpecular, vec3(40.0));`,
-            )));
+              )));
       }),
-      (i.customProgramCacheKey = () => "saltline-apron-3"));
+      (i.customProgramCacheKey = () =>
+        "saltline-apron-3" +
+        (n.quality.name === "low" ? "L" : "") +
+        ((n.quality.planar || 0) > 0 ? "" : "N")),
+      (i.userData.qualityKeyed = !0));
     let s = CT.on
         ? new w0(420, 420, 1, 1).rotateX(-Math.PI / 2)
         : new w0(190, 320, 1, 1).rotateX(-Math.PI / 2).translate(-65, 0, 0),
@@ -57105,8 +57276,9 @@ void main(){
   }
   async function Vg(n) {
     let e = (n.quality.tex || 512) >= 1024,
+      // the street is seen at grazing angles: it keeps more filtering than walls on low
       t = Math.min(
-        8,
+        e ? 8 : 4,
         n.renderer.capabilities.getMaxAnisotropy
           ? n.renderer.capabilities.getMaxAnisotropy()
           : 1,
@@ -58166,13 +58338,15 @@ void main() {
         I ? (L = I.height) : (S.getDrawingBufferSize($w), (L = $w.y));
         let U = z.projectionMatrix.elements;
         v.uPx.value = 2 / (Math.max(U[5], 0.001) * Math.max(L, 1));
+        // Soft particles need a copy of the scene depth, and asking for it once turns on a
+        // full-screen depth copy every frame from then on. The low preset does without.
         let k = n.render,
-          C = k && k.depthTexture;
-        C &&
-        C.image &&
-        z === n.camera &&
-        k.depthTextureIsLive !== !0 &&
-        n.params.fxsoft !== "0"
+          C =
+            k &&
+            n.params.fxsoft !== "0" &&
+            (n.params.fxsoft === "1" || n.quality.name !== "low") &&
+            k.depthTexture;
+        C && C.image && z === n.camera && k.depthTextureIsLive !== !0
           ? ((v.uDepth.value = C),
             (v.uSoft.value = 1),
             k.resolution && k.resolution.x > 0
@@ -66496,7 +66670,8 @@ void main() {
       (M.release.value = ji.comp.release),
       (T.curve = tE()));
     try {
-      T.oversample = "2x";
+      // the soft clipper's oversampling runs on every output sample; phones skip it
+      T.oversample = n.quality && n.quality.name === "low" ? "none" : "2x";
     } catch {}
     (E.connect(M),
       M.connect(_),
@@ -85489,6 +85664,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       quality: UM(n.q || (n.shot ? "test" : "")),
       util: { mergeStatic: ig },
     };
+    document.documentElement.dataset.quality = t.quality.name;
+    slLite = t.quality.name === "low";
     window.__G = t;
     let i = n.show && mT[n.show] ? n.show : null;
     t.showcase = i;
@@ -85674,7 +85851,9 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     let l = performance.now(),
       c = 1,
       u = 1.1,
-      f = new K();
+      f = new K(),
+      pauseKey = "",
+      pauseFrames = 0;
     n.step && (window.__step = 3);
     let h = (p, d) => {
       let m = t[p];
@@ -85772,6 +85951,25 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           h("hud", m),
           s && (t.camera.position.copy(s.pos), t.camera.lookAt(s.look)),
           t.bench && t.bench.frame(d));
+        // Paused, nothing in the world moves: draw a few frames to settle exposure and then
+        // keep the last image (the canvas keeps it while nothing is drawn) instead of
+        // re-rendering the whole pipeline under the menu. A resize or quality change draws again.
+        let pk =
+          t.game.state === "paused"
+            ? t.renderer.domElement.width +
+              "x" +
+              t.renderer.domElement.height +
+              (t.quality && t.quality.name)
+            : "";
+        pk && pk === pauseKey
+          ? pauseFrames++
+          : ((pauseKey = pk), (pauseFrames = 0));
+        if (pk && pauseFrames > 8) {
+          (t.render.skipFrame && t.render.skipFrame(),
+            t.input.endFrame && t.input.endFrame(),
+            window.__frames++);
+          return;
+        }
         try {
           t.render.frame(m);
         } catch (v) {

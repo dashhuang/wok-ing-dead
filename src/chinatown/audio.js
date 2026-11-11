@@ -1003,9 +1003,12 @@ export function create(env) {
   }
 
   // Same panner model the game uses for its own positional sounds.
+  // HRTF convolves every voice on the audio thread; on the low preset (phones) plain
+  // equal-power panning keeps the mix from crackling under load.
+  const lite = !!(G.quality && G.quality.name === "low");
   function makePanner(hrtf, ref, rolloff) {
     const pan = ctx.createPanner();
-    pan.panningModel = hrtf ? "HRTF" : "equalpower";
+    pan.panningModel = hrtf && !lite ? "HRTF" : "equalpower";
     pan.distanceModel = "inverse";
     pan.refDistance = ref;
     pan.rolloffFactor = rolloff;
@@ -1718,10 +1721,22 @@ export function create(env) {
         if (!s.silent) {
           s.silent = true;
           s.speed = 0;
+          s.quietT = 0;
           n.out.gain.setTargetAtTime(0, now, 0.05);
           n.rushGain.gain.setTargetAtTime(0, now, 0.05);
         }
+        // once faded out, unplug it: nothing pulls a disconnected graph, so its two
+        // oscillators, noise loop and four filters stop costing audio-thread time
+        s.quietT += dt;
+        if (s.quietT > 0.5 && !n.unplugged) {
+          n.pan.disconnect();
+          n.unplugged = true;
+        }
         continue;
+      }
+      if (n.unplugged) {
+        n.pan.connect(buses.world);
+        n.unplugged = false;
       }
       s.silent = false;
       let wobble = 1;
