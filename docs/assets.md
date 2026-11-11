@@ -11,7 +11,7 @@
 | 街头道具模型（43 个） | `public/assets/props/` | [Poly Haven](https://polyhaven.com) | CC0 |
 | 僵尸角色与动作 | `public/assets/zombies/` | Adobe Mixamo（经公开 GitHub 仓库获取） | Mixamo 使用条款，**不是 CC0**，见下文 |
 | 招牌字体（子集） | `public/assets/fonts/` | Noto Serif TC、LXGW WenKai TC（Google Fonts 仓库） | SIL OFL 1.1 |
-| 僵尸与环境音效 | `public/assets/audio/` | OpenGameArt | CC0，详见 [assets-audio.md](assets-audio.md) |
+| 僵尸嗓音（24 段） | `public/assets/audio/zombie/` | OpenGameArt | CC0，详见 [assets-audio.md](assets-audio.md) |
 
 招牌、霓虹灯、橱窗、海报、血迹、牌楼彩画等图案不是下载的图片，而是加载时用 Canvas 现画的（`src/chinatown/signs.js`）。
 店名均为按粤式习惯虚构的名字，没有使用现实中的商号。
@@ -32,7 +32,7 @@ node scripts/assets/build-chinatown.mjs <缓存目录> public/assets
 
 ## 僵尸角色与动作（Mixamo）
 
-四个角色（`romero`、`girl`、`cop`、`soldier`）和十一段动作来自 Adobe Mixamo 的「Scary Zombie Pack」等内容，
+四个角色（`romero`、`girl`、`cop`、`soldier`）和九段动作来自 Adobe Mixamo 的「Scary Zombie Pack」等内容，
 原始 FBX 取自三个公开的 GitHub 仓库（`Qwerty-coding/Last-Light`、`lauramurinova/ZombieDefense`、`baponkar/zombie-ai`），
 用 FBX2glTF 转换后由 `scripts/assets/build-zombies.mjs` 处理：统一骨骼名、材质改为普通 PBR、贴图压到 2K WebP、动作单独成文件。
 
@@ -54,5 +54,5 @@ python scripts/assets/build-fonts.py <放有两个原始 TTF 的目录> public/a
 
 ## 仍然由代码生成的部分
 
-天空、雨、地面水洼、武器模型、枪声与脚步等沿用原版的程序化实现；建筑、牌楼、庙宇、街市、灯笼、
+天空、雨、地面水洼、武器模型、枪声与脚步等沿用原版的程序化实现；警报器、城市环境声、僵尸脚步和击中声也是运行时合成的；建筑、牌楼、庙宇、街市、灯笼、
 路灯、电线、军车等几何体由 `src/chinatown/` 下的模块用基础形体搭建，没有使用外部建筑模型。

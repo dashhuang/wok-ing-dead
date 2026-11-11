@@ -23,7 +23,9 @@ import { fileURLToPath } from "node:url";
 const [cache, out] = process.argv.slice(2);
 if (!cache || !out) throw new Error("usage: build-chinatown.mjs <cache> <out>");
 const here = path.dirname(fileURLToPath(import.meta.url));
-const manifest = JSON.parse(fs.readFileSync(path.join(here, "chinatown-manifest.json"), "utf8"));
+const manifest = JSON.parse(
+  fs.readFileSync(path.join(here, "chinatown-manifest.json"), "utf8"),
+);
 const only = process.env.ONLY ? new Set(process.env.ONLY.split(",")) : null;
 
 // ---------- textures ----------
@@ -54,7 +56,9 @@ fs.mkdirSync(propOut, { recursive: true });
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 await MeshoptSimplifier.ready;
 const indexFile = path.join(propOut, "index.json");
-const index = fs.existsSync(indexFile) ? JSON.parse(fs.readFileSync(indexFile, "utf8")) : {};
+const index = fs.existsSync(indexFile)
+  ? JSON.parse(fs.readFileSync(indexFile, "utf8"))
+  : {};
 const tris = (doc) => {
   let n = 0;
   for (const mesh of doc.getRoot().listMeshes())
@@ -74,7 +78,11 @@ for (const [id, cfg] of Object.entries(manifest.models)) {
   await doc.transform(dedup(), weld());
   if (before > cfg.tris)
     await doc.transform(
-      simplify({ simplifier: MeshoptSimplifier, ratio: cfg.tris / before, error: 0.04 }),
+      simplify({
+        simplifier: MeshoptSimplifier,
+        ratio: cfg.tris / before,
+        error: 0.04,
+      }),
     );
   await doc.transform(
     textureCompress({

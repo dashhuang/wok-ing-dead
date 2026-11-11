@@ -41,13 +41,11 @@ const CLIPS = {
   anim_zombie_walk: "walk",
   anim_zombie_run: "run",
   anim_zombie_attack: "attack",
-  anim_zombie_neck_bite: "bite",
   anim_zombie_scream: "scream",
   anim_zombie_death: "death_back",
   anim_zombie_dying: "death_front",
   anim_zombie_crawl: "crawl",
   anim_running_crawl: "crawl_fast",
-  anim_zombie_biting__2_: "feed",
 };
 
 await MeshoptSimplifier.ready;
@@ -73,9 +71,20 @@ for (const [file, cfg] of Object.entries(CHARACTERS)) {
     dedup(),
     weld(),
     ...(cfg.ratio
-      ? [simplify({ simplifier: MeshoptSimplifier, ratio: cfg.ratio, error: 0.0015 })]
+      ? [
+          simplify({
+            simplifier: MeshoptSimplifier,
+            ratio: cfg.ratio,
+            error: 0.0015,
+          }),
+        ]
       : []),
-    textureCompress({ encoder: sharp, targetFormat: "webp", resize: [2048, 2048], quality: 88 }),
+    textureCompress({
+      encoder: sharp,
+      targetFormat: "webp",
+      resize: [2048, 2048],
+      quality: 88,
+    }),
     prune(),
   );
   const file2 = path.join(out, cfg.out + ".glb");
@@ -91,5 +100,9 @@ for (const [file, name] of Object.entries(CLIPS)) {
   await doc.transform(resample(), prune({ keepLeaves: true }));
   const file2 = path.join(out, "clip_" + name + ".glb");
   await io.write(file2, doc);
-  console.log("clip", name, (fs.statSync(file2).size / 1024).toFixed(0) + " KB");
+  console.log(
+    "clip",
+    name,
+    (fs.statSync(file2).size / 1024).toFixed(0) + " KB",
+  );
 }

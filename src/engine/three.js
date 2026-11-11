@@ -2,7 +2,8 @@
 // add-ons (GLTFLoader, SkeletonUtils, ...) share one engine instance with the game.
 // Generated from the bundle export table; game.js publishes the namespace before any add-on loads.
 const T = globalThis.__SALTLINE_THREE__;
-if (!T) throw new Error("three bridge imported before game.js published its engine");
+if (!T)
+  throw new Error("three bridge imported before game.js published its engine");
 export const {
   ACESFilmicToneMapping,
   AddEquation,

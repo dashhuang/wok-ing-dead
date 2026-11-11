@@ -40032,7 +40032,8 @@ float metalnessFactor = metalness * slORM.b;
     slWhite.needsUpdate = !0;
     function adopt(I, L = {}) {
       if (!I || !I.isMeshStandardMaterial || I.userData.sl) return I;
-      (I.map || (I.map = slWhite), I.roughnessMap || (I.roughnessMap = slWhite));
+      (I.map || (I.map = slWhite),
+        I.roughnessMap || (I.roughnessMap = slWhite));
       let U = I.transparent || I.alphaTest > 0 ? 3 : 0,
         k = !I.transparent,
         C = {
@@ -56099,154 +56100,164 @@ uniform float uTime;
           i.restore());
       };
     if (CT.on)
-      CT.marks(i, { line: f, box: h, fill: p, text: d, hatch: m, arrow: x, rand: u, yellow: r, white: a });
+      CT.marks(i, {
+        line: f,
+        box: h,
+        fill: p,
+        text: d,
+        hatch: m,
+        arrow: x,
+        rand: u,
+        yellow: r,
+        white: a,
+      });
     else {
-    (f(-25.6, 3.6, 16.2, 3.6, 0.15, r),
-      f(-25.6, 8.4, -5.6, 8.4, 0.15, r),
-      f(10.4, 8.4, 16.2, 8.4, 0.15, r),
-      f(-24, 6, -3, 6, 0.12, a, [3, 4.5]),
-      f(6, 6, 15.5, 6, 0.12, a, [3, 4.5]),
-      f(-23, 14, 16.2, 14, 0.15, r),
-      f(-23, 18.6, 16.2, 18.6, 0.15, r),
-      f(-23, 16.3, 15.5, 16.3, 0.1, a, [2, 6]),
-      f(-23, -3.6, 16.2, -3.6, 0.12, r),
-      f(-23, 0.56, 16.2, 0.56, 0.12, r),
-      f(-23, 24.2, 16.2, 24.2, 0.12, r),
-      f(-37.5, 2.6, -26.4, 2.6, 0.15, a),
-      f(-37.5, 9.2, -26.4, 9.2, 0.15, a),
-      x(-14, 4.7, 1, a),
-      x(13, 7.3, -1, a),
-      x(-16, 15.2, 1, a),
-      x(2, 17.5, -1, a),
-      p(-26.2, 3.6, -25.75, 8.4, a));
-    for (let E = 2.75; E < 9; E += 1) p(-31.2, E, -28.2, E + 0.5, a);
-    (d("SLOW", -21.4, 6, 1.7, Math.PI / 2, a),
-      d("10", -19, 6, 1.8, Math.PI / 2, a),
-      (i.strokeStyle = a),
-      (i.lineWidth = 0.14),
-      i.beginPath(),
-      i.ellipse(-19, 6, 1.35, 1.8, 0, 0, Math.PI * 2),
-      i.stroke(),
-      f(-30.4, 2.6, -30.4, -10.2, 0.12, a),
-      f(-29, 2.6, -29, -8.8, 0.12, a),
-      f(-30.4, -10.2, -7, -10.2, 0.12, a),
-      f(-29, -8.8, -7, -8.8, 0.12, a));
-    for (let E = -28; E < -7.5; E += 2.2) f(E, -10.2, E + 0.9, -8.8, 0.1, a);
-    for (let E = -7.5; E < 2; E += 2.2) f(-30.4, E, -29, E + 0.9, 0.1, a);
-    let v = [
-        [-22.5, -10.3],
-        [-5.3, 6.9],
-        [10.5, 16.6],
-      ],
-      y = (E, M, _, T, w, S) => {
-        v.forEach((R, z) => {
-          if (S && z === 1) return;
-          let I = z === 2 ? 1 : 2,
-            L = M - E > 4 ? 2 : 1;
-          for (let U = 0; U < I; U++)
-            for (let k = 0; k < L; k++) {
-              let C = R[0] + ((R[1] - R[0]) * U) / I,
-                A = R[0] + ((R[1] - R[0]) * (U + 1)) / I,
-                F = E + ((M - E) * k) / L,
-                H = E + ((M - E) * (k + 1)) / L;
-              h(C - 0.12, F - 0.12, A + 0.12, H + 0.12, 0.1, a);
-            }
-          d(_ + (z + 1), (R[0] + R[1]) / 2, T, 0.85, w, r);
-        });
+      (f(-25.6, 3.6, 16.2, 3.6, 0.15, r),
+        f(-25.6, 8.4, -5.6, 8.4, 0.15, r),
+        f(10.4, 8.4, 16.2, 8.4, 0.15, r),
+        f(-24, 6, -3, 6, 0.12, a, [3, 4.5]),
+        f(6, 6, 15.5, 6, 0.12, a, [3, 4.5]),
+        f(-23, 14, 16.2, 14, 0.15, r),
+        f(-23, 18.6, 16.2, 18.6, 0.15, r),
+        f(-23, 16.3, 15.5, 16.3, 0.1, a, [2, 6]),
+        f(-23, -3.6, 16.2, -3.6, 0.12, r),
+        f(-23, 0.56, 16.2, 0.56, 0.12, r),
+        f(-23, 24.2, 16.2, 24.2, 0.12, r),
+        f(-37.5, 2.6, -26.4, 2.6, 0.15, a),
+        f(-37.5, 9.2, -26.4, 9.2, 0.15, a),
+        x(-14, 4.7, 1, a),
+        x(13, 7.3, -1, a),
+        x(-16, 15.2, 1, a),
+        x(2, 17.5, -1, a),
+        p(-26.2, 3.6, -25.75, 8.4, a));
+      for (let E = 2.75; E < 9; E += 1) p(-31.2, E, -28.2, E + 0.5, a);
+      (d("SLOW", -21.4, 6, 1.7, Math.PI / 2, a),
+        d("10", -19, 6, 1.8, Math.PI / 2, a),
+        (i.strokeStyle = a),
+        (i.lineWidth = 0.14),
+        i.beginPath(),
+        i.ellipse(-19, 6, 1.35, 1.8, 0, 0, Math.PI * 2),
+        i.stroke(),
+        f(-30.4, 2.6, -30.4, -10.2, 0.12, a),
+        f(-29, 2.6, -29, -8.8, 0.12, a),
+        f(-30.4, -10.2, -7, -10.2, 0.12, a),
+        f(-29, -8.8, -7, -8.8, 0.12, a));
+      for (let E = -28; E < -7.5; E += 2.2) f(E, -10.2, E + 0.9, -8.8, 0.1, a);
+      for (let E = -7.5; E < 2; E += 2.2) f(-30.4, E, -29, E + 0.9, 0.1, a);
+      let v = [
+          [-22.5, -10.3],
+          [-5.3, 6.9],
+          [10.5, 16.6],
+        ],
+        y = (E, M, _, T, w, S) => {
+          v.forEach((R, z) => {
+            if (S && z === 1) return;
+            let I = z === 2 ? 1 : 2,
+              L = M - E > 4 ? 2 : 1;
+            for (let U = 0; U < I; U++)
+              for (let k = 0; k < L; k++) {
+                let C = R[0] + ((R[1] - R[0]) * U) / I,
+                  A = R[0] + ((R[1] - R[0]) * (U + 1)) / I,
+                  F = E + ((M - E) * k) / L,
+                  H = E + ((M - E) * (k + 1)) / L;
+                h(C - 0.12, F - 0.12, A + 0.12, H + 0.12, 0.1, a);
+              }
+            d(_ + (z + 1), (R[0] + R[1]) / 2, T, 0.85, w, r);
+          });
+        };
+      (y(-6.34, -3.9, "D0", -2.9, Math.PI, !1),
+        y(0.86, 3.3, "C0", -0.15, 0, !1),
+        y(8.7, 13.64, "B0", 14.75, Math.PI, !0),
+        y(18.9, 23.84, "A0", 17.85, 0, !1));
+      for (let E of [-10.3, -5.3, 6.9, 10.5])
+        f(
+          E + (E === -10.3 || E === 6.9 ? 0.35 : -0.35),
+          -6.3,
+          E + (E === -10.3 || E === 6.9 ? 0.35 : -0.35),
+          23.8,
+          0.1,
+          r,
+          [1.5, 1.5],
+        );
+      (m(-6.6, -10.9, -0.4, -8.9, r, 0.9, 0.12),
+        m(12.2, -22.6, 16.2, -16.4, r),
+        m(-0.9, 5.4, 3.9, 9.9, r, 0.95, 0.13),
+        d("KEEP CLEAR", 1.5, 10.6, 0.62, 0, r),
+        m(19.8, -4.2, 27.2, 4.2, r, 1.2, 0.16),
+        d("KEEP CLEAR", 17.4, -19.5, 0.8, Math.PI / 2, r),
+        f(16.9, -29.5, 16.9, 27.5, 0.15, r),
+        f(17.7, -29.5, 17.7, 27.5, 0.1, r, [1, 1]),
+        f(19.3, -29.5, 19.3, 27.5, 0.1, r, [1, 1]),
+        f(27.7, -29.5, 27.7, 27.5, 0.1, r, [1, 1]),
+        d("BERTH 4", 23.5, 21.6, 1.9, 0, a),
+        d("BERTH 4", 23.5, -7.7, 1.7, Math.PI, a));
+      for (let E = -27; E < 27; E += 9)
+        d(
+          String(400 + Math.round((E + 27) / 9) * 5),
+          26.9,
+          E + 2,
+          0.5,
+          Math.PI / 2,
+          a,
+        );
+      i.lineCap = "round";
+      let b = (E, M, _, T, w, S) => {
+        for (let R of [-0.95, 0.95])
+          for (let z of [-0.16, 0.16])
+            ((i.strokeStyle = `rgba(0,0,255,${S})`),
+              (i.lineWidth = 0.26),
+              i.beginPath(),
+              i.moveTo(E, M + R + z),
+              i.quadraticCurveTo(
+                (E + _) / 2,
+                (M + T) / 2 + w + R + z,
+                _,
+                T + R + z,
+              ),
+              i.stroke());
       };
-    (y(-6.34, -3.9, "D0", -2.9, Math.PI, !1),
-      y(0.86, 3.3, "C0", -0.15, 0, !1),
-      y(8.7, 13.64, "B0", 14.75, Math.PI, !0),
-      y(18.9, 23.84, "A0", 17.85, 0, !1));
-    for (let E of [-10.3, -5.3, 6.9, 10.5])
-      f(
-        E + (E === -10.3 || E === 6.9 ? 0.35 : -0.35),
-        -6.3,
-        E + (E === -10.3 || E === 6.9 ? 0.35 : -0.35),
-        23.8,
-        0.1,
-        r,
-        [1.5, 1.5],
-      );
-    (m(-6.6, -10.9, -0.4, -8.9, r, 0.9, 0.12),
-      m(12.2, -22.6, 16.2, -16.4, r),
-      m(-0.9, 5.4, 3.9, 9.9, r, 0.95, 0.13),
-      d("KEEP CLEAR", 1.5, 10.6, 0.62, 0, r),
-      m(19.8, -4.2, 27.2, 4.2, r, 1.2, 0.16),
-      d("KEEP CLEAR", 17.4, -19.5, 0.8, Math.PI / 2, r),
-      f(16.9, -29.5, 16.9, 27.5, 0.15, r),
-      f(17.7, -29.5, 17.7, 27.5, 0.1, r, [1, 1]),
-      f(19.3, -29.5, 19.3, 27.5, 0.1, r, [1, 1]),
-      f(27.7, -29.5, 27.7, 27.5, 0.1, r, [1, 1]),
-      d("BERTH 4", 23.5, 21.6, 1.9, 0, a),
-      d("BERTH 4", 23.5, -7.7, 1.7, Math.PI, a));
-    for (let E = -27; E < 27; E += 9)
-      d(
-        String(400 + Math.round((E + 27) / 9) * 5),
-        26.9,
-        E + 2,
-        0.5,
-        Math.PI / 2,
-        a,
-      );
-    i.lineCap = "round";
-    let b = (E, M, _, T, w, S) => {
-      for (let R of [-0.95, 0.95])
-        for (let z of [-0.16, 0.16])
-          ((i.strokeStyle = `rgba(0,0,255,${S})`),
-            (i.lineWidth = 0.26),
-            i.beginPath(),
-            i.moveTo(E, M + R + z),
-            i.quadraticCurveTo(
-              (E + _) / 2,
-              (M + T) / 2 + w + R + z,
-              _,
-              T + R + z,
-            ),
-            i.stroke());
-    };
-    for (let E = 0; E < 46; E++) {
-      let M = u() < 0.68 ? 6 : 16.3,
-        _ = M + (u() - 0.5) * 2.6,
-        T = -36 + u() * 40,
-        w = 8 + u() * 26;
-      b(
-        T,
-        _,
-        Math.min(T + w, 28),
-        _ + (u() - 0.5) * 1.6,
-        (u() - 0.5) * 1.4,
-        0.1 + u() * 0.22,
-      );
-    }
-    for (let E = 0; E < 12; E++) {
-      let M = u() < 0.5 ? 6 : 16.3,
-        _ = u() < 0.5 ? -1 : 1,
-        T = 0.12 + u() * 0.2;
-      ((i.strokeStyle = `rgba(0,0,255,${T})`),
-        (i.lineWidth = 0.3),
-        i.beginPath(),
-        i.moveTo(10 + u() * 4, M + (u() - 0.5) * 2),
-        i.quadraticCurveTo(
-          21 + u() * 3,
-          M,
-          22 + u() * 4,
-          M + _ * (8 + u() * 10),
-        ),
-        i.stroke());
-    }
-    for (let E = 0; E < 60; E++) {
-      let M = -34 + u() * 62,
-        _ = -8 + u() * 34,
-        T = 0.6 + u() * 2.5,
-        w = (u() - 0.5) * 0.5;
-      ((i.strokeStyle = `rgba(0,0,255,${0.15 + u() * 0.3})`),
-        (i.lineWidth = 0.12 + u() * 0.2),
-        i.beginPath(),
-        i.moveTo(M, _),
-        i.lineTo(M + Math.cos(w) * T, _ + Math.sin(w) * T),
-        i.stroke());
-    }
+      for (let E = 0; E < 46; E++) {
+        let M = u() < 0.68 ? 6 : 16.3,
+          _ = M + (u() - 0.5) * 2.6,
+          T = -36 + u() * 40,
+          w = 8 + u() * 26;
+        b(
+          T,
+          _,
+          Math.min(T + w, 28),
+          _ + (u() - 0.5) * 1.6,
+          (u() - 0.5) * 1.4,
+          0.1 + u() * 0.22,
+        );
+      }
+      for (let E = 0; E < 12; E++) {
+        let M = u() < 0.5 ? 6 : 16.3,
+          _ = u() < 0.5 ? -1 : 1,
+          T = 0.12 + u() * 0.2;
+        ((i.strokeStyle = `rgba(0,0,255,${T})`),
+          (i.lineWidth = 0.3),
+          i.beginPath(),
+          i.moveTo(10 + u() * 4, M + (u() - 0.5) * 2),
+          i.quadraticCurveTo(
+            21 + u() * 3,
+            M,
+            22 + u() * 4,
+            M + _ * (8 + u() * 10),
+          ),
+          i.stroke());
+      }
+      for (let E = 0; E < 60; E++) {
+        let M = -34 + u() * 62,
+          _ = -8 + u() * 34,
+          T = 0.6 + u() * 2.5,
+          w = (u() - 0.5) * 0.5;
+        ((i.strokeStyle = `rgba(0,0,255,${0.15 + u() * 0.3})`),
+          (i.lineWidth = 0.12 + u() * 0.2),
+          i.beginPath(),
+          i.moveTo(M, _),
+          i.lineTo(M + Math.cos(w) * T, _ + Math.sin(w) * T),
+          i.stroke());
+      }
     }
     let g = new Rs(t);
     return (
@@ -59865,7 +59876,18 @@ void main() {
             ),
             T($, jt, 3, 3, 8, 1, 0.6, 1.1, 1.6, 0.04, 0.03, hh),
             w($.x, $.y, $.z, 0.06, 0.3, 0.55, 0.7, 0.015, 0.012, mo),
-            w($.x, $.y, $.z, 0.04, 0.3, 0.45, 0.4, 0.01, 0.008, Gl + ((Et() * 2) | 0)),
+            w(
+              $.x,
+              $.y,
+              $.z,
+              0.04,
+              0.3,
+              0.45,
+              0.4,
+              0.01,
+              0.008,
+              Gl + ((Et() * 2) | 0),
+            ),
             0);
           let D = g($, Ut);
           for (let B = 0; B < 4; B++)
@@ -66755,12 +66777,12 @@ void main() {
         },
         Ie = Me.g;
       (ae.pos &&
-          ((Me.pan = ee(!!ae.hrtf)),
-          (Me.pan.refDistance = ae.ref || pe.ref || 3),
-          (Me.pan.rolloffFactor =
-            ae.roll != null ? ae.roll : pe.roll != null ? pe.roll : 0.6),
-          Me.g.connect(Me.pan),
-          (Ie = Me.pan)),
+        ((Me.pan = ee(!!ae.hrtf)),
+        (Me.pan.refDistance = ae.ref || pe.ref || 3),
+        (Me.pan.rolloffFactor =
+          ae.roll != null ? ae.roll : pe.roll != null ? pe.roll : 0.6),
+        Me.g.connect(Me.pan),
+        (Ie = Me.pan)),
         Ie.connect(
           z[ae.bus || (ae.pos ? "world" : pe.music ? "music" : "amb")],
         ),
@@ -68894,7 +68916,7 @@ void main() {
             !v.isWalkable(M, _ + 0.6) ||
             !v.isWalkable(M, _ - 0.6)),
         E = 0;
-      for (let [M, _] of Dz) {
+      for (let [M, _] of CT.on ? [] : Dz) {
         let T = null,
           w = 1e9;
         for (let I = -3; I <= 3; I += 0.5)
@@ -84159,7 +84181,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     Vu = {
       intro:
         "Warden, this is Lantern Control. Chinatown is lost. Three evac sirens are still calling the dead in. Cut them \u2014 gate, market, temple.",
-      contact: "They have your scent. Head shots put them down. Do not let them close.",
+      contact:
+        "They have your scent. Head shots put them down. Do not let them close.",
       cut: [
         "One siren dead. The whole street heard it go \u2014 here they come.",
         "Two silent. They are pouring out of every doorway now.",
@@ -84253,12 +84276,15 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         for (let Ne of ["walker", "brute"]) {
           let ke = he[Ne];
           ke &&
-            ((ke.hp = Math.round(ke.hp * (Ne === "walker" ? Math.min(ze, 1.6) : ze))),
+            ((ke.hp = Math.round(ke.hp * (Ne === "walker" ? 1 : ze))),
             (ke.damage *= Ge),
             (ke.cooldown = ke.cooldown.map((je) => je * _e)));
         }
         he.walker &&
-          (he.walker.runnerShare = Math.min(0.85, he.walker.runnerShare + 0.04 * (Y - 1)));
+          (he.walker.runnerShare = Math.min(
+            0.85,
+            he.walker.runnerShare + 0.04 * (Y - 1),
+          ));
       }
       xi.maxAlive += cs.extraAlive(Y);
       let V = cs.count(Y),
@@ -84924,7 +84950,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           Number.isFinite(Y.reserve) &&
           xi.cutAmmo > 0 &&
           ((Y.reserve = Math.min(cs.reserveCap, Y.reserve + xi.cutAmmo)),
-          o.message && o.message(`Siren box cache \u2014 +${xi.cutAmmo} rounds`, 2.6));
+          o.message &&
+            o.message(`Siren box cache \u2014 +${xi.cutAmmo} rounds`, 2.6));
       } catch {}
     }
     function ce(Y) {
@@ -85226,64 +85253,128 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         if (!src.includes(a)) throw new Error("ground shader changed: " + a);
         src = src.replace(a, b);
       };
-      swap("vec2 sid = floor(sj);", "tar = 0.0; groove = 0.0; vec2 sid = floor(sj * 0.37 + d1.g * 0.4);");
-      swap("float sh2 = fract(sh * 7.31 + 0.13);", "float sh2 = 0.42 + 0.16 * fract(sh * 7.31 + 0.13);");
-      swap("float conc = smoothstep(15.6, 16.6, gxz.x + (d1.g - 0.5) * 0.6);", "float conc = 0.0;");
+      swap(
+        "vec2 sid = floor(sj);",
+        "tar = 0.0; groove = 0.0; vec2 sid = floor(sj * 0.37 + d1.g * 0.4);",
+      );
+      swap(
+        "float sh2 = fract(sh * 7.31 + 0.13);",
+        "float sh2 = 0.42 + 0.16 * fract(sh * 7.31 + 0.13);",
+      );
+      swap(
+        "float conc = smoothstep(15.6, 16.6, gxz.x + (d1.g - 0.5) * 0.6);",
+        "float conc = 0.0;",
+      );
       return src;
     },
     // road paint: red channel = yellow paint, green = white paint, blue = rubber
     marks(c, { line, fill, text, hatch, arrow, rand, yellow, white }) {
       // main street: double yellow centre line, broken at the crossroads
-      for (let z of [5.88, 6.12]) (line(-24.5, z, -8, z, 0.11, yellow), line(12, z, 30, z, 0.11, yellow));
+      for (let z of [5.88, 6.12])
+        (line(-24.5, z, -8, z, 0.11, yellow), line(12, z, 30, z, 0.11, yellow));
       // kerbside parking line on both sides
-      for (let z of [2.42, 9.58]) (line(-24.5, z, -8, z, 0.1, white, [5.2, 0.5]), line(12, z, 30, z, 0.1, white, [5.2, 0.5]));
+      for (let z of [2.42, 9.58])
+        (line(-24.5, z, -8, z, 0.1, white, [5.2, 0.5]),
+          line(12, z, 30, z, 0.1, white, [5.2, 0.5]));
       // zebra crossings on the four arms of the crossroads
-      for (let x of [-7.4, 8.4]) for (let z = 2.3; z < 9.6; z += 1) fill(x, z, x + 3, z + 0.5, white);
-      for (let z of [-4.4, 13.6]) for (let x = -0.8; x < 4.6; x += 1) fill(x, z, x + 0.5, z + 2.8, white);
-      (line(-8.2, 2.2, -8.2, 5.8, 0.32, white), line(12.2, 6.2, 12.2, 9.8, 0.32, white));
-      (line(-0.9, -5.2, 1.9, -5.2, 0.3, white), line(2.1, 17.2, 4.9, 17.2, 0.3, white));
+      for (let x of [-7.4, 8.4])
+        for (let z = 2.3; z < 9.6; z += 1) fill(x, z, x + 3, z + 0.5, white);
+      for (let z of [-4.4, 13.6])
+        for (let x = -0.8; x < 4.6; x += 1) fill(x, z, x + 0.5, z + 2.8, white);
+      (line(-8.2, 2.2, -8.2, 5.8, 0.32, white),
+        line(12.2, 6.2, 12.2, 9.8, 0.32, white));
+      (line(-0.9, -5.2, 1.9, -5.2, 0.3, white),
+        line(2.1, 17.2, 4.9, 17.2, 0.3, white));
       // side lane: dashed centre line
-      (line(2, -29, 2, -6.2, 0.1, white, [2.2, 3.2]), line(2, 18.2, 2, 29, 0.1, white, [2.2, 3.2]));
+      (line(2, -29, 2, -6.2, 0.1, white, [2.2, 3.2]),
+        line(2, 18.2, 2, 29, 0.1, white, [2.2, 3.2]));
       // keep-clear boxes at the gate and the checkpoint
-      (hatch(-30.4, 2.5, -26.9, 9.5, yellow, 1.05, 0.13), hatch(31.2, 2.5, 37.6, 9.5, yellow, 1.2, 0.15));
-      (arrow(-17, 4.1, 1, white), arrow(-12, 7.9, -1, white), arrow(20, 4.1, 1, white), arrow(25, 7.9, -1, white));
-      (text("SLOW", -21.2, 4.1, 1.5, Math.PI / 2, white), text("SLOW", 16.4, 7.9, 1.5, -Math.PI / 2, white));
-      (text("STOP", 29.2, 4.1, 1.6, Math.PI / 2, white), text("BUS", -35.5, 11.2, 1.3, 0, yellow));
+      (hatch(-30.4, 2.5, -26.9, 9.5, yellow, 1.05, 0.13),
+        hatch(31.2, 2.5, 37.6, 9.5, yellow, 1.2, 0.15));
+      (arrow(-17, 4.1, 1, white),
+        arrow(-12, 7.9, -1, white),
+        arrow(20, 4.1, 1, white),
+        arrow(25, 7.9, -1, white));
+      (text("SLOW", -21.2, 4.1, 1.5, Math.PI / 2, white),
+        text("SLOW", 16.4, 7.9, 1.5, -Math.PI / 2, white));
+      (text("STOP", 29.2, 4.1, 1.6, Math.PI / 2, white),
+        text("BUS", -35.5, 11.2, 1.3, 0, yellow));
       hatch(-38.6, 10.2, -32.4, 12.4, yellow, 0.9, 0.11);
       // painted characters, the way Hong Kong and San Francisco stencil their lanes
       let han = (t, x, z, size, rot) => {
-        (c.save(), c.translate(x, z), c.rotate(rot), c.scale(size / 100, size / 100));
-        c.font = '900 100px "Noto Serif TC", "PingFang TC", "Heiti TC", sans-serif';
-        ((c.textAlign = "center"), (c.textBaseline = "middle"), (c.fillStyle = white), c.fillText(t, 0, 0), c.restore());
+        (c.save(),
+          c.translate(x, z),
+          c.rotate(rot),
+          c.scale(size / 100, size / 100));
+        c.font =
+          '900 100px "Noto Serif TC", "PingFang TC", "Heiti TC", sans-serif';
+        ((c.textAlign = "center"),
+          (c.textBaseline = "middle"),
+          (c.fillStyle = white),
+          c.fillText(t, 0, 0),
+          c.restore());
       };
-      (han("\u6162", -19.2, 4.1, 1.7, Math.PI / 2), han("\u6162", 14.4, 7.9, 1.7, -Math.PI / 2), han("\u505c", 27.2, 4.1, 1.8, Math.PI / 2));
+      (han("\u6162", -19.2, 4.1, 1.7, Math.PI / 2),
+        han("\u6162", 14.4, 7.9, 1.7, -Math.PI / 2),
+        han("\u505c", 27.2, 4.1, 1.8, Math.PI / 2));
       // rubber: panic braking and long drags toward the crossroads and the gate
       c.lineCap = "round";
       let skid = (x0, z0, x1, z1, bend, a) => {
         for (let o of [-0.78, 0.78]) {
-          ((c.strokeStyle = `rgba(0,0,255,${a})`), (c.lineWidth = 0.24), c.beginPath());
-          (c.moveTo(x0, z0 + o), c.quadraticCurveTo((x0 + x1) / 2, (z0 + z1) / 2 + bend + o, x1, z1 + o), c.stroke());
+          ((c.strokeStyle = `rgba(0,0,255,${a})`),
+            (c.lineWidth = 0.24),
+            c.beginPath());
+          (c.moveTo(x0, z0 + o),
+            c.quadraticCurveTo(
+              (x0 + x1) / 2,
+              (z0 + z1) / 2 + bend + o,
+              x1,
+              z1 + o,
+            ),
+            c.stroke());
         }
       };
       for (let k = 0; k < 34; k++) {
         let z = rand() < 0.5 ? 4.2 : 7.8,
           x = -36 + rand() * 66,
           len = 5 + rand() * 16;
-        skid(x, z + (rand() - 0.5) * 1.6, Math.min(x + len, 36), z + (rand() - 0.5) * 2.4, (rand() - 0.5) * 1.6, 0.1 + rand() * 0.24);
+        skid(
+          x,
+          z + (rand() - 0.5) * 1.6,
+          Math.min(x + len, 36),
+          z + (rand() - 0.5) * 2.4,
+          (rand() - 0.5) * 1.6,
+          0.1 + rand() * 0.24,
+        );
       }
-      (skid(-14, 4.2, -4.5, 7.4, 1.4, 0.5), skid(22, 7.6, 12.4, 4.9, -1.2, 0.5), skid(-33, 7.9, -27.2, 5.6, 0.8, 0.42));
+      (skid(-14, 4.2, -4.5, 7.4, 1.4, 0.5),
+        skid(22, 7.6, 12.4, 4.9, -1.2, 0.5),
+        skid(-33, 7.9, -27.2, 5.6, 0.8, 0.42));
       for (let k = 0; k < 9; k++) {
         let z0 = -26 + rand() * 50;
-        ((c.strokeStyle = `rgba(0,0,255,${0.12 + rand() * 0.22})`), (c.lineWidth = 0.26), c.beginPath());
-        (c.moveTo(1 + rand() * 2, z0), c.quadraticCurveTo(2 + (rand() - 0.5) * 2, z0 + 4, 1.2 + rand() * 1.8, z0 + 7 + rand() * 4), c.stroke());
+        ((c.strokeStyle = `rgba(0,0,255,${0.12 + rand() * 0.22})`),
+          (c.lineWidth = 0.26),
+          c.beginPath());
+        (c.moveTo(1 + rand() * 2, z0),
+          c.quadraticCurveTo(
+            2 + (rand() - 0.5) * 2,
+            z0 + 4,
+            1.2 + rand() * 1.8,
+            z0 + 7 + rand() * 4,
+          ),
+          c.stroke());
       }
       for (let k = 0; k < 70; k++) {
         let x = -38 + rand() * 76,
           z = rand() < 0.75 ? 2.4 + rand() * 7.2 : -28 + rand() * 56,
           len = 0.5 + rand() * 2.4,
           ang = (rand() - 0.5) * 0.6;
-        ((c.strokeStyle = `rgba(0,0,255,${0.14 + rand() * 0.28})`), (c.lineWidth = 0.1 + rand() * 0.2), c.beginPath());
-        (c.moveTo(x, z), c.lineTo(x + Math.cos(ang) * len, z + Math.sin(ang) * len), c.stroke());
+        ((c.strokeStyle = `rgba(0,0,255,${0.14 + rand() * 0.28})`),
+          (c.lineWidth = 0.1 + rand() * 0.2),
+          c.beginPath());
+        (c.moveTo(x, z),
+          c.lineTo(x + Math.cos(ang) * len, z + Math.sin(ang) * len),
+          c.stroke());
       }
     },
     apply() {
@@ -85417,7 +85508,10 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           o({ cam: [...d.cam, ...(d.target || [0, 1, 0])].join(",") }));
     } else {
       if (
-        (await fa(ctHarbor ? "Stacking containers" : "Raising the paifang", 0.34),
+        (await fa(
+          ctHarbor ? "Stacking containers" : "Raising the paifang",
+          0.34,
+        ),
         await r(
           "level",
           "level",
@@ -85427,7 +85521,10 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
               : (await import("./chinatown/level.js")).createLevel(t),
           !0,
         ),
-        await fa(ctHarbor ? "Raising the cranes" : "Lighting the lanterns", 0.5),
+        await fa(
+          ctHarbor ? "Raising the cranes" : "Lighting the lanterns",
+          0.5,
+        ),
         await r("backdrop", "backdrop", async () =>
           ctHarbor
             ? Iv(t)

@@ -28,9 +28,21 @@ function coefs(type, f, q, sr) {
   const al = Math.sin(w) / (2 * q);
   const a0 = 1 + al;
   if (type === "lp")
-    return [(1 - c) / 2 / a0, (1 - c) / a0, (1 - c) / 2 / a0, (-2 * c) / a0, (1 - al) / a0];
+    return [
+      (1 - c) / 2 / a0,
+      (1 - c) / a0,
+      (1 - c) / 2 / a0,
+      (-2 * c) / a0,
+      (1 - al) / a0,
+    ];
   if (type === "hp")
-    return [(1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0, (-2 * c) / a0, (1 - al) / a0];
+    return [
+      (1 + c) / 2 / a0,
+      -(1 + c) / a0,
+      (1 + c) / 2 / a0,
+      (-2 * c) / a0,
+      (1 - al) / a0,
+    ];
   return [al / a0, 0, -al / a0, (-2 * c) / a0, (1 - al) / a0];
 }
 
@@ -111,7 +123,8 @@ function modes(sr, sec, list, rng) {
     const ph = rng ? rng() * TAU : 0;
     const w = (TAU * f) / sr;
     const n = Math.min(a.length, Math.ceil(tau * sr * 7));
-    for (let i = 0; i < n; i++) a[i] += amp * Math.sin(w * i + ph) * Math.exp(-i / (tau * sr));
+    for (let i = 0; i < n; i++)
+      a[i] += amp * Math.sin(w * i + ph) * Math.exp(-i / (tau * sr));
   }
   const fadeIn = Math.min(a.length, Math.round(0.0005 * sr));
   for (let i = 0; i < fadeIn; i++) a[i] *= i / fadeIn;
@@ -185,10 +198,22 @@ function fleshHit(sr, rng, v) {
   add(a, thump(sr, 0.1, 175 * k, 62, 0.02, 0.03), 0, 0.85, sr);
   add(a, burst(sr, rng, 0.05, 0.011, { lp: 950 * k }), 0, 1, sr);
   add(a, squelch(sr, rng, 0.12, 2600 * k, 800, 1.7, 0.032, 46), 0.004, 0.6, sr);
-  add(a, burst(sr, rng, 0.05, 0.016, { bp: 3600, q: 0.7, att: 0.002 }), 0.002, 0.16, sr);
   add(
     a,
-    ticks(sr, rng, 0.28, 10, { from: 0.025, fall: 1.7, hp: 2400, lp: 8000, fade: 0.09 }),
+    burst(sr, rng, 0.05, 0.016, { bp: 3600, q: 0.7, att: 0.002 }),
+    0.002,
+    0.16,
+    sr,
+  );
+  add(
+    a,
+    ticks(sr, rng, 0.28, 10, {
+      from: 0.025,
+      fall: 1.7,
+      hp: 2400,
+      lp: 8000,
+      fade: 0.09,
+    }),
     0,
     0.26,
     sr,
@@ -225,7 +250,14 @@ function headshot(sr, rng, v) {
   add(a, squelch(sr, rng, 0.2, 2100 * k, 480, 2.2, 0.06, 38), 0.012, 0.6, sr);
   add(
     a,
-    ticks(sr, rng, 0.5, 24, { from: 0.05, fall: 1.5, hp: 1700, lp: 7500, fade: 0.17, max: 0.006 }),
+    ticks(sr, rng, 0.5, 24, {
+      from: 0.05,
+      fall: 1.5,
+      hp: 1700,
+      lp: 7500,
+      fade: 0.17,
+      max: 0.006,
+    }),
     0,
     0.34,
     sr,
@@ -239,13 +271,26 @@ function bodyFall(sr, rng, v) {
   const a = alloc(sr, 0.75);
   add(a, thump(sr, 0.24, 140 * k, 55, 0.035, 0.07, 0.002), 0, 1, sr);
   add(a, burst(sr, rng, 0.14, 0.04, { lp: 520 * k, att: 0.003 }), 0, 0.85, sr);
-  add(a, burst(sr, rng, 0.2, 0.06, { bp: 1900, q: 0.6, att: 0.006 }), 0.004, 0.2, sr);
+  add(
+    a,
+    burst(sr, rng, 0.2, 0.06, { bp: 1900, q: 0.6, att: 0.006 }),
+    0.004,
+    0.2,
+    sr,
+  );
   const second = pick(rng, 0.13, 0.21);
   add(a, thump(sr, 0.12, 165 * k, 70, 0.025, 0.035, 0.002), second, 0.42, sr);
   add(a, burst(sr, rng, 0.06, 0.018, { lp: 720 }), second, 0.32, sr);
   add(
     a,
-    ticks(sr, rng, 0.6, 9, { from: 0.03, fall: 1.4, hp: 1500, lp: 6000, fade: 0.2, max: 0.006 }),
+    ticks(sr, rng, 0.6, 9, {
+      from: 0.03,
+      fall: 1.4,
+      hp: 1500,
+      lp: 6000,
+      fade: 0.2,
+      max: 0.006,
+    }),
     0,
     0.12,
     sr,
@@ -261,7 +306,8 @@ function shuffle(sr, rng, v) {
   const len = pick(rng, 0.2, 0.3);
   const att = pick(rng, 0.03, 0.06);
   const a = alloc(sr, len + 0.2);
-  const env = (t) => Math.min(1, t / att) * (t > len - 0.07 ? Math.max(0, (len - t) / 0.07) : 1);
+  const env = (t) =>
+    Math.min(1, t / att) * (t > len - 0.07 ? Math.max(0, (len - t) / 0.07) : 1);
   const drag = white(sr, len, rng);
   filter(drag, "bp", (t) => 1350 * k * Math.pow(0.55, t), 0.9, sr);
   add(a, unit(roughen(shape(drag, sr, env), sr, rng, 140, 0.75)), 0, 0.62, sr);
@@ -271,7 +317,13 @@ function shuffle(sr, rng, v) {
   const plant = len - 0.03;
   add(a, thump(sr, 0.07, 96 * k, 50, 0.02, 0.022, 0.0015), plant, 0.7, sr);
   add(a, burst(sr, rng, 0.05, 0.013, { lp: 640 * k }), plant, 0.5, sr);
-  add(a, ticks(sr, rng, 0.16, 4, { hp: 2200, lp: 7000, max: 0.005 }), plant, 0.14, sr);
+  add(
+    a,
+    ticks(sr, rng, 0.16, 4, { hp: 2200, lp: 7000, max: 0.005 }),
+    plant,
+    0.14,
+    sr,
+  );
   return a;
 }
 
@@ -286,7 +338,14 @@ function slap(sr, rng, v) {
   add(a, unit(shape(splash, sr, strike(0.045, 0.004))), 0.004, 0.36, sr);
   add(
     a,
-    ticks(sr, rng, 0.3, 7, { from: 0.02, fall: 1.5, hp: 2000, lp: 7500, fade: 0.1, max: 0.005 }),
+    ticks(sr, rng, 0.3, 7, {
+      from: 0.02,
+      fall: 1.5,
+      hp: 2000,
+      lp: 7500,
+      fade: 0.1,
+      max: 0.005,
+    }),
     0,
     0.22,
     sr,
@@ -299,11 +358,23 @@ function maul(sr, rng, v) {
   const k = [1, 0.9, 1.08][v % 3];
   const a = alloc(sr, 0.5);
   add(a, thump(sr, 0.2, 150 * k, 52, 0.03, 0.055, 0.0012), 0, 1, sr);
-  add(a, burst(sr, rng, 0.08, 0.022, { bp: 640 * k, q: 0.8, att: 0.001 }), 0, 0.9, sr);
+  add(
+    a,
+    burst(sr, rng, 0.08, 0.022, { bp: 640 * k, q: 0.8, att: 0.001 }),
+    0,
+    0.9,
+    sr,
+  );
   add(a, burst(sr, rng, 0.16, 0.05, { lp: 300 }), 0, 0.7, sr);
   const rip = white(sr, 0.22, rng);
   filter(rip, "bp", (t) => 2500 * Math.pow(1.7, t), 1.2, sr);
-  add(a, unit(roughen(shape(rip, sr, strike(0.065, 0.008)), sr, rng, 320, 0.9)), 0.018, 0.3, sr);
+  add(
+    a,
+    unit(roughen(shape(rip, sr, strike(0.065, 0.008)), sr, rng, 320, 0.9)),
+    0.018,
+    0.3,
+    sr,
+  );
   add(a, squelch(sr, rng, 0.14, 1700 * k, 600, 2, 0.045, 52), 0.008, 0.34, sr);
   return drive(unit(a), 1.5);
 }
@@ -439,7 +510,10 @@ function* farSiren(sr, rng, v) {
     } else f = Math.floor(t / 0.62) % 2 ? 466 : 622;
     ph += (TAU * f * (1 - (drift * t) / len)) / sr;
     a[i] =
-      Math.sin(ph) + 0.45 * Math.sin(2 * ph) + 0.22 * Math.sin(3 * ph) + 0.1 * Math.sin(4 * ph);
+      Math.sin(ph) +
+      0.45 * Math.sin(2 * ph) +
+      0.22 * Math.sin(3 * ph) +
+      0.1 * Math.sin(4 * ph);
     if ((i & 16383) === 0) yield;
   }
   yield;
@@ -465,7 +539,8 @@ function* carAlarm(sr, rng) {
       on = ((t - 6.2) % 0.5) / 0.5 < 0.5 ? 1 : 0;
     }
     ph += (TAU * f) / sr;
-    a[i] = on * (Math.sin(ph) + 0.33 * Math.sin(3 * ph) + 0.2 * Math.sin(5 * ph));
+    a[i] =
+      on * (Math.sin(ph) + 0.33 * Math.sin(3 * ph) + 0.2 * Math.sin(5 * ph));
     if ((i & 16383) === 0) yield;
   }
   yield;
@@ -503,7 +578,7 @@ export const SOUNDS = {
     sr: 32000,
     peak: 0.58,
     bus: "world",
-    max: 4,
+    max: 6,
     pri: 4,
     ref: 4,
     roll: 0.8,
@@ -530,9 +605,35 @@ export const SOUNDS = {
     ref: 2.6,
     roll: 1,
   },
-  z_maul: { gen: maul, n: 3, sr: 44100, peak: 0.6, bus: "near", max: 2, pri: 8 },
-  z_chime: { gen: chime, n: 3, sr: 32000, peak: 0.5, bus: "world", max: 2, pri: 1, defer: 1 },
-  z_shutter: { gen: shutter, n: 3, sr: 32000, peak: 0.65, bus: "world", max: 2, pri: 1, defer: 1 },
+  z_maul: {
+    gen: maul,
+    n: 3,
+    sr: 44100,
+    peak: 0.6,
+    bus: "near",
+    max: 2,
+    pri: 8,
+  },
+  z_chime: {
+    gen: chime,
+    n: 3,
+    sr: 32000,
+    peak: 0.5,
+    bus: "world",
+    max: 2,
+    pri: 1,
+    defer: 1,
+  },
+  z_shutter: {
+    gen: shutter,
+    n: 3,
+    sr: 32000,
+    peak: 0.65,
+    bus: "world",
+    max: 2,
+    pri: 1,
+    defer: 1,
+  },
   z_farsiren: {
     gen: farSiren,
     n: 2,
@@ -543,11 +644,26 @@ export const SOUNDS = {
     pri: 1,
     defer: 1,
   },
-  z_alarm: { gen: carAlarm, n: 1, sr: 22050, peak: 0.4, bus: "world", max: 1, pri: 1, defer: 1 },
+  z_alarm: {
+    gen: carAlarm,
+    n: 1,
+    sr: 22050,
+    peak: 0.4,
+    bus: "world",
+    max: 1,
+    pri: 1,
+    defer: 1,
+  },
 };
 
 // Synthesised early: these are needed within seconds of the first contact.
-export const ORDER = ["z_shuffle", "z_slap", "z_bodyfall", "z_headshot", "z_maul"];
+export const ORDER = [
+  "z_shuffle",
+  "z_slap",
+  "z_bodyfall",
+  "z_headshot",
+  "z_maul",
+];
 
 // ---------------------------------------------------------------------------------------------
 // Zombie voice samples (CC0, see docs/assets-audio.md). The number is a loudness trim in dB so
@@ -603,7 +719,15 @@ const VOICE = {
   scream: { gain: 1.0, rate: 1.02, range: 75, pri: 4, rest: 0.5, max: 3 },
   grunt: { gain: 0.88, rate: 1.0, range: 32, pri: 3, rest: 0.25, max: 3 },
   pain: { gain: 0.7, rate: 1.03, range: 42, pri: 2, rest: 0.4, max: 3 },
-  death: { gain: 0.72, rate: 0.94, range: 52, pri: 5, rest: 0, max: 3, fall: 0.66 },
+  death: {
+    gain: 0.72,
+    rate: 0.94,
+    range: 52,
+    pri: 5,
+    rest: 0,
+    max: 3,
+    fall: 0.66,
+  },
 };
 
 const MAX_VOICES = 7;
@@ -623,6 +747,7 @@ const bank = new Map(); // kind -> [{ name, buffer, gain }]
 let bankLoad = null;
 let murmurBuffer = null;
 let murmurBuild = null;
+let murmurInfo = null;
 
 function decode(ctx, data) {
   return new Promise((resolve, reject) => {
@@ -635,7 +760,8 @@ function loadVoices(ctx, base) {
   if (bankLoad) return bankLoad;
   const jobs = [];
   for (const [kind, files] of Object.entries(VOICE_FILES))
-    for (const [name, trim] of files) jobs.push({ kind, name, gain: Math.pow(10, trim / 20) });
+    for (const [name, trim] of files)
+      jobs.push({ kind, name, gain: Math.pow(10, trim / 20) });
   const status = { loaded: 0, failed: 0 };
   const one = async (job) => {
     try {
@@ -648,7 +774,10 @@ function loadVoices(ctx, base) {
     } catch (err) {
       if (!status.failed++)
         console.warn(
-          "[audio] zombie voice " + job.name + " unavailable: " + ((err && err.message) || err),
+          "[audio] zombie voice " +
+            job.name +
+            " unavailable: " +
+            ((err && err.message) || err),
         );
     }
   };
@@ -683,12 +812,14 @@ function buildMurmur(ctx) {
   if (murmurBuild) return murmurBuild;
   murmurBuild = (async () => {
     await bankLoad;
+    // sorted, so the loop comes out the same whatever order the files arrived in
     const pool = [
       ...(bank.get("moan") || []),
       ...(bank.get("growl") || []),
       ...(bank.get("death") || []),
-    ];
-    const Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    ].sort((a, b) => (a.name < b.name ? -1 : 1));
+    const Offline =
+      window.OfflineAudioContext || window.webkitOfflineAudioContext;
     if (pool.length < 3 || !Offline) return null;
     let sr = 24000;
     let off;
@@ -751,13 +882,30 @@ function buildMurmur(ctx) {
     const rms = Math.sqrt(sq / loop.length);
     if (!(rms > 1e-6)) return null;
     const k = MURMUR_RMS / rms;
-    for (let i = 0; i < loop.length; i++) loop[i] = clamp(loop[i] * k, -1, 1);
+    let peak = 0;
+    let step = 0;
+    for (let i = 0; i < loop.length; i++) {
+      loop[i] = clamp(loop[i] * k, -1, 1);
+      peak = Math.max(peak, Math.abs(loop[i]));
+      if (i) step = Math.max(step, Math.abs(loop[i] - loop[i - 1]));
+    }
+    // `seam` compares the jump across the loop point with the largest jump inside the loop
+    murmurInfo = {
+      seconds: MURMUR_SECONDS,
+      sampleRate: sr,
+      peak: +peak.toFixed(3),
+      seam: +(Math.abs(loop[0] - loop[loop.length - 1]) / (step || 1)).toFixed(
+        3,
+      ),
+    };
     const buffer = ctx.createBuffer(1, loop.length, sr);
     buffer.getChannelData(0).set(loop);
     murmurBuffer = buffer;
     return buffer;
   })().catch((err) => {
-    console.warn("[audio] horde murmur unavailable: " + ((err && err.message) || err));
+    console.warn(
+      "[audio] horde murmur unavailable: " + ((err && err.message) || err),
+    );
     return null;
   });
   return murmurBuild;
@@ -781,17 +929,32 @@ const SIREN = {
   coast: 3.1,
   coastTo: 0.45,
   windDown: 0.7,
-  height: 2.2,
+  height: 4.8, // the horns sit at the top of the pole (see siren() in landmarks.js)
 };
 
 export function create(env) {
   const { G, ctx, buses, listener: L, play, on, running } = env;
   const rnd = env.rnd || Math.random;
   const base = (import.meta.env && import.meta.env.BASE_URL) || "/";
-  const stats = { spoken: 0, dropped: 0, stolen: 0, steps: 0, stepsDropped: 0, far: 0, setupMs: 0 };
+  const stats = {
+    spoken: 0,
+    dropped: 0,
+    stolen: 0,
+    steps: 0,
+    stepsDropped: 0,
+    far: 0,
+    setupMs: 0,
+  };
   const t0 = performance.now();
   let clock = 0;
-  let last = { state: "title", paused: false, intensity: 0, interior: 0, amb: 0, gust: 0.4 };
+  let last = {
+    state: "title",
+    paused: false,
+    intensity: 0,
+    interior: 0,
+    amb: 0,
+    gust: 0.4,
+  };
 
   // Voices load in the background; the horde murmur is built from them once they are in.
   let ready = Promise.resolve(null);
@@ -906,8 +1069,11 @@ export function create(env) {
   function choose(kind, set, now) {
     if (set.length === 1) return set[0];
     const busy = new Set();
-    for (const v of voices) if (v.end > now && v.kind === kind && v.file) busy.add(v.file);
-    let options = set.filter((s) => s.name !== lastFile[kind] && !busy.has(s.name));
+    for (const v of voices)
+      if (v.end > now && v.kind === kind && v.file) busy.add(v.file);
+    let options = set.filter(
+      (s) => s.name !== lastFile[kind] && !busy.has(s.name),
+    );
     if (!options.length) options = set.filter((s) => s.name !== lastFile[kind]);
     const s = options[Math.floor(rnd() * options.length)];
     lastFile[kind] = s.name;
@@ -926,7 +1092,8 @@ export function create(env) {
       out.z = s.z;
     } else {
       out.x = z.pos.x;
-      out.y = (z.pos.y || 0) + (z.crawling ? 0.35 : z.type === "brute" ? 1.85 : 1.55);
+      out.y =
+        (z.pos.y || 0) + (z.crawling ? 0.35 : z.type === "brute" ? 1.85 : 1.55);
       out.z = z.pos.z;
     }
     return out;
@@ -969,7 +1136,8 @@ export function create(env) {
         worst = v;
       }
     }
-    if (same >= cfg.max) return farSame && farSame.dist > d * 1.5 + 2 ? farSame : null;
+    if (same >= cfg.max)
+      return farSame && farSame.dist > d * 1.5 + 2 ? farSame : null;
     if (free) return free;
     return worst && pri * 12 - d > worstScore + 6 ? worst : null;
   }
@@ -988,7 +1156,12 @@ export function create(env) {
     const range = cfg.range * (brute ? 1.25 : 1);
     if (d > range) return false;
     // thin the far end of the range instead of cutting it off
-    if (!o.force && d > range * 0.6 && rnd() < (d - range * 0.6) / (range * 0.4)) return false;
+    if (
+      !o.force &&
+      d > range * 0.6 &&
+      rnd() < (d - range * 0.6) / (range * 0.4)
+    )
+      return false;
     const mind = mindOf(z);
     if (mind.voice && mind.voice.enemy === z && mind.voice.end > now) {
       if (cfg.pri <= mind.voice.pri) return false;
@@ -1013,7 +1186,11 @@ export function create(env) {
     lastOnset = start;
 
     const sample = choose(kind, set, now);
-    const rate = clamp(cfg.rate * mind.pitch * (1 + (rnd() * 2 - 1) * 0.03), 0.4, 2);
+    const rate = clamp(
+      cfg.rate * mind.pitch * (1 + (rnd() * 2 - 1) * 0.03),
+      0.4,
+      2,
+    );
     // the more throats already going, the less each new one adds; the close ones give up least
     let active = 0;
     for (const other of voices) if (other.end > now) active++;
@@ -1035,7 +1212,10 @@ export function create(env) {
       // the breath runs out: pitch sags as it goes
       try {
         src.playbackRate.setValueAtTime(rate, start);
-        src.playbackRate.exponentialRampToValueAtTime(rate * cfg.fall, start + length * 1.2);
+        src.playbackRate.exponentialRampToValueAtTime(
+          rate * cfg.fall,
+          start + length * 1.2,
+        );
         length *= 1.22;
       } catch {}
     }
@@ -1078,6 +1258,7 @@ export function create(env) {
     mind.voice = v;
     mind.rest = v.end + cfg.rest * (0.6 + 0.8 * rnd());
     stats.spoken++;
+    stats.last = `${kind} ${sample.name} x${v.rate} ${level.toFixed(2)}`;
     return true;
   }
 
@@ -1095,7 +1276,8 @@ export function create(env) {
       const heard =
         v.level *
         (v.open ? 1 : OCCLUDED_GAIN) *
-        (VOICE_REF / (VOICE_REF + VOICE_ROLLOFF * Math.max(0, v.dist - VOICE_REF)));
+        (VOICE_REF /
+          (VOICE_REF + VOICE_ROLLOFF * Math.max(0, v.dist - VOICE_REF)));
       power += heard * heard;
       v.lookT -= dt;
       if (v.lookT <= 0) {
@@ -1103,7 +1285,11 @@ export function create(env) {
         const open = openAir(v.x, v.y, v.z);
         if (open !== v.open) {
           v.open = open;
-          v.g.gain.setTargetAtTime(v.level * (open ? 1 : OCCLUDED_GAIN), now, 0.1);
+          v.g.gain.setTargetAtTime(
+            v.level * (open ? 1 : OCCLUDED_GAIN),
+            now,
+            0.1,
+          );
         }
       }
       v.lp.frequency.setTargetAtTime(
@@ -1114,7 +1300,9 @@ export function create(env) {
     }
     // duck fast, recover slowly
     const want = Math.min(1, HORDE_CEILING / Math.sqrt(power || 1e-9));
-    hordeGain += (want - hordeGain) * (1 - Math.exp(-dt / (want < hordeGain ? 0.03 : 0.3)));
+    hordeGain +=
+      (want - hordeGain) *
+      (1 - Math.exp(-dt / (want < hordeGain ? 0.03 : 0.3)));
     hordeBus.gain.value = hordeGain;
   }
 
@@ -1208,7 +1396,9 @@ export function create(env) {
   let stepTokens = 4;
   let fallTimes = null;
 
-  // When does the body reach the ground in each death clip? Read once from the hip track.
+  // When does the body reach the ground in each death clip? Read once from the hip track: `body`
+  // is the moment the hips are all the way down, `knees` an earlier drop to about half height
+  // (falling to the knees first) when the clip has one.
   function fallTime(name) {
     if (!fallTimes) {
       fallTimes = {};
@@ -1216,20 +1406,31 @@ export function create(env) {
         const clips = G.enemies && G.enemies.debug && G.enemies.debug.clips;
         for (const key of ["death_back", "death_front"]) {
           const track =
-            clips && clips[key] && clips[key].tracks.find((t) => t.name === "Hips.position");
+            clips &&
+            clips[key] &&
+            clips[key].tracks.find((t) => t.name === "Hips.position");
           if (!track) continue;
           const y0 = track.values[1];
           let low = Infinity;
-          for (let i = 1; i < track.values.length; i += 3) low = Math.min(low, track.values[i]);
-          for (let i = 0; i < track.times.length; i++)
-            if (track.values[i * 3 + 1] <= low + 0.18 * (y0 - low)) {
-              fallTimes[key] = track.times[i] - track.times[0];
-              break;
-            }
+          for (let i = 1; i < track.values.length; i += 3)
+            low = Math.min(low, track.values[i]);
+          const reach = (share) => {
+            for (let i = 0; i < track.times.length; i++)
+              if (track.values[i * 3 + 1] <= low + share * (y0 - low))
+                return track.times[i] - track.times[0];
+            return null;
+          };
+          const body = reach(0.18);
+          const knees = reach(0.55);
+          if (body != null)
+            fallTimes[key] = {
+              body,
+              knees: knees != null && body - knees > 0.5 ? knees : null,
+            };
         }
       } catch {}
     }
-    return fallTimes[name] != null ? fallTimes[name] : 0.8;
+    return fallTimes[name] || { body: 0.8, knees: null };
   }
 
   on("enemy:spawn", (e) => {
@@ -1240,13 +1441,23 @@ export function create(env) {
     speak(e.enemy, e.kind);
   });
 
-  // Heard a shot and turned towards it: a couple of the nearest answer.
+  // Heard a shot and turned towards it: now and then one within earshot answers.
   let answered = -9;
   on("enemy:alert", (e) => {
     const z = e.enemy;
-    if (!e.noise || !z || !z.pos || clock - answered < 1.6 || distTo(z.pos) > 26) return;
+    if (
+      !e.noise ||
+      !z ||
+      !z.pos ||
+      clock - answered < 1.6 ||
+      distTo(z.pos) > 26
+    )
+      return;
     answered = clock;
-    later(0.25 + rnd() * 0.6, () => z.alive && speak(z, "growl", { gain: 0.85 }));
+    later(
+      0.25 + rnd() * 0.6,
+      () => z.alive && speak(z, "growl", { gain: 0.85 }),
+    );
   });
 
   on("enemy:step", (e) => {
@@ -1254,7 +1465,11 @@ export function create(env) {
     if (!p) return;
     const d = distTo(p);
     // near feet always sound; further out they thin, and a crowd cannot flood the channels
-    if (d > 24 || (d > 7 && rnd() < (d - 7) / 17) || (stepTokens < 1 && d > 4)) {
+    if (
+      d > 24 ||
+      (d > 7 && rnd() < (d - 7) / 17) ||
+      (stepTokens < 1 && d > 4)
+    ) {
       stats.stepsDropped++;
       return;
     }
@@ -1286,26 +1501,51 @@ export function create(env) {
     const mind = mindOf(z);
     const brute = (e.type || z.type) === "brute";
     const head = e.part === "weak";
-    if (mind.voice && mind.voice.enemy === z) hush(mind.voice, head ? 0.03 : 0.07);
+    if (mind.voice && mind.voice.enemy === z)
+      hush(mind.voice, head ? 0.03 : 0.07);
     if (head) {
       mouthOf(z, mouth);
-      play("z_headshot", { pos: mouth, gain: 1, pitch: brute ? 0.84 : 1, jitter: 0.06 });
+      play("z_headshot", {
+        pos: mouth,
+        gain: 1,
+        pitch: brute ? 0.84 : 1,
+        jitter: 0.06,
+      });
     }
     // a headshot mostly drops them without a sound; anything else gets a last breath
-    if (!head || rnd() < 0.25) speak(z, "death", { force: true, gain: head ? 0.6 : 1 });
-    if (!z.crawling)
+    if (!head || rnd() < 0.25)
+      speak(z, "death", { force: true, gain: head ? 0.6 : 1 });
+    if (!z.crawling) {
+      // the death clips play faster after a headshot; the thuds follow the animation
+      const fall = fallTime(z.anim);
+      const speed = head ? 1.5 : 1.25;
+      const weight = brute ? 1.2 : 0.9;
+      const pitch = brute ? 0.8 : 1;
+      if (fall.knees != null)
+        play("z_bodyfall", {
+          pos: p,
+          delay: fall.knees / speed,
+          gain: weight * 0.5,
+          pitch: pitch * 1.3,
+          jitter: 0.07,
+        });
       play("z_bodyfall", {
         pos: p,
-        delay: fallTime(z.anim) / (head ? 1.5 : 1.25) + rnd() * 0.04,
-        gain: brute ? 1.2 : 0.9,
-        pitch: brute ? 0.8 : 1,
+        delay: fall.body / speed + rnd() * 0.04,
+        gain: weight,
+        pitch,
         jitter: 0.07,
       });
+    }
   });
 
   on("enemy:melee", (e) => {
     const brute = (e.type || (e.enemy && e.enemy.type)) === "brute";
-    play("z_maul", { gain: brute ? 1 : 0.85, pitch: brute ? 0.82 : 1, jitter: 0.06 });
+    play("z_maul", {
+      gain: brute ? 1 : 0.85,
+      pitch: brute ? 0.82 : 1,
+      jitter: 0.06,
+    });
   });
 
   on("holdout:wave", (e) => {
@@ -1322,7 +1562,9 @@ export function create(env) {
 
   function sirenNodes() {
     if (!sirenWave) {
-      const imag = new Float32Array([0, 1, 0.5, 0.34, 0.2, 0.13, 0.08, 0.05, 0.03]);
+      const imag = new Float32Array([
+        0, 1, 0.5, 0.34, 0.2, 0.13, 0.08, 0.05, 0.03,
+      ]);
       sirenWave = ctx.createPeriodicWave(new Float32Array(imag.length), imag);
       const n = Math.round(ctx.sampleRate * 1.5);
       noiseLoop = ctx.createBuffer(1, n, ctx.sampleRate);
@@ -1383,7 +1625,11 @@ export function create(env) {
 
   function resetSirens(state) {
     const objectives = (G.level && G.level.objectives) || [];
-    const holdout = state !== "title" && G.game && G.game.run && G.game.run.mode === "holdout";
+    const holdout =
+      state !== "title" &&
+      G.game &&
+      G.game.run &&
+      G.game.run.mode === "holdout";
     objectives.forEach((o, i) => {
       if (!o || !o.pos) return;
       let s = sirens[i];
@@ -1408,9 +1654,10 @@ export function create(env) {
       } else if (s.mode !== "live" && !holdout) {
         // re-armed: the rotor spins back up from wherever it had got to
         s.motor = true;
-        s.phaseT = SIREN.motorOn[0] + rnd() * (SIREN.motorOn[1] - SIREN.motorOn[0]);
+        s.phaseT =
+          SIREN.motorOn[0] + rnd() * (SIREN.motorOn[1] - SIREN.motorOn[0]);
       }
-      s.id = o.id;
+      s.id = o.id || "relay_" + i; // the mission falls back to the same id
       s.x = o.pos.x;
       s.y = (o.pos.y || 0) + SIREN.height;
       s.z = o.pos.z;
@@ -1420,7 +1667,8 @@ export function create(env) {
       s.power = 1;
       s.flickT = 0;
     });
-    for (let i = objectives.length; i < sirens.length; i++) if (sirens[i]) sirens[i].mode = "off";
+    for (let i = objectives.length; i < sirens.length; i++)
+      if (sirens[i]) sirens[i].mode = "off";
   }
 
   const sirenById = (id) => sirens.find((s) => s && s.id === id);
@@ -1442,7 +1690,8 @@ export function create(env) {
         s.mode = "live";
         s.cut = 0;
         s.motor = true;
-        s.phaseT = SIREN.motorOn[0] + rnd() * (SIREN.motorOn[1] - SIREN.motorOn[0]);
+        s.phaseT =
+          SIREN.motorOn[0] + rnd() * (SIREN.motorOn[1] - SIREN.motorOn[0]);
       } else if (!want && s.mode === "live") s.mode = relay ? "dying" : "off";
     }
   }
@@ -1460,7 +1709,8 @@ export function create(env) {
   });
 
   function updateSirens(dt, st, now) {
-    const stateGain = st.state === "title" ? 0.5 : st.state === "intro" ? 0.8 : 1;
+    const stateGain =
+      st.state === "title" ? 0.5 : st.state === "intro" ? 0.8 : 1;
     for (const s of sirens) {
       if (!s) continue;
       const n = s.nodes;
@@ -1506,7 +1756,8 @@ export function create(env) {
           continue;
         }
       }
-      s.powerS += ((s.power ? 1 : 0.35) - s.powerS) * (1 - Math.exp(-dt / 0.025));
+      s.powerS +=
+        ((s.power ? 1 : 0.35) - s.powerS) * (1 - Math.exp(-dt / 0.025));
       s.rot += dt * s.rotRate;
       s.dist = Math.hypot(s.x - L.x, s.y - L.y, s.z - L.z);
       s.lookT -= dt;
@@ -1516,15 +1767,26 @@ export function create(env) {
       }
       s.openS += ((s.open ? 1 : 0) - s.openS) * (1 - Math.exp(-dt / 0.35));
       const f = Math.max(18, SIREN.top * s.tune * s.speed * wobble);
-      const loud = Math.pow(s.speed, 1.4) * s.powerS * (0.82 + 0.18 * Math.sin(s.rot));
+      const loud =
+        Math.pow(s.speed, 1.4) * s.powerS * (0.82 + 0.18 * Math.sin(s.rot));
       const reach = 1 / (1 + Math.pow(s.dist / SIREN.half, 1.2));
       const walls = (0.72 + 0.28 * s.openS) * (1 - 0.45 * st.interior);
       n.low.frequency.setTargetAtTime(f, now, 0.02);
       n.high.frequency.setTargetAtTime(f * SIREN.ratio, now, 0.02);
-      n.out.gain.setTargetAtTime(SIREN.level * loud * reach * walls * stateGain, now, 0.03);
-      n.rushGain.gain.setTargetAtTime(0.1 * Math.pow(s.speed, 3) * s.powerS, now, 0.05);
+      n.out.gain.setTargetAtTime(
+        SIREN.level * loud * reach * walls * stateGain,
+        now,
+        0.03,
+      );
+      n.rushGain.gain.setTargetAtTime(
+        0.1 * Math.pow(s.speed, 3) * s.powerS,
+        now,
+        0.05,
+      );
       n.air.frequency.setTargetAtTime(
-        (900 + 15000 * Math.exp(-s.dist / 38)) * (0.5 + 0.5 * s.openS) * (1 - 0.5 * st.interior),
+        (900 + 15000 * Math.exp(-s.dist / 38)) *
+          (0.5 + 0.5 * s.openS) *
+          (1 - 0.5 * st.interior),
         now,
         0.1,
       );
@@ -1572,7 +1834,8 @@ export function create(env) {
       let far = 0;
       let side = 0;
       const list = G.enemies && G.enemies.list;
-      const m = G.camera && G.camera.matrixWorld && G.camera.matrixWorld.elements;
+      const m =
+        G.camera && G.camera.matrixWorld && G.camera.matrixWorld.elements;
       if (Array.isArray(list) && m)
         for (const z of list) {
           if (!z || !z.alive || !z.pos) continue;
@@ -1586,21 +1849,35 @@ export function create(env) {
       murmur.far = far;
       murmur.lean = far ? clamp((side / far) * 0.45, -0.45, 0.45) : 0;
       for (const p of murmur.pans)
-        p.node.pan.setTargetAtTime(clamp(p.where + murmur.lean, -1, 1), now, 0.8);
+        p.node.pan.setTargetAtTime(
+          clamp(p.where + murmur.lean, -1, 1),
+          now,
+          0.8,
+        );
     }
     const swell =
-      0.1 + 0.62 * Math.pow(clamp(st.intensity, 0, 1), 1.3) + 0.28 * Math.min(1, murmur.far / 12);
+      0.1 +
+      0.62 * Math.pow(clamp(st.intensity, 0, 1), 1.3) +
+      0.28 * Math.min(1, murmur.far / 12);
     const target = st.amb * (1 - 0.6 * st.interior) * 0.48 * swell;
     murmur.level += (target - murmur.level) * (1 - Math.exp(-dt / 2.2));
     murmur.g.gain.value = murmur.level;
-    murmur.tone.frequency.setTargetAtTime(420 + 760 * clamp(st.intensity, 0, 1), now, 0.6);
+    murmur.tone.frequency.setTargetAtTime(
+      420 + 760 * clamp(st.intensity, 0, 1),
+      now,
+      0.6,
+    );
   }
   if (env.offline && murmurBuffer) startMurmur(murmurBuffer);
 
   // Chimes and shutters belong to places: a hashed grid gives each block its own, so the same
   // doorway rings every time you pass it.
   function hash(ix, iz, salt) {
-    let h = (Math.imul(ix, 374761393) + Math.imul(iz, 668265263) + Math.imul(salt, 362437)) | 0;
+    let h =
+      (Math.imul(ix, 374761393) +
+        Math.imul(iz, 668265263) +
+        Math.imul(salt, 362437)) |
+      0;
     h = Math.imul(h ^ (h >>> 13), 1274126177);
     return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
   }
@@ -1624,21 +1901,24 @@ export function create(env) {
   }
 
   const timers = {
-    chime: 3 + rnd() * 8,
-    shutter: 10 + rnd() * 18,
+    chime: 4 + rnd() * 10,
+    shutter: 12 + rnd() * 20,
     cry: 16 + rnd() * 24,
-    siren: 22 + rnd() * 40,
+    siren: 30 + rnd() * 60,
     alarm: 80 + rnd() * 120,
   };
 
   function updateCity(dt, st) {
     const s = st.state;
-    if (st.paused || !(s === "playing" || s === "intro" || s === "title" || s === "complete"))
+    if (
+      st.paused ||
+      !(s === "playing" || s === "intro" || s === "title" || s === "complete")
+    )
       return;
     const k = (s === "title" ? 0.7 : 1) * (1 - 0.7 * st.interior);
     const gust = clamp(st.gust, 0, 1);
-    if ((timers.chime -= dt * (0.25 + 1.75 * gust)) <= 0) {
-      timers.chime = 9 + rnd() * 17;
+    if ((timers.chime -= dt * (0.25 + 1.75 * gust)) <= 0 && gust > 0.45) {
+      timers.chime = 18 + rnd() * 30;
       const at = anchor(11, 24, 0.55, 32, 2.8);
       if (at)
         play("z_chime", {
@@ -1650,7 +1930,7 @@ export function create(env) {
         });
     }
     if ((timers.shutter -= dt * (0.2 + 1.8 * gust * gust)) <= 0) {
-      timers.shutter = 16 + rnd() * 30;
+      timers.shutter = 25 + rnd() * 35;
       const at = anchor(29, 34, 0.6, 60, 2.2);
       if (at)
         play("z_shutter", {
@@ -1676,7 +1956,7 @@ export function create(env) {
       );
     }
     if ((timers.siren -= dt) <= 0) {
-      timers.siren = 55 + rnd() * 70;
+      timers.siren = 90 + rnd() * 110;
       const a = rnd() * TAU;
       const r = 240 + rnd() * 90;
       play("z_farsiren", {
@@ -1704,7 +1984,11 @@ export function create(env) {
   on("game:state", (e) => {
     const s = e.state;
     if (s === "paused" || (e.prev === "paused" && s === "playing")) return;
-    if (s === "title" || s === "intro" || (s === "playing" && e.prev !== "intro")) {
+    if (
+      s === "title" ||
+      s === "intro" ||
+      (s === "playing" && e.prev !== "intro")
+    ) {
       // a fresh run: the game has just cleared the dead and re-armed every siren
       for (const v of voices) hush(v, 0.12);
       queue.length = 0;
@@ -1767,7 +2051,12 @@ export function create(env) {
             },
         ),
         murmur: murmur
-          ? { level: +murmur.level.toFixed(4), far: murmur.far, lean: +murmur.lean.toFixed(2) }
+          ? {
+              level: +murmur.level.toFixed(4),
+              far: murmur.far,
+              lean: +murmur.lean.toFixed(2),
+              loop: murmurInfo,
+            }
           : null,
         hordeGain: +hordeGain.toFixed(3),
         queued: queue.length,

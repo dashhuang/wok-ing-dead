@@ -117,45 +117,82 @@ export async function createKit(G) {
   // A surface from the texture library. Options: color (tint), wet (key of WET or array),
   // macro [albedo variation, roughness variation, frequency, grime], rough, metal, interior, side.
   function pbr(name, o = {}) {
-    const key =
-      "pbr|" +
-      name +
-      "|" +
-      (o.color && o.color.isColor ? "c" : (o.color ?? "")) +
-      "|" +
-      (o.interior ? "i" : "") +
-      (o.side ? "d" : "") +
-      (o.key || "");
-    let m = materials.get(key);
-    if (m) return m;
     const set = sets.get(name);
     if (!set) throw new Error(`surface "${name}" was not loaded`);
-    m = new THREE.MeshStandardMaterial({
-      map: set.map,
-      normalMap: set.normal,
-      roughnessMap: set.arm,
-      metalnessMap: set.arm,
-      aoMap: set.arm,
-      color: o.color ?? 0xffffff,
-      roughness: o.rough ?? 1,
-      metalness: o.metal ?? 1,
-    });
-    m.name = "ct_" + name;
-    if (o.side) m.side = THREE.DoubleSide;
-    if (o.normalScale !== undefined) m.normalScale.set(o.normalScale, o.normalScale);
     const wet = o.wet || SURFACE_WET[name] || "masonry";
-    G.mats.adopt(m, {
-      wet: Array.isArray(wet) ? wet : WET[wet],
-      macro: o.macro || [0.12, 0.06, 0.3, 0.45],
-      interior: !!o.interior,
-    });
-    materials.set(key, m);
-    return m;
+    const wetP = Array.isArray(wet) ? wet : WET[wet];
+    const macro = o.macro || [0.12, 0.06, 0.3, 0.45];
+    // one real material per surface response; the tint travels in vertex colours, so a
+    // cream wall and a green wall of the same plaster are one draw call
+    const sig = [
+      "pbr",
+      name,
+      o.interior ? 1 : 0,
+      o.side ? 1 : 0,
+      wetP.join(","),
+      macro.join(","),
+      o.rough ?? 1,
+      o.metal ?? 1,
+      o.normalScale ?? 1,
+    ].join("|");
+    let base = materials.get(sig);
+    if (!base) {
+      base = new THREE.MeshStandardMaterial({
+        map: set.map,
+        normalMap: set.normal,
+        roughnessMap: set.arm,
+        metalnessMap: set.arm,
+        aoMap: set.arm,
+        color: 0xffffff,
+        roughness: o.rough ?? 1,
+        metalness: o.metal ?? 1,
+        vertexColors: true,
+      });
+      base.name = "ct_" + name;
+      if (o.side) base.side = THREE.DoubleSide;
+      if (o.normalScale !== undefined)
+        base.normalScale.set(o.normalScale, o.normalScale);
+      G.mats.adopt(base, { wet: wetP, macro, interior: !!o.interior });
+      materials.set(sig, base);
+    }
+    const color =
+      o.color && o.color.isColor
+        ? o.color
+        : new THREE.Color(o.color ?? 0xffffff);
+    const key =
+      sig +
+      "#" +
+      color.r.toFixed(3) +
+      "," +
+      color.g.toFixed(3) +
+      "," +
+      color.b.toFixed(3);
+    let handle = materials.get(key);
+    if (!handle) {
+      // a handle, not a material: it only makes sense to the batching primitives below
+      handle = {
+        isSurfaceHandle: true,
+        uuid: key,
+        name: base.name,
+        userData: { tint: { base, color } },
+      };
+      materials.set(key, handle);
+    }
+    return handle;
   }
   // Untextured surface that still takes rain.
   function flat(color, o = {}) {
     const key =
-      "flat|" + color + "|" + (o.rough ?? 0.6) + "|" + (o.metal ?? 0) + "|" + (o.interior ? "i" : "") + (o.side ? "d" : "") + (o.key || "");
+      "flat|" +
+      color +
+      "|" +
+      (o.rough ?? 0.6) +
+      "|" +
+      (o.metal ?? 0) +
+      "|" +
+      (o.interior ? "i" : "") +
+      (o.side ? "d" : "") +
+      (o.key || "");
     let m = materials.get(key);
     if (m) return m;
     m = new THREE.MeshStandardMaterial({
@@ -171,7 +208,14 @@ export async function createKit(G) {
     // batched geometry does not use this material itself: all flat colours with the same
     // surface response are drawn by one vertex-coloured material (see bucket()).
     m.userData.flat = {
-      sig: [o.rough ?? 0.6, o.metal ?? 0, wet.join(","), macro.join(","), o.interior ? 1 : 0, o.side ? 1 : 0].join("|"),
+      sig: [
+        o.rough ?? 0.6,
+        o.metal ?? 0,
+        wet.join(","),
+        macro.join(","),
+        o.interior ? 1 : 0,
+        o.side ? 1 : 0,
+      ].join("|"),
       color: new THREE.Color(color),
       rough: o.rough ?? 0.6,
       metal: o.metal ?? 0,
@@ -187,11 +231,17 @@ export async function createKit(G) {
   function flatBase(f) {
     let m = flatBases.get(f.sig);
     if (m) return m;
-    m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: f.rough, metalness: f.metal, vertexColors: true });
+    m = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: f.rough,
+      metalness: f.metal,
+      vertexColors: true,
+    });
     m.name = "ct_flat_shared";
     if (f.side) m.side = THREE.DoubleSide;
     G.mats.adopt(m, { wet: f.wet, macro: f.macro, interior: f.interior });
     m.userData.oneCell = true;
+    m.userData.noReflect = true;
     flatBases.set(f.sig, m);
     return m;
   }
@@ -259,15 +309,31 @@ export async function createKit(G) {
   }
   active = group("static");
   function bucket(mat, x, z) {
-    const flat = mat.userData.flat;
-    if (flat) mat = flatBase(flat);
+    const flat = mat.userData.flat || mat.userData.tint;
+    if (mat.userData.flat) mat = flatBase(flat);
+    else if (flat) mat = flat.base;
     // big wall and floor surfaces are split by area; small stuff shares one mesh per material
     const one = mat.userData.oneCell;
-    const key = one ? mat.uuid : mat.uuid + "|" + Math.floor((x + 40) / CELL) + "|" + Math.floor((z + 40) / CELL);
+    const key = one
+      ? mat.uuid
+      : mat.uuid +
+        "|" +
+        Math.floor((x + 40) / CELL) +
+        "|" +
+        Math.floor((z + 40) / CELL);
     let b = active.parts.get(key);
     if (!b) {
       // shadow casting is decided per material, not per call: fewer, larger meshes
-      b = { mat, cast: !mat.userData.noCast, pos: [], nrm: [], uv: [], idx: [], col: flat ? [] : null, tint: null };
+      b = {
+        mat,
+        cast: !mat.userData.noCast,
+        pos: [],
+        nrm: [],
+        uv: [],
+        idx: [],
+        col: flat ? [] : null,
+        tint: null,
+      };
       active.parts.set(key, b);
     }
     b.tint = flat ? flat.color : null;
@@ -298,18 +364,29 @@ export async function createKit(G) {
       for (const b of g.parts.values()) {
         if (!b.idx.length) continue;
         const geo = new THREE.BufferGeometry();
-        geo.setAttribute("position", new THREE.Float32BufferAttribute(b.pos, 3));
+        geo.setAttribute(
+          "position",
+          new THREE.Float32BufferAttribute(b.pos, 3),
+        );
         geo.setAttribute("normal", new THREE.Float32BufferAttribute(b.nrm, 3));
         geo.setAttribute("uv", new THREE.Float32BufferAttribute(b.uv, 2));
-        if (b.col) geo.setAttribute("color", new THREE.Float32BufferAttribute(b.col, 3));
-        geo.setIndex(b.pos.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(b.idx, 1) : new THREE.Uint16BufferAttribute(b.idx, 1));
+        if (b.col)
+          geo.setAttribute("color", new THREE.Float32BufferAttribute(b.col, 3));
+        geo.setIndex(
+          b.pos.length / 3 > 65535
+            ? new THREE.Uint32BufferAttribute(b.idx, 1)
+            : new THREE.Uint16BufferAttribute(b.idx, 1),
+        );
         geo.computeBoundingSphere();
         geo.computeBoundingBox();
         const mesh = new THREE.Mesh(geo, b.mat);
         const lit = !b.mat.isMeshBasicMaterial;
-        mesh.castShadow = b.cast && lit && !b.mat.transparent && o.cast !== false;
+        mesh.castShadow =
+          b.cast && lit && !b.mat.transparent && o.cast !== false;
         mesh.receiveShadow = lit;
         mesh.matrixAutoUpdate = false;
+        // small stuff is left out of the wet-street reflection pass (layer 2 = main view only)
+        if (b.mat.userData.noReflect) mesh.layers.set(2);
         if (o.renderOrder) mesh.renderOrder = o.renderOrder;
         root.add(mesh);
         tris += b.idx.length / 3;
@@ -327,18 +404,40 @@ export async function createKit(G) {
   // p0..p3 counter-clockwise seen from the front. uv: optional [u0,v0,u1,v1,u2,v2,u3,v3].
   function quad(mat, p0, p1, p2, p3, uv, o = {}) {
     const b = bucket(mat, (p0[0] + p2[0]) / 2, (p0[2] + p2[2]) / 2);
-    const ax = p1[0] - p0[0], ay = p1[1] - p0[1], az = p1[2] - p0[2];
-    const bx = p3[0] - p0[0], by = p3[1] - p0[1], bz = p3[2] - p0[2];
-    let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+    const ax = p1[0] - p0[0],
+      ay = p1[1] - p0[1],
+      az = p1[2] - p0[2];
+    const bx = p3[0] - p0[0],
+      by = p3[1] - p0[1],
+      bz = p3[2] - p0[2];
+    let nx = ay * bz - az * by,
+      ny = az * bx - ax * bz,
+      nz = ax * by - ay * bx;
     const l = Math.hypot(nx, ny, nz) || 1;
-    nx /= l; ny /= l; nz /= l;
+    nx /= l;
+    ny /= l;
+    nz /= l;
     const i = b.pos.length / 3;
-    b.pos.push(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], p3[0], p3[1], p3[2]);
+    b.pos.push(
+      p0[0],
+      p0[1],
+      p0[2],
+      p1[0],
+      p1[1],
+      p1[2],
+      p2[0],
+      p2[1],
+      p2[2],
+      p3[0],
+      p3[1],
+      p3[2],
+    );
     b.nrm.push(nx, ny, nz, nx, ny, nz, nx, ny, nz, nx, ny, nz);
     if (uv) b.uv.push(uv[0], uv[1], uv[2], uv[3], uv[4], uv[5], uv[6], uv[7]);
     else {
       // planar, in metres: along the first edge and along the edge leaving the first corner
-      const la = Math.hypot(ax, ay, az), lb = Math.hypot(bx, by, bz);
+      const la = Math.hypot(ax, ay, az),
+        lb = Math.hypot(bx, by, bz);
       const dom = Math.abs(ny) > 0.7 ? 1 : 0;
       const u0 = dom ? p0[0] : Math.abs(nx) > Math.abs(nz) ? p0[2] : p0[0];
       const v0 = dom ? p0[2] : p0[1];
@@ -355,21 +454,177 @@ export async function createKit(G) {
     if (z0 > z1) [z0, z1] = [z1, z0];
     const skip = o.skip || "b";
     const b = bucket(mat, (x0 + x1) / 2, (z0 + z1) / 2);
-    const ou = o.uo || 0, ov = o.vo || 0;
-    const face = (ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz, nx, ny, nz, u0, v0, u1, v1) => {
+    const ou = o.uo || 0,
+      ov = o.vo || 0;
+    const face = (
+      ax,
+      ay,
+      az,
+      bx,
+      by,
+      bz,
+      cx,
+      cy,
+      cz,
+      dx,
+      dy,
+      dz,
+      nx,
+      ny,
+      nz,
+      u0,
+      v0,
+      u1,
+      v1,
+    ) => {
       const i = b.pos.length / 3;
       b.pos.push(ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz);
       b.nrm.push(nx, ny, nz, nx, ny, nz, nx, ny, nz, nx, ny, nz);
-      b.uv.push(u0 + ou, v0 + ov, u1 + ou, v0 + ov, u1 + ou, v1 + ov, u0 + ou, v1 + ov);
+      b.uv.push(
+        u0 + ou,
+        v0 + ov,
+        u1 + ou,
+        v0 + ov,
+        u1 + ou,
+        v1 + ov,
+        u0 + ou,
+        v1 + ov,
+      );
       b.idx.push(i, i + 1, i + 2, i, i + 2, i + 3);
       paint(b, 4);
     };
-    if (!skip.includes("e")) face(x1, y0, z1, x1, y0, z0, x1, y1, z0, x1, y1, z1, 1, 0, 0, -z1, y0, -z0, y1);
-    if (!skip.includes("w")) face(x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0, -1, 0, 0, z0, y0, z1, y1);
-    if (!skip.includes("s")) face(x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1, 0, 0, 1, x0, y0, x1, y1);
-    if (!skip.includes("n")) face(x1, y0, z0, x0, y0, z0, x0, y1, z0, x1, y1, z0, 0, 0, -1, -x1, y0, -x0, y1);
-    if (!skip.includes("t")) face(x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0, 0, 1, 0, x0, -z1, x1, -z0);
-    if (!skip.includes("b")) face(x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1, 0, -1, 0, x0, z0, x1, z1);
+    if (!skip.includes("e"))
+      face(
+        x1,
+        y0,
+        z1,
+        x1,
+        y0,
+        z0,
+        x1,
+        y1,
+        z0,
+        x1,
+        y1,
+        z1,
+        1,
+        0,
+        0,
+        -z1,
+        y0,
+        -z0,
+        y1,
+      );
+    if (!skip.includes("w"))
+      face(
+        x0,
+        y0,
+        z0,
+        x0,
+        y0,
+        z1,
+        x0,
+        y1,
+        z1,
+        x0,
+        y1,
+        z0,
+        -1,
+        0,
+        0,
+        z0,
+        y0,
+        z1,
+        y1,
+      );
+    if (!skip.includes("s"))
+      face(
+        x0,
+        y0,
+        z1,
+        x1,
+        y0,
+        z1,
+        x1,
+        y1,
+        z1,
+        x0,
+        y1,
+        z1,
+        0,
+        0,
+        1,
+        x0,
+        y0,
+        x1,
+        y1,
+      );
+    if (!skip.includes("n"))
+      face(
+        x1,
+        y0,
+        z0,
+        x0,
+        y0,
+        z0,
+        x0,
+        y1,
+        z0,
+        x1,
+        y1,
+        z0,
+        0,
+        0,
+        -1,
+        -x1,
+        y0,
+        -x0,
+        y1,
+      );
+    if (!skip.includes("t"))
+      face(
+        x0,
+        y1,
+        z1,
+        x1,
+        y1,
+        z1,
+        x1,
+        y1,
+        z0,
+        x0,
+        y1,
+        z0,
+        0,
+        1,
+        0,
+        x0,
+        -z1,
+        x1,
+        -z0,
+      );
+    if (!skip.includes("b"))
+      face(
+        x0,
+        y0,
+        z0,
+        x1,
+        y0,
+        z0,
+        x1,
+        y0,
+        z1,
+        x0,
+        y0,
+        z1,
+        0,
+        -1,
+        0,
+        x0,
+        z0,
+        x1,
+        z1,
+      );
   }
   // Any THREE geometry, transformed into place. uvScale multiplies its own coordinates
   // (e.g. [circumference, height] turns a cylinder's 0..1 mapping into metres).
@@ -378,12 +633,15 @@ export async function createKit(G) {
     const nrm = geo.attributes.normal;
     const uv = geo.attributes.uv;
     const e = matrix ? matrix.elements : null;
-    const cx = e ? e[12] : 0, cz = e ? e[14] : 0;
+    const cx = e ? e[12] : 0,
+      cz = e ? e[14] : 0;
     const b = bucket(mat, o.cx ?? cx, o.cz ?? cz);
     const i0 = b.pos.length / 3;
     if (matrix) _nm.getNormalMatrix(matrix);
-    const su = o.uvScale ? o.uvScale[0] : 1, sv = o.uvScale ? o.uvScale[1] : 1;
-    const uo = o.uvOffset ? o.uvOffset[0] : 0, vo = o.uvOffset ? o.uvOffset[1] : 0;
+    const su = o.uvScale ? o.uvScale[0] : 1,
+      sv = o.uvScale ? o.uvScale[1] : 1;
+    const uo = o.uvOffset ? o.uvOffset[0] : 0,
+      vo = o.uvOffset ? o.uvOffset[1] : 0;
     for (let i = 0; i < pos.count; i++) {
       _v.fromBufferAttribute(pos, i);
       if (matrix) _v.applyMatrix4(matrix);
@@ -401,8 +659,10 @@ export async function createKit(G) {
     if (geo.index) {
       const ix = geo.index;
       for (let i = 0; i < ix.count; i += 3) {
-        if (flip) b.idx.push(i0 + ix.getX(i), i0 + ix.getX(i + 2), i0 + ix.getX(i + 1));
-        else b.idx.push(i0 + ix.getX(i), i0 + ix.getX(i + 1), i0 + ix.getX(i + 2));
+        if (flip)
+          b.idx.push(i0 + ix.getX(i), i0 + ix.getX(i + 2), i0 + ix.getX(i + 1));
+        else
+          b.idx.push(i0 + ix.getX(i), i0 + ix.getX(i + 1), i0 + ix.getX(i + 2));
       }
     } else
       for (let i = 0; i < pos.count; i += 3) {
@@ -416,7 +676,11 @@ export async function createKit(G) {
   const _s = new THREE.Vector3();
   const _p = new THREE.Vector3();
   function xform(x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = sx, sz = sx) {
-    return new THREE.Matrix4().compose(_p.set(x, y, z), _q.setFromEuler(_e.set(rx, ry, rz, "YXZ")), _s.set(sx, sy, sz));
+    return new THREE.Matrix4().compose(
+      _p.set(x, y, z),
+      _q.setFromEuler(_e.set(rx, ry, rz, "YXZ")),
+      _s.set(sx, sy, sz),
+    );
   }
   // Upright cylinder / cone / post. axis: "y" (default), "x" or "z".
   const cylCache = new Map();
@@ -438,11 +702,18 @@ export async function createKit(G) {
         : o.axis === "z"
           ? xform(x, y, z + h / 2, Math.PI / 2, 0, 0, sxz, h, sxz)
           : xform(x, y + h / 2, z, 0, o.yaw || 0, 0, sxz, h, sxz);
-    add(mat, g, m, { uvScale: [Math.max(0.5, Math.round(2 * Math.PI * Math.max(r, rt))), h], cast: o.cast, cx: x, cz: z });
+    add(mat, g, m, {
+      uvScale: [Math.max(0.5, Math.round(2 * Math.PI * Math.max(r, rt))), h],
+      cast: o.cast,
+      cx: x,
+      cz: z,
+    });
   }
   // Thin rod between two points (cables, rails, braces).
   function rod(mat, a, b, r = 0.02, o = {}) {
-    const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+    const dx = b[0] - a[0],
+      dy = b[1] - a[1],
+      dz = b[2] - a[2];
     const len = Math.hypot(dx, dy, dz);
     if (len < 1e-4) return;
     const seg = o.seg || 5;
@@ -452,8 +723,15 @@ export async function createKit(G) {
       geo = new THREE.CylinderGeometry(1, 1, 1, seg, 1, false);
       cylCache.set(key, geo);
     }
-    _q.setFromUnitVectors(_v.set(0, 1, 0), _n.set(dx / len, dy / len, dz / len));
-    _m.compose(_p.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2), _q, _s.set(r, len, r));
+    _q.setFromUnitVectors(
+      _v.set(0, 1, 0),
+      _n.set(dx / len, dy / len, dz / len),
+    );
+    _m.compose(
+      _p.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2),
+      _q,
+      _s.set(r, len, r),
+    );
     add(mat, geo, _m, { uvScale: [1, len], cast: o.cast ?? false });
   }
   // Hanging cable between two points with a given sag.
@@ -461,13 +739,21 @@ export async function createKit(G) {
     let prev = a;
     for (let i = 1; i <= n; i++) {
       const t = i / n;
-      const p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t - sag * 4 * t * (1 - t), a[2] + (b[2] - a[2]) * t];
+      const p = [
+        a[0] + (b[0] - a[0]) * t,
+        a[1] + (b[1] - a[1]) * t - sag * 4 * t * (1 - t),
+        a[2] + (b[2] - a[2]) * t,
+      ];
       rod(mat, prev, p, r, { seg: 4 });
       prev = p;
     }
   }
   function cablePoint(a, b, sag, t) {
-    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t - sag * 4 * t * (1 - t), a[2] + (b[2] - a[2]) * t];
+    return [
+      a[0] + (b[0] - a[0]) * t,
+      a[1] + (b[1] - a[1]) * t - sag * 4 * t * (1 - t),
+      a[2] + (b[2] - a[2]) * t,
+    ];
   }
 
   // ---------- collision ----------
@@ -496,10 +782,16 @@ export async function createKit(G) {
     if (m) return m;
     m = src.clone();
     if (m.map) m.map.anisotropy = Math.min(4, aniso);
-    if (o.tint !== undefined) m.color.multiply(new THREE.Color(o.tint)).multiplyScalar(o.gain ?? 1);
+    if (o.tint !== undefined)
+      m.color.multiply(new THREE.Color(o.tint)).multiplyScalar(o.gain ?? 1);
     if (m.isMeshStandardMaterial && !m.transparent)
-      G.mats.adopt(m, { wet: WET[o.wet || "metal"], macro: [0, 0, 1, 0], interior: !!o.interior });
+      G.mats.adopt(m, {
+        wet: WET[o.wet || "metal"],
+        macro: [0, 0, 1, 0],
+        interior: !!o.interior,
+      });
     m.userData.oneCell = true;
+    m.userData.noReflect = true;
     propMats.set(key, m);
     return m;
   }
@@ -508,27 +800,57 @@ export async function createKit(G) {
   function prop(id, x, y, z, o = {}) {
     const scene = props.get(id);
     if (!scene) return null;
-    const nodes = o.parts ? scene.children.filter((c) => o.parts.includes(c.name)) : scene.children;
+    const nodes = o.parts
+      ? scene.children.filter((c) => o.parts.includes(c.name))
+      : scene.children;
     if (!nodes.length) return null;
     const boxAll = new THREE.Box3();
     for (const n of nodes) boxAll.expandByObject(n);
     const s = o.scale ?? 1;
     const off = new THREE.Vector3();
-    if (o.recentre !== false) off.set(-(boxAll.min.x + boxAll.max.x) / 2, -boxAll.min.y, -(boxAll.min.z + boxAll.max.z) / 2);
-    const place = xform(x, y, z, o.pitch || 0, o.yaw || 0, o.roll || 0, s).multiply(new THREE.Matrix4().makeTranslation(off.x, off.y, off.z));
+    if (o.recentre !== false)
+      off.set(
+        -(boxAll.min.x + boxAll.max.x) / 2,
+        -boxAll.min.y,
+        -(boxAll.min.z + boxAll.max.z) / 2,
+      );
+    const place = xform(
+      x,
+      y,
+      z,
+      o.pitch || 0,
+      o.yaw || 0,
+      o.roll || 0,
+      s,
+    ).multiply(new THREE.Matrix4().makeTranslation(off.x, off.y, off.z));
     const mm = new THREE.Matrix4();
     for (const n of nodes)
       n.traverse((c) => {
         if (!c.isMesh) return;
         mm.multiplyMatrices(place, c.matrixWorld);
-        add(propMaterial(c.material, o), c.geometry, mm, { cast: o.cast, cx: x, cz: z });
+        add(propMaterial(c.material, o), c.geometry, mm, {
+          cast: o.cast,
+          cx: x,
+          cz: z,
+        });
       });
     const size = boxAll.getSize(new THREE.Vector3()).multiplyScalar(s);
     if (o.collide) {
-      const cs = Math.abs(Math.cos(o.yaw || 0)), sn = Math.abs(Math.sin(o.yaw || 0));
-      const hx = (size.x * cs + size.z * sn) / 2 - 0.04, hz = (size.x * sn + size.z * cs) / 2 - 0.04;
+      const cs = Math.abs(Math.cos(o.yaw || 0)),
+        sn = Math.abs(Math.sin(o.yaw || 0));
+      const hx = (size.x * cs + size.z * sn) / 2 - 0.04,
+        hz = (size.x * sn + size.z * cs) / 2 - 0.04;
       const h = typeof o.collide === "number" ? o.collide : size.y;
-      solid(x - hx, y, z - hz, x + hx, y + h, z + hz, o.surface || "metal", o.colOpts || {});
+      solid(
+        x - hx,
+        y,
+        z - hz,
+        x + hx,
+        y + h,
+        z + hz,
+        o.surface || "metal",
+        o.colOpts || {},
+      );
     }
     return size;
   }
@@ -537,7 +859,9 @@ export async function createKit(G) {
     const scene = props.get(id);
     if (!scene) return null;
     const root = new THREE.Group();
-    const nodes = o.parts ? scene.children.filter((c) => o.parts.includes(c.name)) : scene.children;
+    const nodes = o.parts
+      ? scene.children.filter((c) => o.parts.includes(c.name))
+      : scene.children;
     for (const n of nodes) root.add(n.clone(true));
     root.traverse((c) => {
       if (!c.isMesh) return;

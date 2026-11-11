@@ -19,7 +19,6 @@ const CLIPS = {
   crawl: { loop: true, travel: true },
   crawl_fast: { loop: true, travel: true },
   attack: {},
-  bite: {},
   scream: {},
   death_back: {},
   death_front: {},
@@ -27,7 +26,7 @@ const CLIPS = {
 
 export const TUNE = {
   walker: {
-    hp: 60,
+    hp: 55, // one rifle or pistol round to the head
     damage: 12,
     cooldown: [0.7, 1.4],
     walkSpeed: 1.25,
@@ -81,7 +80,13 @@ export async function createZombies(G) {
   Object.keys(CLIPS).forEach((name, i) => {
     const gltf = clipFiles[i];
     const hips = gltf.scene.getObjectByName("Hips");
-    clips[name] = prepareClip(T, gltf.animations[0], name, CLIPS[name], hips ? hips.position.y : 1);
+    clips[name] = prepareClip(
+      T,
+      gltf.animations[0],
+      name,
+      CLIPS[name],
+      hips ? hips.position.y : 1,
+    );
   });
 
   const templates = {};
@@ -103,14 +108,23 @@ export async function createZombies(G) {
       clips: {},
     };
     for (const [key, clip] of Object.entries(clips))
-      templates[name].clips[key] = scaleRoot(clip, templates[name].hipsY / clip.userData.hipsY);
+      templates[name].clips[key] = scaleRoot(
+        clip,
+        templates[name].hipsY / clip.userData.hipsY,
+      );
   });
 
   // ---------- shared state ----------
   const list = [];
   const corpses = [];
   const pool = [];
-  const tmp = { a: new V3(), b: new V3(), c: new V3(), d: new V3(), q: new T.Quaternion() };
+  const tmp = {
+    a: new V3(),
+    b: new V3(),
+    c: new V3(),
+    d: new V3(),
+    q: new T.Quaternion(),
+  };
   const UP = new V3(0, 1, 0);
   let clock = 0;
   let nextId = 1;
@@ -143,7 +157,9 @@ export async function createZombies(G) {
     const rig = cloneSkinned(template.scene);
     // pallid, slightly green skin and clothes: kept light so they read under street light
     const k = rand(0.92, 1.2);
-    const tint = new T.Color().setHSL(rand(0.18, 0.36), rand(0.0, 0.16), 0.8).multiplyScalar(k / 0.8);
+    const tint = new T.Color()
+      .setHSL(rand(0.18, 0.36), rand(0.0, 0.16), 0.8)
+      .multiplyScalar(k / 0.8);
     makeMaterials(rig, tint);
     rig.visible = false;
     root.add(rig);
@@ -292,16 +308,31 @@ export async function createZombies(G) {
         if (part === "leg") z.legDamage += dealt;
         z.flinch = Math.min(1, z.flinch + (z.type === "brute" ? 0.35 : 0.8));
         if (dir) z.flinchAxis.set(dir.z, 0, -dir.x).normalize();
-        if (z.type !== "brute") z.staggerT = Math.max(z.staggerT, part === "weak" ? 0.45 : 0.28);
-        emit("enemy:hit", { enemy: z, part, pos: point || z.pos, amount: dealt });
+        if (z.type !== "brute")
+          z.staggerT = Math.max(z.staggerT, part === "weak" ? 0.45 : 0.28);
+        emit("enemy:hit", {
+          enemy: z,
+          part,
+          pos: point || z.pos,
+          amount: dealt,
+        });
         if (z.hp <= 0) {
           kill(z, dir, part, dealt);
           return true;
         }
-        if (!z.crawling && z.type === "walker" && z.legDamage > z.maxHp * 0.55) {
+        if (
+          !z.crawling &&
+          z.type === "walker" &&
+          z.legDamage > z.maxHp * 0.55
+        ) {
           z.crawling = true;
           z.attackT = -1;
-          emit("enemy:voice", { enemy: z, pos: z.pos, kind: "growl", type: z.type });
+          emit("enemy:voice", {
+            enemy: z,
+            pos: z.pos,
+            kind: "growl",
+            type: z.type,
+          });
         }
         if (z.mode !== "engage" && !z.passive) engage(z, true);
         return false;
@@ -391,7 +422,12 @@ export async function createZombies(G) {
     z.repathT = 0;
     if (!silent) {
       emit("enemy:alert", { enemy: z });
-      emit("enemy:voice", { enemy: z, pos: z.pos, kind: "scream", type: z.type });
+      emit("enemy:voice", {
+        enemy: z,
+        pos: z.pos,
+        kind: "scream",
+        type: z.type,
+      });
       // a few of them stop and howl first: it sells the moment and staggers the charge
       if (!z.crawling && rng() < 0.3) {
         z.screamT = z.actions.scream.getClip().duration / 1.5;
@@ -403,7 +439,8 @@ export async function createZombies(G) {
 
   function rally(pos, radius, source) {
     for (const o of list) {
-      if (o === source || !o.alive || o.passive || o.mode === "engage") continue;
+      if (o === source || !o.alive || o.passive || o.mode === "engage")
+        continue;
       if (o.pos.distanceToSquared(pos) > radius * radius) continue;
       o.mode = "investigate";
       o.modeT = rand(8, 12);
@@ -455,7 +492,10 @@ export async function createZombies(G) {
     const turn = (z.runner ? 5.5 : 3.6) * dt;
     z.yaw += Math.max(-turn, Math.min(turn, diff));
     // slow down while turning hard so they do not orbit their target
-    const align = Math.max(0.15, Math.cos(Math.min(Math.abs(diff), Math.PI / 2)));
+    const align = Math.max(
+      0.15,
+      Math.cos(Math.min(Math.abs(diff), Math.PI / 2)),
+    );
     z.wantSpeed = speed * align;
     return d;
   }
@@ -492,7 +532,8 @@ export async function createZombies(G) {
     const tune = TUNE[z.type];
     if (z.crawling) return z.runner ? 1.7 : 0.8;
     const engaged = z.mode === "engage";
-    if (!engaged) return z.mode === "investigate" ? tune.walkSpeed : tune.walkSpeed * 0.6;
+    if (!engaged)
+      return z.mode === "investigate" ? tune.walkSpeed : tune.walkSpeed * 0.6;
     return z.runner ? tune.runSpeed : tune.walkSpeed;
   }
 
@@ -529,7 +570,9 @@ export async function createZombies(G) {
           const d = Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z);
           const dy = Math.abs(player.pos.y - z.pos.y);
           const facing =
-            ((player.pos.x - z.pos.x) * z.fwd.x + (player.pos.z - z.pos.z) * z.fwd.z) / (d || 1);
+            ((player.pos.x - z.pos.x) * z.fwd.x +
+              (player.pos.z - z.pos.z) * z.fwd.z) /
+            (d || 1);
           if (d < tune.reach + 0.55 && dy < 1.7 && facing > 0.2) {
             player.damage(tune.damage, z.pos);
             emit("enemy:melee", { enemy: z, pos: z.pos, type: z.type });
@@ -562,7 +605,12 @@ export async function createZombies(G) {
             z.attackT = 0;
             z.attackHit = false;
             play(z, "attack", 0.12, z.type === "brute" ? 1.15 : 1.45);
-            emit("enemy:voice", { enemy: z, pos: z.pos, kind: "grunt", type: z.type });
+            emit("enemy:voice", {
+              enemy: z,
+              pos: z.pos,
+              kind: "grunt",
+              type: z.type,
+            });
           }
         }
       } else follow(z, target, dt, gaitSpeed(z));
@@ -644,11 +692,17 @@ export async function createZombies(G) {
         type: z.type,
       });
     }
-    if (z.speed > 0.4 && !z.crawling) {
+    if (z.speed > (z.crawling ? 0.25 : 0.4)) {
       z.stepT -= dt * Math.max(1, z.speed);
       if (z.stepT <= 0) {
-        z.stepT = z.runner ? 1.35 : 0.75;
-        emit("enemy:step", { enemy: z, pos: z.pos, type: z.type, speed: z.speed });
+        // crawlers drag themselves along: slower, wetter beats
+        z.stepT = z.crawling ? 1.1 : z.runner ? 1.35 : 0.75;
+        emit("enemy:step", {
+          enemy: z,
+          pos: z.pos,
+          type: z.type,
+          speed: z.speed,
+        });
       }
     }
   }
@@ -663,7 +717,10 @@ export async function createZombies(G) {
     z.mixer.update(z.lodAcc);
     z.lodAcc = 0;
     if (z.flinch > 0.01 && z.bones.spine) {
-      tmp.q.setFromAxisAngle(tmp.b.copy(z.flinchAxis).applyAxisAngle(UP, -z.yaw), -0.5 * z.flinch);
+      tmp.q.setFromAxisAngle(
+        tmp.b.copy(z.flinchAxis).applyAxisAngle(UP, -z.yaw),
+        -0.5 * z.flinch,
+      );
       z.bones.spine.quaternion.premultiply(tmp.q);
       z.flinch *= Math.exp(-dt * every * 9);
     }
@@ -688,11 +745,18 @@ export async function createZombies(G) {
       // already on the ground: just go limp where it lies
       const a = z.actions[z.anim];
       if (a) a.paused = true;
-    } else play(z, fromBehind ? "death_front" : "death_back", 0.12, part === "weak" ? 1.5 : 1.25);
+    } else
+      play(
+        z,
+        fromBehind ? "death_front" : "death_back",
+        0.12,
+        part === "weak" ? 1.5 : 1.25,
+      );
     corpses.push(z);
     while (corpses.length > TUNE.maxCorpses) {
       const old = corpses.shift();
-      if (old.active && !old.alive && old.deadT < TUNE.corpseTime) old.deadT = TUNE.corpseTime;
+      if (old.active && !old.alive && old.deadT < TUNE.corpseTime)
+        old.deadT = TUNE.corpseTime;
     }
     emit("enemy:killed", { enemy: z, pos: z.pos, type: z.type, part });
   }
@@ -846,7 +910,13 @@ export async function createZombies(G) {
         if (along < -1.5 || along > maxDist + 1.5) continue;
         if (dx * dx + dy * dy + dz * dz - along * along > 2.6) continue;
         if (!out)
-          out = { dist: Infinity, point: new V3(), normal: new V3(), enemy: null, part: "body" };
+          out = {
+            dist: Infinity,
+            point: new V3(),
+            normal: new V3(),
+            enemy: null,
+            part: "body",
+          };
         z._raycast(origin, dir, maxDist, out);
       }
       return out && out.enemy ? out : null;
@@ -930,7 +1000,8 @@ function scaleRoot(clip, ratio) {
   copy.userData = clip.userData;
   if (Math.abs(ratio - 1) < 0.005) return copy;
   const hips = copy.tracks.find((t) => t.name === "Hips.position");
-  if (hips) for (let i = 0; i < hips.values.length; i++) hips.values[i] *= ratio;
+  if (hips)
+    for (let i = 0; i < hips.values.length; i++) hips.values[i] *= ratio;
   return copy;
 }
 

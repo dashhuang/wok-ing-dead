@@ -9,7 +9,9 @@ import { fileURLToPath } from "node:url";
 const cache = process.argv[2];
 if (!cache) throw new Error("usage: fetch-polyhaven.mjs <cache dir>");
 const here = path.dirname(fileURLToPath(import.meta.url));
-const manifest = JSON.parse(fs.readFileSync(path.join(here, "chinatown-manifest.json"), "utf8"));
+const manifest = JSON.parse(
+  fs.readFileSync(path.join(here, "chinatown-manifest.json"), "utf8"),
+);
 const UA = { "User-Agent": "asset-fetch/1.0" };
 
 async function json(url) {
@@ -68,7 +70,10 @@ for (const [name, cfg] of Object.entries(manifest.textures))
     ]) {
       const entry = files[key] && files[key][res] && files[key][res].jpg;
       if (!entry) throw new Error(`${cfg.id}: no ${key} ${res} jpg`);
-      await download(entry.url, path.join(cache, "textures", name, out + ".jpg"));
+      await download(
+        entry.url,
+        path.join(cache, "textures", name, out + ".jpg"),
+      );
     }
     console.log("texture", name);
   });
@@ -85,4 +90,6 @@ for (const id of Object.keys(manifest.models))
   });
 
 const failed = await pool(jobs, 6, (job) => job());
-console.log(failed.length ? "FAILED:\n" + failed.join("\n") : "all downloads complete");
+console.log(
+  failed.length ? "FAILED:\n" + failed.join("\n") : "all downloads complete",
+);

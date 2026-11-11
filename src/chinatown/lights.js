@@ -7,7 +7,8 @@ const GAIN = 11; // emitter power -> candela
 
 export function createLights(ctx) {
   const G = ctx.G;
-  const count = { low: 4, medium: 7, high: 10, ultra: 12, test: 8 }[G.quality.name] || 8;
+  const count =
+    { low: 3, medium: 5, high: 8, ultra: 11, test: 6 }[G.quality.name] || 6;
   const pool = [];
   for (let i = 0; i < count; i++) {
     const light = new THREE.PointLight(0xffffff, 0, 10, 2);
@@ -43,7 +44,9 @@ export function createLights(ctx) {
     G.camera.getWorldPosition(cam);
     G.camera.getWorldDirection(fwd);
     for (const e of emitters) {
-      const dx = e.v.x - cam.x, dy = e.v.y - cam.y, dz = e.v.z - cam.z;
+      const dx = e.v.x - cam.x,
+        dy = e.v.y - cam.y,
+        dz = e.v.z - cam.z;
       const d2 = dx * dx + dy * dy + dz * dz;
       const d = Math.sqrt(d2);
       // lights ahead of the camera matter more than lights behind it
@@ -55,7 +58,10 @@ export function createLights(ctx) {
       if (e.slot) s *= 1.3; // hysteresis: keep what is already lit
       e.score = s;
     }
-    const ranked = emitters.slice().sort((a, b) => b.score - a.score).slice(0, pool.length);
+    const ranked = emitters
+      .slice()
+      .sort((a, b) => b.score - a.score)
+      .slice(0, pool.length);
     const keep = new Set(ranked.filter((e) => e.score > 0));
     for (const p of pool) if (p.emitter && !keep.has(p.emitter)) p.target = 0;
     for (const e of keep) {
@@ -85,7 +91,11 @@ export function createLights(ctx) {
       return gate > 1.55 ? (Math.sin(x * 61) > 0 ? 1 : 0.25) : 1;
     }
     // loose bulb
-    return 0.72 + 0.28 * Math.sin(x * 9) * Math.sin(x * 3.7) + (Math.sin(x * 43) > 0.92 ? -0.5 : 0);
+    return (
+      0.72 +
+      0.28 * Math.sin(x * 9) * Math.sin(x * 3.7) +
+      (Math.sin(x * 43) > 0.92 ? -0.5 : 0)
+    );
   }
 
   choose();
@@ -100,7 +110,15 @@ export function createLights(ctx) {
     update(dt) {
       clock += dt;
       // on while a mission is running, off for the title fly-through
-      const on = G.game && (G.game.state === "playing" || G.game.state === "intro" || G.game.state === "paused") && G.player && G.player.alive !== false ? 1 : 0;
+      const on =
+        G.game &&
+        (G.game.state === "playing" ||
+          G.game.state === "intro" ||
+          G.game.state === "paused") &&
+        G.player &&
+        G.player.alive !== false
+          ? 1
+          : 0;
       torchLevel += (on - torchLevel) * Math.min(1, dt * 4);
       torch.intensity = 36 * torchLevel * (0.97 + 0.03 * Math.sin(clock * 23));
       tick -= dt;
@@ -122,7 +140,8 @@ export function createLights(ctx) {
           p.light.position.copy(e.v);
           p.light.color.copy(e.c);
         }
-        p.light.intensity = e.power * GAIN * p.level * e.gain * flicker(e, clock);
+        p.light.intensity =
+          e.power * GAIN * p.level * e.gain * flicker(e, clock);
       }
     },
   };
