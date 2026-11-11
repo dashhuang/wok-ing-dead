@@ -83832,6 +83832,14 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     ${gmRow("ctl.cut", gmTxt("ctl.touchCut"))}
     ${gmRow("ctl.sprint", gmTxt("ctl.touchSprint"))}
   </dl>`,
+    // Spice level buttons: label plus one to three chilies.
+    gmDiffs = () =>
+      ab
+        .map(
+          (W, i) =>
+            `<button data-d="${W[0]}" aria-pressed="false"><span data-i18n="diff.${W[0]}"></span><i class="chili" style="--n:${i + 1}" aria-hidden="true"></i></button>`,
+        )
+        .join(""),
     gmLangs = (cls) =>
       L10N.LOCALES.map(
         (l) =>
@@ -83850,7 +83858,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
 
     <section class="m-screen m-title" data-s="title" aria-labelledby="m-word">
       <header class="m-top">
-        <div class="m-unit"><span class="m-tag">07</span><span data-i18n="title.unit"></span></div>
+        <div class="m-open"><i aria-hidden="true"></i><span data-i18n="title.unit"></span></div>
         <div class="m-langs" role="group" data-i18n-aria="lang.label">${gmLangs("m-lang")}</div>
       </header>
       <div class="m-title-main">
@@ -83859,17 +83867,17 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           <span class="m-word-lat" aria-hidden="true"><span><b>Wok</b>-ing</span><span>Dead</span></span>
         </h1>
         <p class="m-tagline" data-i18n="brand.tagline"></p>
-        <p class="m-place"><span data-i18n="title.place"></span></p>
         <p class="m-premise" data-i18n="title.premise"></p>
-        <div class="m-actions">
+        <div class="m-order">
+          <div class="m-order-h"><span id="l-tm" data-i18n="title.mode"></span><span class="m-order-no">No. 07</span></div>
+          <div class="seg m-modes" role="group" aria-labelledby="l-tm">${uT.map((W) => `<button data-m="${W[0]}" aria-pressed="false"><b data-i18n="mode.${W[0]}"></b><small data-i18n="modeNote.${W[0]}"></small></button>`).join("")}</div>
+          <div class="m-spice"><span id="l-td" data-i18n="title.difficulty"></span><div class="seg" role="group" aria-labelledby="l-td">${gmDiffs()}</div></div>
+          <div class="m-pick-note" data-f="modenote" hidden></div>
           <button class="btn primary" data-act="deploy"><span data-i18n="act.deploy"></span></button>
-          <button class="btn" data-act="settings" data-i18n="act.settings"></button>
-          <button class="btn" data-act="controls" data-i18n="act.controls"></button>
         </div>
-        <div class="m-pick">
-          <label id="l-tm" data-i18n="title.mode"></label><div class="seg" role="group" aria-labelledby="l-tm">${uT.map((W) => `<button data-m="${W[0]}" aria-pressed="false" data-i18n="mode.${W[0]}"></button>`).join("")}</div>
-          <label id="l-td" data-i18n="title.difficulty"></label><div class="seg" role="group" aria-labelledby="l-td">${ab.map((W) => `<button data-d="${W[0]}" aria-pressed="false" data-i18n="diff.${W[0]}"></button>`).join("")}</div>
-          <div class="m-pick-note" data-f="modenote"></div>
+        <div class="m-links">
+          <button class="m-link" data-act="settings" data-i18n="act.settings"></button>
+          <button class="m-link" data-act="controls" data-i18n="act.controls"></button>
         </div>
       </div>
       <aside class="m-legend" data-i18n-aria="act.controls">
@@ -83880,7 +83888,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       <p class="m-note" data-i18n="title.note"></p>
     </section>
 
-    <section class="m-screen m-card" data-s="paused" data-i18n-aria="pause.title">
+    <section class="m-screen m-card m-sign" data-s="paused" data-i18n-aria="pause.title">
       <div class="m-k" data-i18n="pause.kicker"></div>
       <h2 class="m-h" data-i18n="pause.title"></h2>
       <p class="m-line" data-f="lookmode"></p>
@@ -83892,14 +83900,17 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       </div>
     </section>
 
-    <section class="m-screen m-card m-dead" data-s="dead" data-i18n-aria="dead.title">
+    <section class="m-screen m-card m-receipt m-dead" data-s="dead" data-i18n-aria="dead.title">
+      <div class="m-rc-head" aria-hidden="true"><b>WOK-ING DEAD</b><span>\u884C\u5C4D\u8D70\u944A</span></div>
+      <i class="m-stamp" data-i18n="dead.stamp" aria-hidden="true"></i>
       <div class="m-k" data-i18n="dead.kicker"></div>
       <h2 class="m-h" data-i18n="dead.title"></h2>
       <dl class="m-stats"><div><dt data-i18n="dead.time"></dt><dd data-f="dead-time">00:00</dd></div><div data-only="mission"><dt data-i18n="dead.sirens"></dt><dd data-f="dead-relays">0/3</dd></div><div data-only="holdout"><dt data-i18n="dead.waves"></dt><dd data-f="dead-wave">0</dd></div><div data-only="holdout"><dt data-i18n="dead.kills"></dt><dd data-f="dead-kills">0</dd></div><div data-only="holdout"><dt data-i18n="dead.score"></dt><dd data-f="dead-score">0</dd></div><div data-only="holdout"><dt data-i18n="dead.best"></dt><dd data-f="dead-best">0</dd></div></dl>
       <div class="m-actions col"><button class="btn primary" data-act="retry" data-i18n="act.retry"></button></div>
     </section>
 
-    <section class="m-screen m-card m-debrief" data-s="complete" data-i18n-aria="debrief.title">
+    <section class="m-screen m-card m-receipt m-debrief" data-s="complete" data-i18n-aria="debrief.title">
+      <div class="m-rc-head" aria-hidden="true"><b>WOK-ING DEAD</b><span>\u884C\u5C4D\u8D70\u944A</span></div>
       <div class="m-k" data-i18n="debrief.kicker"></div>
       <h2 class="m-h" data-i18n="debrief.title"></h2>
       <div class="m-rating"><span data-i18n="debrief.rating"></span><b data-f="rating"></b></div>
@@ -83909,6 +83920,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         <div><dt data-i18n="debrief.kills"></dt><dd data-f="kills">0</dd></div>
         <div><dt data-i18n="debrief.retries"></dt><dd data-f="retries">0</dd></div>
       </dl>
+      <p class="m-thanks" data-i18n="debrief.thanks"></p>
       <div class="m-actions col"><button class="btn primary" data-act="redeploy" data-i18n="act.redeploy"></button></div>
     </section>
 
@@ -83925,7 +83937,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         <div class="row"><label id="l-lang" data-i18n="lang.label"></label>
           <div class="seg seg-lang" role="group" aria-labelledby="l-lang">${gmLangs("")}</div></div>
         <div class="row"><label id="l-d" data-i18n="set.difficulty"></label>
-          <div class="seg" role="group" aria-labelledby="l-d">${ab.map((W) => `<button data-d="${W[0]}" aria-pressed="false" data-i18n="diff.${W[0]}"></button>`).join("")}</div></div>
+          <div class="seg" role="group" aria-labelledby="l-d">${gmDiffs()}</div></div>
         <div class="row"><label id="l-v" data-i18n="set.view"></label>
           <div class="seg" role="group" aria-labelledby="l-v">${cT.map((W) => `<button data-v="${W[0]}" aria-pressed="false" data-i18n="view.${W[0]}"></button>`).join("")}</div></div>
         <div class="row"><label id="l-q" data-i18n="set.quality"></label>
