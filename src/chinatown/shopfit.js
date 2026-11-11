@@ -4964,6 +4964,8 @@ export function createShopfit({ kit, ctx, M, P, fbox }) {
     mesh.matrixAutoUpdate = false;
     mesh.castShadow = !!o.cast;
     mesh.receiveShadow = !!o.cast;
+    // merged in world space and never moved (a shadow cache may draw it only once)
+    mesh.userData.staticShadow = true;
     if (o.mainOnly) mesh.layers.set(2);
     if (o.order) mesh.renderOrder = o.order;
     return mesh;

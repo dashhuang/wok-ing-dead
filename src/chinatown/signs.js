@@ -1,5 +1,5 @@
 // Everything with writing or a picture on it is painted on canvases at load time:
-// neon and lightbox signs, lacquered signboards, lit windows, shop interiors, posters, lattice.
+// neon and lightbox signs, lacquered signboards, lit windows, posters, lattice.
 // Each family shares one atlas texture so hundreds of signs cost a handful of draw calls.
 import * as THREE from "three";
 
@@ -1156,7 +1156,7 @@ export async function createSigns(kit) {
     return { uv: r.uv, w, h };
   }
 
-  // ---------- lit windows & shop interiors (emissive) ----------
+  // ---------- lit windows (emissive) ----------
   const windows = [];
   function paintWindow(kind) {
     const W = 120,
@@ -1242,173 +1242,6 @@ export async function createSigns(kit) {
     "warm",
   ])
     windows.push(paintWindow(k));
-
-  const interiors = {};
-  function paintInterior(kind) {
-    const W = 420,
-      H = 300;
-    const r = glassAtlas.alloc(W, H);
-    const c = glassAtlas.ctx;
-    c.save();
-    c.beginPath();
-    c.rect(r.x, r.y, r.w, r.h);
-    c.clip();
-    const wall = {
-      grocery: "#c9b07a",
-      diner: "#a8442c",
-      herbs: "#7a4a24",
-      bbq: "#e2dcc8",
-      tea: "#6f7f4f",
-      dark: "#1a1f24",
-    }[kind];
-    const g = c.createLinearGradient(r.x, r.y, r.x, r.y + H);
-    g.addColorStop(0, shade(wall, 0.25));
-    g.addColorStop(0.7, wall);
-    g.addColorStop(1, shade(wall, -0.55));
-    c.fillStyle = g;
-    c.fillRect(r.x, r.y, W, H);
-    const rect = (x, y, w, h, col) => {
-      c.fillStyle = col;
-      c.fillRect(r.x + x * W, r.y + y * H, w * W, h * H);
-    };
-    if (kind === "grocery" || kind === "tea") {
-      for (let s = 0; s < 4; s++) {
-        rect(0.03, 0.16 + s * 0.2, 0.94, 0.02, "rgba(40,25,10,0.8)");
-        for (let i = 0; i < 22; i++) {
-          const col =
-            kind === "tea"
-              ? pick(["#8a1c14", "#c9a13a", "#1f5a3a", "#d8d2c0", "#3a2a1a"])
-              : pick([
-                  "#d8342a",
-                  "#f0c330",
-                  "#2f8f4f",
-                  "#2a6fc0",
-                  "#f2efe6",
-                  "#e57a22",
-                  "#b22a6a",
-                ]);
-          const w = 0.02 + rnd() * 0.025,
-            h = 0.07 + rnd() * 0.08;
-          rect(0.04 + i * 0.042, 0.16 + s * 0.2 - h, w, h, col);
-        }
-      }
-      rect(0, 0.82, 1, 0.18, "rgba(30,18,8,0.85)");
-    } else if (kind === "herbs") {
-      for (let y = 0; y < 7; y++)
-        for (let x = 0; x < 14; x++) {
-          rect(
-            0.04 + x * 0.066,
-            0.08 + y * 0.09,
-            0.058,
-            0.078,
-            y % 2 ? "#5e3517" : "#6c3f1c",
-          );
-          rect(0.062 + x * 0.066, 0.115 + y * 0.09, 0.014, 0.012, "#d9b45a");
-        }
-      rect(0, 0.74, 1, 0.26, "rgba(35,18,6,0.9)");
-      for (let i = 0; i < 6; i++)
-        rect(0.08 + i * 0.15, 0.6, 0.07, 0.14, "rgba(220,200,150,0.55)");
-    } else if (kind === "diner") {
-      for (let i = 0; i < 5; i++) {
-        const x = 0.1 + i * 0.2;
-        c.fillStyle = "#ff5a2a";
-        c.beginPath();
-        c.ellipse(
-          r.x + x * W,
-          r.y + H * 0.2,
-          W * 0.035,
-          H * 0.07,
-          0,
-          0,
-          Math.PI * 2,
-        );
-        c.fill();
-        c.fillStyle = "rgba(255,210,120,0.9)";
-        c.beginPath();
-        c.ellipse(
-          r.x + x * W,
-          r.y + H * 0.2,
-          W * 0.016,
-          H * 0.035,
-          0,
-          0,
-          Math.PI * 2,
-        );
-        c.fill();
-      }
-      for (let i = 0; i < 4; i++) {
-        c.fillStyle = "#e8dcc6";
-        c.beginPath();
-        c.ellipse(
-          r.x + (0.14 + i * 0.24) * W,
-          r.y + H * 0.72,
-          W * 0.09,
-          H * 0.045,
-          0,
-          0,
-          Math.PI * 2,
-        );
-        c.fill();
-        rect(0.13 + i * 0.24, 0.74, 0.02, 0.2, "rgba(40,16,8,0.9)");
-      }
-      rect(0, 0.92, 1, 0.08, "rgba(30,10,6,0.9)");
-    } else if (kind === "bbq") {
-      rect(0, 0.1, 1, 0.025, "#8a8a8a");
-      for (let i = 0; i < 9; i++) {
-        const x = 0.08 + i * 0.1;
-        rect(x + 0.014, 0.12, 0.004, 0.07, "#555");
-        c.fillStyle = pick(["#a8431a", "#b9521c", "#8e3212", "#c96a22"]);
-        c.beginPath();
-        c.ellipse(
-          r.x + (x + 0.016) * W,
-          r.y + H * 0.34,
-          W * 0.032,
-          H * 0.16,
-          0,
-          0,
-          Math.PI * 2,
-        );
-        c.fill();
-        c.fillStyle = "rgba(255,200,120,0.35)";
-        c.beginPath();
-        c.ellipse(
-          r.x + (x + 0.008) * W,
-          r.y + H * 0.3,
-          W * 0.01,
-          H * 0.1,
-          0,
-          0,
-          Math.PI * 2,
-        );
-        c.fill();
-      }
-      for (let y = 0; y < 6; y++)
-        rect(0, 0.56 + y * 0.075, 1, 0.004, "rgba(0,0,0,0.25)");
-      rect(0, 0.8, 1, 0.2, "#9aa0a0");
-    } else {
-      rect(0.1, 0.3, 0.3, 0.5, "rgba(0,0,0,0.6)");
-      rect(0.55, 0.45, 0.35, 0.4, "rgba(0,0,0,0.6)");
-      c.fillStyle = "rgba(120,150,170,0.5)";
-      c.fillRect(r.x + W * 0.62, r.y + H * 0.06, W * 0.2, H * 0.03);
-    }
-    // soft vignette so the depth reads
-    const v = c.createRadialGradient(
-      r.x + W / 2,
-      r.y + H * 0.4,
-      H * 0.2,
-      r.x + W / 2,
-      r.y + H / 2,
-      W * 0.7,
-    );
-    v.addColorStop(0, "rgba(0,0,0,0)");
-    v.addColorStop(1, "rgba(0,0,0,0.55)");
-    c.fillStyle = v;
-    c.fillRect(r.x, r.y, W, H);
-    c.restore();
-    interiors[kind] = r.uv;
-  }
-  for (const k of ["grocery", "diner", "herbs", "bbq", "tea", "dark"])
-    paintInterior(k);
 
   // ---------- decals with transparency: lattice, blood, grime ----------
   function lattice() {
@@ -1530,7 +1363,6 @@ export async function createSigns(kit) {
     neonFaulty: kit.glowMap(neonAtlas.tex, 2.6),
     board: kit.painted(boardAtlas.tex, { rough: 0.55, wet: "wood" }),
     glass: kit.glowMap(glassAtlas.tex, 1.5),
-    shop: kit.glowMap(glassAtlas.tex, 2.1),
     lattice: kit.painted(decalAtlas.tex, {
       alphaTest: 0.5,
       side: true,
@@ -1554,7 +1386,6 @@ export async function createSigns(kit) {
     eggPoster,
     beamPattern,
     windows,
-    interiors,
     decals,
     mats,
     atlases: {

@@ -8,14 +8,15 @@
 | 类别 | 位置 | 来源 | 许可 |
 | --- | --- | --- | --- |
 | 墙面、地面、屋瓦等 PBR 贴图（22 套） | `public/assets/textures/` | [Poly Haven](https://polyhaven.com) | CC0 |
-| 街头道具模型（43 个） | `public/assets/props/` | [Poly Haven](https://polyhaven.com) | CC0 |
+| 街头道具模型（42 个） | `public/assets/props/` | [Poly Haven](https://polyhaven.com) | CC0 |
 | 僵尸角色与动作 | `public/assets/zombies/` | Adobe Mixamo（经公开 GitHub 仓库获取） | Mixamo 使用条款，**不是 CC0**，见下文 |
 | 招牌字体（子集） | `public/assets/fonts/` | Noto Serif TC、LXGW WenKai TC（Google Fonts 仓库） | SIL OFL 1.1 |
 | 界面字体（子集） | `public/assets/fonts/ui/` | Inter、Noto Serif Display、Noto Sans / Serif SC·TC·JP（Google Fonts 仓库） | SIL OFL 1.1 |
 | 场景贴图用的拉丁字体 | `public/assets/fonts/world/` | Big Shoulders Display、Barlow Condensed、IBM Plex Mono（Google Fonts，拉丁子集） | SIL OFL 1.1 |
 | 僵尸嗓音（24 段） | `public/assets/audio/zombie/` | OpenGameArt | CC0，详见 [assets-audio.md](assets-audio.md) |
 
-招牌、霓虹灯、橱窗、海报、血迹、牌楼彩画等图案不是下载的图片，而是加载时用 Canvas 现画的（`src/chinatown/signs.js`）。
+招牌、霓虹灯、亮窗、海报、血迹、牌楼彩画等图案不是下载的图片，而是加载时用 Canvas 现画的（`src/chinatown/signs.js`）；
+店铺里的包装、菜单、字画（`shopfit.js`）、街市的货品与档口牌（`market.js`）、车牌和车身文字（`vehicles.js`）也是同样画出来的。
 店名均为按粤式习惯虚构的名字，没有使用现实中的商号；例外是 `src/chinatown/eggs.js` 里的彩蛋，引用了心动、TapTap 和 Cindy 的名字以及心动旗下游戏名（只有文字和简单图形，没有使用官方 Logo 图片）。
 
 ## Poly Haven 贴图与模型（CC0）
@@ -44,8 +45,8 @@ Mixamo 的角色和动作可以免费用于个人和商业项目，但条款不�
 
 ## 字体（SIL OFL 1.1）
 
-`ct-serif.woff2`（Noto Serif TC Black）和 `ct-kai.woff2`（LXGW WenKai TC Bold）只保留了招牌里实际出现的汉字和可打印 ASCII 字符，
-各几十 KB。许可全文在同目录的 `OFL-*.txt`。新增招牌文字后需要重新生成：
+`ct-serif.woff2`（Noto Serif TC Black）和 `ct-kai.woff2`（LXGW WenKai TC Bold）只保留了招牌、货品和告示里实际出现的汉字和可打印 ASCII 字符，
+分别约 105 KB 和 155 KB。许可全文在同目录的 `OFL-*.txt`。新增招牌文字后需要重新生成：
 
 ```sh
 # 需要 fonttools 和 brotli
@@ -79,4 +80,5 @@ python scripts/assets/build-ui-fonts.py <放有原始可变字体 TTF 的目录>
 ## 仍然由代码生成的部分
 
 天空、雨、地面水洼、武器模型、枪声与脚步等沿用原版的程序化实现；警报器、城市环境声、僵尸脚步和击中声也是运行时合成的；建筑、牌楼、庙宇、街市、灯笼、
-路灯、电线、军车等几何体由 `src/chinatown/` 下的模块用基础形体搭建，没有使用外部建筑模型。
+路灯、电线等几何体由 `src/chinatown/` 下的模块用基础形体搭建，没有使用外部建筑模型。街上和远景里的车辆（两辆盖着篷布的除外）、
+店铺内景和街市里的货品同样是代码生成的，没有使用外部模型或照片。

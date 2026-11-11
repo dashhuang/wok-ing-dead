@@ -49,8 +49,11 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `src/game.js` | 原版发布包：内嵌 Three.js r180、渲染、武器、输入、HUD、任务状态机；唐人街的世界参数在其中的 `CT` 对象 |
 | `src/chinatown/level.js` | 街区布局、人行道、出生点、任务目标，返回游戏要求的关卡接口 |
 | `src/chinatown/buildings.js` | 商铺楼生成器：凹窗、店面、招牌、阳台、消防梯、檐顶 |
-| `src/chinatown/landmarks.js` | 牌楼、街市大厅、关帝庙、检疫关卡、警报器、灯笼 |
-| `src/chinatown/dressing.js` | 路灯、灯笼串、电线、车辆、摊位杂物、后巷与天井 |
+| `src/chinatown/shopfit.js` | 店铺内景（橱窗和半拉卷闸后面的真实房间，载入时烘焙光照）与帆布遮阳篷 |
+| `src/chinatown/landmarks.js` | 牌楼、关帝庙、检疫关卡、街口围挡、警报器、灯笼 |
+| `src/chinatown/market.js` | 街市大厅：各行档口、玻璃天窗、过道里的灯和杂物 |
+| `src/chinatown/vehicles.js` | 程序化车辆：的士、轿车、面包车、小巴、货车、军车、巴士 |
+| `src/chinatown/dressing.js` | 路灯、灯笼串、电线、停放的车辆、红绿灯与街名牌、摊位杂物、后巷与天井 |
 | `src/chinatown/backdrop.js` | 街口之外的延伸街区、远处高楼、军车与直升机 |
 | `src/chinatown/signs.js` | 用 Canvas 绘制的霓虹招牌、牌匾、橱窗、海报、血迹图集 |
 | `src/chinatown/lights.js` | 局部光源调度（固定数量的点光源在所有发光体之间轮换）和枪灯 |
