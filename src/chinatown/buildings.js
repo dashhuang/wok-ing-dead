@@ -524,6 +524,7 @@ export function createBuilder(kit, signs, ctx) {
       color: o.color,
       trim: o.trim,
       style: o.style || "tube",
+      look: o.look,
     };
     const face = signs.neon(spec);
     const faulty = spec.style !== "box" && rnd() < 0.22;
@@ -566,6 +567,7 @@ export function createBuilder(kit, signs, ctx) {
   // Signboard over a shopfront: lacquered board, or a lightbox.
   function fascia(f, s0, s1, y0, y1, shop, kind) {
     const text = shop[0] + shop[1];
+    const look = shop[3];
     if (kind === "box") {
       const face = signs.neon({
         text,
@@ -575,6 +577,7 @@ export function createBuilder(kit, signs, ctx) {
         style: "box",
         color: pick(["#b3140f", "#0f3f9a", "#0a6a3a", "#111111"]),
         face: pick(["#fff1cf", "#ffe08a", "#f4f7ff", "#ffd9d0"]),
+        look,
       });
       fbox(f, M.steel, s0 - 0.04, y0 - 0.04, 0, s1 + 0.04, y1 + 0.04, 0.16, {
         cast: false,
@@ -591,6 +594,7 @@ export function createBuilder(kit, signs, ctx) {
         w: s1 - s0,
         h: y1 - y0,
         style: "tube",
+        look,
       });
       fbox(f, M.steel, s0 - 0.04, y0 - 0.04, 0, s1 + 0.04, y1 + 0.04, 0.12, {
         cast: false,
@@ -601,7 +605,13 @@ export function createBuilder(kit, signs, ctx) {
       });
       emit(f, (s0 + s1) / 2, y0 - 0.2, 0.9, face.color, 1.3, 8);
     } else {
-      const face = signs.board({ text, sub: shop[2], w: s1 - s0, h: y1 - y0 });
+      const face = signs.board({
+        text,
+        sub: shop[2],
+        w: s1 - s0,
+        h: y1 - y0,
+        look,
+      });
       fbox(f, M.woodDark, s0 - 0.05, y0 - 0.05, 0, s1 + 0.05, y1 + 0.05, 0.09, {
         cast: false,
         skip: "i",
@@ -685,6 +695,23 @@ export function createBuilder(kit, signs, ctx) {
       }
       if (rnd() < 0.5)
         notice(f, a + 0.3 + rnd() * (b - a - 1), 1.1 + rnd() * 0.5, -0.108);
+      // easter-egg posters sit just in front of the random notices
+      for (const p of unit.posters || []) {
+        const pp = signs.eggPoster(p.kind);
+        fquad(
+          f,
+          signs.mats.board,
+          a + p.at,
+          p.y,
+          a + p.at + pp.w,
+          p.y + pp.h,
+          -0.104,
+          pp.uv,
+          {
+            cast: false,
+          },
+        );
+      }
     } else if (type === "glass") {
       const doorW = 1.0,
         door0 = unit.doorLeft ? a : b - doorW,
@@ -765,6 +792,24 @@ export function createBuilder(kit, signs, ctx) {
         1.5,
         9,
       );
+      if (unit.menu) {
+        // paper menu taped inside the glass, at the end of the pane next to the door
+        const m = signs.menu(unit.menu);
+        const ms = unit.doorLeft ? w0 + 0.2 : w1 - 0.2 - m.w;
+        fquad(
+          f,
+          signs.mats.board,
+          ms,
+          0.95,
+          ms + m.w,
+          0.95 + m.h,
+          -0.094,
+          m.uv,
+          {
+            cast: false,
+          },
+        );
+      }
       if (rnd() < 0.4) {
         const uv = pick(signs.decals.hand);
         const s = w0 + 0.3 + rnd() * Math.max(0.1, w1 - w0 - 1.1);
@@ -993,6 +1038,7 @@ export function createBuilder(kit, signs, ctx) {
         w: big ? 1.15 : u.blade === "pawn" ? 1.2 : 0.78,
         style: u.blade === "pawn" ? "pawn" : u.blade === "box" ? "box" : "tube",
         color: u.color,
+        look: u.bladeLook || (u.shop && u.shop[3]),
         power: big ? 2.4 : 1.7,
         range: big ? 13 : 10,
       });

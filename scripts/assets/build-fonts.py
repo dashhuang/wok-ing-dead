@@ -3,7 +3,8 @@
   python build-fonts.py <dir with NotoSerifTC.ttf and LXGWWenKaiTC-Bold.ttf> <public/assets/fonts>
 
 Needs fonttools and brotli. Only the Chinese characters that actually appear in
-src/chinatown/*.js (plus the lane stencils in src/game.js) are kept, so each file is tiny.
+src/chinatown/*.js (plus the lane stencils in src/game.js) and printable ASCII are kept,
+so each file is tiny.
 Sources: github.com/google/fonts ofl/notoseriftc and ofl/lxgwwenkaitc (SIL Open Font License 1.1).
 """
 import glob, os, re, sys
@@ -19,7 +20,9 @@ for f in glob.glob(os.path.join(root, "src", "chinatown", "*.js")):
 game = open(os.path.join(root, "src", "game.js"), encoding="utf8").read()
 text += "".join(chr(int(h, 16)) for h in re.findall(r"\\u([0-9a-fA-F]{4})", game[game.index("var CT = {") : game.index("async function cL()")]))
 chars = sorted({c for c in text if "⺀" <= c <= "鿿" or "＀" <= c <= "￯"})
-chars += list("·—")
+chars += list("·—–")
+# printable ASCII, for the Latin in the easter-egg menus and shop names
+chars += [chr(c) for c in range(0x20, 0x7F)]
 print(len(chars), "glyphs:", "".join(chars))
 os.makedirs(out, exist_ok=True)
 

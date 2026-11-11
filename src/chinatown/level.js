@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import { createKit, SURFACES } from "./kit.js";
 import { createSigns, SHOPS } from "./signs.js";
+import { EGG_SHOPS, TAPTAP_BLADE, MENUS, POSTERS } from "./eggs.js";
 import { createBuilder } from "./buildings.js";
 import { buildLandmarks } from "./landmarks.js";
 import { dressStreets } from "./dressing.js";
@@ -183,7 +184,13 @@ export async function createLevel(G) {
       ],
       w: [
         U("shutter", 15, { sign: "board", blade: true, color: "#35f0c8" }),
-        U("half", 9, { interior: "grocery", sign: "board", awning: GRN }),
+        U("half", 9, {
+          interior: "grocery",
+          sign: "board",
+          awning: GRN,
+          shop: EGG_SHOPS.cindy, // easter egg
+          posters: POSTERS.cindy,
+        }),
         U("dark", 0, { w: 0.6 }),
       ],
     },
@@ -209,6 +216,8 @@ export async function createLevel(G) {
           color: "#ff2a4f",
           bladeH: 5.2,
           w: 1,
+          shop: EGG_SHOPS.xd, // easter egg
+          menu: MENUS.xdWindow,
         }),
       ],
     },
@@ -391,7 +400,14 @@ export async function createLevel(G) {
     faces: { n: "street", w: "alley", s: "alley" },
     units: {
       n: [
-        U("shutter", 11, { sign: "neon", blade: "box" }),
+        U("shutter", 11, {
+          sign: "neon",
+          blade: "box",
+          shop: EGG_SHOPS.taptap, // easter egg
+          bladeText: "遊戲機",
+          bladeLook: TAPTAP_BLADE,
+          posters: POSTERS.taptap,
+        }),
         U("dark", 0, { w: 0.6 }),
       ],
     },

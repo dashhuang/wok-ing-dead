@@ -16,7 +16,7 @@
 | 僵尸嗓音（24 段） | `public/assets/audio/zombie/` | OpenGameArt | CC0，详见 [assets-audio.md](assets-audio.md) |
 
 招牌、霓虹灯、橱窗、海报、血迹、牌楼彩画等图案不是下载的图片，而是加载时用 Canvas 现画的（`src/chinatown/signs.js`）。
-店名均为按粤式习惯虚构的名字，没有使用现实中的商号。
+店名均为按粤式习惯虚构的名字，没有使用现实中的商号；例外是 `src/chinatown/eggs.js` 里的彩蛋，引用了心动、TapTap 和 Cindy 的名字以及心动旗下游戏名（只有文字和简单图形，没有使用官方 Logo 图片）。
 
 ## Poly Haven 贴图与模型（CC0）
 
@@ -44,7 +44,7 @@ Mixamo 的角色和动作可以免费用于个人和商业项目，但条款不�
 
 ## 字体（SIL OFL 1.1）
 
-`ct-serif.woff2`（Noto Serif TC Black）和 `ct-kai.woff2`（LXGW WenKai TC Bold）只保留了招牌里实际出现的汉字，
+`ct-serif.woff2`（Noto Serif TC Black）和 `ct-kai.woff2`（LXGW WenKai TC Bold）只保留了招牌里实际出现的汉字和可打印 ASCII 字符，
 各几十 KB。许可全文在同目录的 `OFL-*.txt`。新增招牌文字后需要重新生成：
 
 ```sh

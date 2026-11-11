@@ -2,6 +2,7 @@
 // rubbish, the tenement courtyard and the alleys. Everything here is set dressing on top of
 // the buildings and landmarks; collision is added for anything a body cannot pass through.
 import * as THREE from "three";
+import { MENUS } from "./eggs.js";
 
 export function dressStreets(ctx, PLAN, marks) {
   const { kit, signs, B, G } = ctx;
@@ -27,6 +28,39 @@ export function dressStreets(ctx, PLAN, marks) {
     wet: [0.35, 0.8, 0, 0],
     key: "paper",
   });
+  // standing_chalkboard_01 with a menu on the outer face of each leaf. The leaves of the model
+  // run from z = ±0.062 at y = 1.436 to z = ±0.298 at y = 0.326; the prop is recentred on x.
+  function chalkboard(x, z, yaw, front, back) {
+    kit.prop("standing_chalkboard_01", x, K, z, { yaw, collide: 1.0 });
+    const m = kit.xform(x, K, z, 0, yaw, 0);
+    const cx = (0.473 - 0.446) / 2;
+    const x0 = -0.33 - cx,
+      x1 = 0.357 - cx,
+      y0 = 0.38,
+      y1 = 1.38;
+    const zAt = (y) => 0.062 + ((1.436 - y) * 0.236) / 1.11 + 0.004;
+    for (const [spec, side] of [
+      [front, 1],
+      [back, -1],
+    ]) {
+      if (!spec) continue;
+      const face = signs.menu(spec);
+      const l = side > 0 ? x0 : x1,
+        r = side > 0 ? x1 : x0;
+      const pt = (px, py) =>
+        new THREE.Vector3(px, py, zAt(py) * side).applyMatrix4(m).toArray();
+      const [u0, v0, u1, v1] = face.uv;
+      kit.quad(
+        signs.mats.board,
+        pt(l, y0),
+        pt(r, y0),
+        pt(r, y1),
+        pt(l, y1),
+        [u0, v0, u1, v0, u1, v1, u0, v1],
+        { cast: false },
+      );
+    }
+  }
 
   // ---------- props requested by the building generator (balcony plants, meter boxes) ----------
   for (const d of ctx.dress) {
@@ -402,14 +436,9 @@ export function dressStreets(ctx, PLAN, marks) {
     yaw: Math.PI / 2,
     collide: true,
   });
-  kit.prop("standing_chalkboard_01", -17.6, K, 0.5, {
-    yaw: 0.25,
-    collide: 1.0,
-  });
-  kit.prop("standing_chalkboard_01", -5.4, K, 11.3, {
-    yaw: Math.PI - 0.3,
-    collide: 1.0,
-  });
+  // A-frame chalkboards outside the cafés, each leaf chalked with a menu (easter eggs)
+  chalkboard(-17.6, 0.5, 0.25, MENUS.xdChalk, MENUS.xdChalkBack);
+  chalkboard(-5.4, 11.3, Math.PI - 0.3, MENUS.cindyChalk, MENUS.taptapChalk);
   kit.prop("painted_wooden_bench", -11.6, K, 12.5, {
     yaw: Math.PI,
     collide: 0.5,
