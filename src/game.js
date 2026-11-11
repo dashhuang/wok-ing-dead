@@ -67750,7 +67750,8 @@ void main() {
       (i.clear(),
         (u = 0),
         (W = !1),
-        R && (R.btn.ads.classList.remove("active"), oe(), (A = -1), (N = -1)));
+        R &&
+          (R.btn.ads.classList.remove("active"), oe(), (A = null), (N = null)));
     }
     (addEventListener("keydown", (ne) => {
       let ye = fE[ne.code];
@@ -67866,17 +67867,19 @@ void main() {
         document.pointerLockElement && document.exitPointerLock();
       } catch {}
     }
+    // I/A/N hold the touch identifier on the move stick, look drag and fire button.
+    // null means no finger: iOS Safari hands out large negative identifiers, so -1 / "< 0" can't mean "free".
     let R = null,
       z = 0,
-      I = -1,
+      I = null,
       L = 0,
       U = 0,
       k = 0,
       C = 0,
-      A = -1,
+      A = null,
       F = 0,
       H = 0,
-      N = -1,
+      N = null,
       Z = 0,
       Q = 0,
       W = !1;
@@ -67942,7 +67945,7 @@ void main() {
               for (let _e of ze.changedTouches)
                 _e.identifier === N && (Ge = !0);
               if (!Ge) return;
-              N = -1;
+              N = null;
             }
             (Ue.classList.remove("active"), v("touch", Re, !1));
           }
@@ -67980,7 +67983,7 @@ void main() {
         d("touch"));
     }
     function oe() {
-      ((I = -1), (k = C = 0), R && R.stick.classList.remove("on"));
+      ((I = null), (k = C = 0), R && R.stick.classList.remove("on"));
     }
     (addEventListener(
       "touchstart",
@@ -67994,7 +67997,7 @@ void main() {
         (ne) => {
           if ((ne.preventDefault(), !!r))
             for (let ye of ne.changedTouches)
-              ye.clientX < innerWidth * 0.45 && I < 0
+              ye.clientX < innerWidth * 0.45 && I === null
                 ? ((I = ye.identifier),
                   (L = ye.clientX),
                   (U = ye.clientY),
@@ -68003,7 +68006,7 @@ void main() {
                     ((R.stick.style.transform = `translate3d(${L}px,${U}px,0)`),
                     (R.nub.style.transform = "translate3d(0,0,0)"),
                     R.stick.classList.add("on")))
-                : A < 0 &&
+                : A === null &&
                   ((A = ye.identifier), (F = ye.clientX), (H = ye.clientY));
         },
         { passive: !1 },
@@ -68032,7 +68035,7 @@ void main() {
       ));
     let ee = (ne) => {
       for (let ye of ne.changedTouches)
-        ye.identifier === I ? oe() : ye.identifier === A && (A = -1);
+        ye.identifier === I ? oe() : ye.identifier === A && (A = null);
     };
     (e.addEventListener("touchend", ee, { passive: !1 }),
       e.addEventListener("touchcancel", ee, { passive: !1 }));
@@ -68197,7 +68200,7 @@ void main() {
         ((ye = (i.has("right") ? 1 : 0) - (i.has("left") ? 1 : 0)),
           (Te = (i.has("forward") ? 1 : 0) - (i.has("back") ? 1 : 0)),
           (Re = i.has("sprint")),
-          I >= 0 &&
+          I !== null &&
             ((ye += k),
             (Te += C),
             Math.hypot(k, C) > 0.93 && C > 0.8 && (Re = !0)),
