@@ -1,0 +1,13 @@
+#!/bin/sh
+# Pushing to main deploys straight to production (Vercel). Changes go through a pull
+# request instead; see CONTRIBUTING.md. Emergency bypass: git push --no-verify
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "pre-push: refusing to push to main directly — open a pull request instead." >&2
+    echo "          (emergency only: git push --no-verify)" >&2
+    exit 1
+  fi
+done
+
+# Fast checks only; the browser smoke test runs in CI.
+npm run --silent check

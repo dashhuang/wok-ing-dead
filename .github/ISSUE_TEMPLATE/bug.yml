@@ -1,0 +1,32 @@
+name: 问题反馈
+description: 游戏里出了错、卡住、画面或声音不对
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 看到了什么，本来应该是什么样。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 怎么复现
+      placeholder: |
+        1. 打开 https://wok-ing-dead.vercel.app/
+        2. 点「开镬」……
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: 设备和浏览器
+      placeholder: iPhone 16 Safari / MacBook Chrome 141 …
+    validations:
+      required: true
+  - type: textarea
+    id: debug
+    attributes:
+      label: 截图或调试信息
+      description: 浏览器控制台里执行 `window.__stats()` 的输出、`window.__errors`，或截图、录屏。

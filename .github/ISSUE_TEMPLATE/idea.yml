@@ -1,0 +1,16 @@
+name: 想法和改进
+description: 新玩法、新内容、手感或界面上的改进
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: 想做什么
+      description: 玩家会看到或感受到什么变化。
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: 为什么
+      description: 现在哪里不够好，或者这能带来什么。
