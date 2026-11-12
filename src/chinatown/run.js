@@ -638,7 +638,7 @@ export function createRun(G, hooks) {
     };
     hud.openCards(cards, (i) => choose(i), o);
     hooks.message("", 0);
-    play("objective", { gain: 0.7, pitch: req.kind === "level" ? 1.18 : 1.3 });
+    play("run_bell", { gain: 1, pitch: req.kind === "level" ? 1 : 1.12 });
     return true;
   }
   // wield: take it in hand at once (not when the house chose it for a player busy shooting)
@@ -682,7 +682,7 @@ export function createRun(G, hooks) {
       I.device !== "pad"
     )
       I.requestLock();
-    play("ui_click", { gain: 1 });
+    play("run_pick", { gain: 1 });
     G.events.emit("run:pick", { card: c });
   }
   function pickTick(real) {
@@ -914,7 +914,7 @@ export function createRun(G, hooks) {
   // A red envelope raises the weapon in hand; once that one is at the cap it goes to
   // another carried weapon, and once all are, to a random seasoning plus a full heal.
   function openEnvelope() {
-    play("objective", { gain: 0.9, pitch: 1.4 });
+    play("run_envelope", { gain: 1 });
     const id = loadout.nextToRaise();
     const up = id ? loadout.upgrade(id) : null;
     if (up) {
@@ -938,7 +938,7 @@ export function createRun(G, hooks) {
   }
   function openCase() {
     const ids = available();
-    play("objective", { gain: 0.9, pitch: 1.1 });
+    play("run_case", { gain: 1 });
     if (ids.length) {
       const id = ids[Math.floor(rng() * ids.length)];
       takeWeapon(id, false);
@@ -972,7 +972,7 @@ export function createRun(G, hooks) {
         P.heal(p.amount);
         pickups.removePack(p);
         hud.toast(L10N.t("run.toast.food", { n: Math.round(got) }), "gold");
-        play("ui_click", { gain: 0.9, pitch: 0.8 });
+        play("run_food", { gain: 1 });
       } else if (d < reach) {
         const got = loadout.add(p.kind, p.amount);
         pickups.removePack(p);
@@ -984,7 +984,7 @@ export function createRun(G, hooks) {
             }),
             "a-" + p.kind,
           );
-          play("reload_magin", { gain: 0.7, pitch: 1.25 });
+          play("run_ammo", { gain: 0.9 });
         }
       } else if (d < reach + A.pull) {
         const step = Math.min(d, 7 * dt);
@@ -1067,7 +1067,7 @@ export function createRun(G, hooks) {
           }),
           "a-" + c.kind,
         );
-        play("reload_magin", { gain: 0.9, pitch: 0.9 });
+        play("run_ammo", { gain: 1, pitch: 0.86 });
         play("gear_rustle", { gain: 0.9 });
       }
     });

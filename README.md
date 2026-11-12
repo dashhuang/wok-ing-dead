@@ -108,7 +108,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `src/chinatown/pickups.js` | 弹药包、红包、武器箱和补给箱指示灯的模型 |
 | `src/chinatown/supplies.js` | 补给箱的位置：金龙街十二处（烘进街景），咸水码头十二处 |
 | `src/chinatown/docks.js` | 第二关在原版港口地图之上补的东西：补给箱，以及让僵尸走得进撤离区的导航修正 |
-| `src/chinatown/audio.js` | 僵尸语音、城市环境声、警报器 |
+| `src/chinatown/audio.js` | 僵尸语音、城市环境声、警报器、命中确认与套餐里的拾取和小票声；把试验场的武器声音并进游戏的声音表 |
 | `src/engine/three.js` | 把内嵌的 Three.js 以 `three` 的名字导出，供官方加载器使用 |
 | `src/settings.js` | 设置存储 |
 | `tests/e2e/` | Playwright 冒烟测试：用真实点击走标题 → 开镬 → 暂停 → 死亡 → 重试 |

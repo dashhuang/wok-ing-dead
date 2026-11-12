@@ -100,7 +100,7 @@
 | `pickups.js` | 弹药包（四色）、红包、武器箱、补给箱指示灯。每种是几个 `InstancedMesh`，启动时一次建好（赶在着色器预编译之前），不新增光源。颜色是按夜街曝光写的不受光颜色，码头用 `setGain` 整体提亮 |
 | `supplies.js` | 两关各十二个补给箱的位置。金龙街的箱子低于 0.47 m，不挡导航；码头的是 0.55 m 的木箱，带碰撞 |
 | `docks.js` | 第二关（原版港口地图）在套餐里需要的补充，见上文「两关」 |
-| `audio.js` | 采样的僵尸语音与脚步、城市环境声、三座警报器的空间循环声 |
+| `audio.js` | 采样的僵尸语音与脚步、城市环境声、三座警报器的空间循环声；命中确认（打中身体、爆头、击倒各一个贴耳的短声，听 `player:hitEnemy`）和套餐里的出餐铃、插小票、红包、武器箱、吃的、捡弹药；把试验场的武器声音（`arsenal/src/audio/sounds.js`）并进游戏的声音表，`VOICES` 规定每把武器的枪声用哪个声音、配本体哪把枪在街上的回声、压低多少环境声 |
 | `eggs.js` | 彩蛋文案：心动冰室、TapTap 遊戲機中心、Cindy 士多三家店，街边两块黑板和冰室橱窗的菜单，卷闸上的海报。只放内容；店铺在 `level.js` 指定，黑板在 `dressing.js` 摆放，绘制由 `signs.menu` / `signs.eggPoster` 完成，并使用独立随机种子，改文案不会打乱街景的随机布局 |
 
 新增招牌文字后要重新生成字体子集，新增道具后要更新素材清单，见 [素材来源与许可](assets.md)。
@@ -185,7 +185,7 @@
 
 | 内容 | 唯一的出处 | 谁在用 |
 | --- | --- | --- |
-| 武器的模型、握法、换弹动作、特效、声音 | `arsenal/src/weapons/`、`kit/`、`fx/`、`audio/` | 两边 |
+| 武器的模型、握法、换弹动作、特效、声音 | `arsenal/src/weapons/`、`kit/`、`fx/`、`audio/` | 两边（声音在游戏里走游戏自己的总线：音量设置、暂停、死亡时的闷声、混响都管得到，见 `armory.js` 传给 `createAudio` 的 `host`） |
 | 每种形态开火做什么，伤害、弹匣、射速、换弹时间 | `arsenal/src/combat/behaviours.js` | 两边 |
 | 输入、后坐、换弹、近战、投掷、范围伤害；调料倍率怎么作用（`setMods`）；换弹从哪里拿子弹（`lab.supply`） | `arsenal/src/combat/combat.js` | 两边用同一个控制器 |
 | 伤害结算、四种状态、四种反应、精英和关底的抗性、附魔调料怎么触发 | `arsenal/src/combat/status.js`，数字在 `arsenal/src/data/status.js` | 本体的 `armtargets.js` 和测试台的 `targets.js` 都只是它的宿主 |

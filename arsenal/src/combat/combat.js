@@ -911,7 +911,11 @@ export async function createCombat(lab) {
   function startReload() {
     if (!W || W.reload >= 0 || !(W.spec.reload > 0) || W.rounds >= W.spec.mag)
       return;
-    if (lab.supply && !lab.supply.can(W)) return; // nothing to load it with
+    if (lab.supply && !lab.supply.can(W)) {
+      // nothing to load it with: the trigger falls on an empty weapon
+      if (audio && input.fireEdge) audio.play("dry", { gap: 0.2 });
+      return;
+    }
     W.reload = 0;
     W.charge = 0;
     W.charging = false;
