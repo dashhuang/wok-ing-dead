@@ -283,6 +283,8 @@ test("the lab's address parameters arm a real run", async ({ page }) => {
 // panel is worked with real clicks, and its state is kept in the address (the page opens
 // set up the way the address says, which is how it comes back after a reload).
 test("the firing range sets a run up by hand", async ({ page }) => {
+  // the street takes a minute or two to build on a busy machine, and there is a lot to click
+  test.setTimeout(420_000);
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(e.message));
   const ready = () =>
