@@ -51,6 +51,9 @@ jobs:
         run: npx playwright install chromium
       - name: Title → deploy → pause → die → retry
         run: npm run test:e2e
+      - name: Weapon lab (every form fires; clicks, keys, reloads, phone taps)
+        if: ${{ !cancelled() && hashFiles('arsenal/playwright.config.js') != '' }}
+        run: npm run arsenal:test
       - name: Upload report
         if: ${{ !cancelled() && failure() }}
         uses: actions/upload-artifact@v4
@@ -59,4 +62,5 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            arsenal/test-results/
           retention-days: 14

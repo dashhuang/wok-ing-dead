@@ -71,6 +71,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `.github/` | CI、Dependabot、PR 和 issue 模板 |
 | `public/assets/` | 贴图、道具、僵尸、字体（`fonts/ui` 界面字体，`fonts/world` 场景贴图字体）、音效 |
 | `scripts/assets/` | 素材下载与转换脚本、素材清单；`build-ui-fonts.py` 按语言包生成界面字体子集 |
+| `arsenal/` | 肉鸽武器的独立试验场（模型、特效、靶场），不属于游戏本体，见 [arsenal/README.md](arsenal/README.md) 和 [武器设计](docs/weapons-roguelike.md) |
 | `upstream/` | 提取时的原件和来源记录，不应直接编辑 |
 
 实现导读见 [架构与代码导航](docs/architecture.md)，素材来源和许可见 [素材来源与许可](docs/assets.md)。
