@@ -67793,11 +67793,19 @@ void main() {
       Digit3: "weapon3",
       Digit4: "weapon4",
       Digit5: "weapon5",
+      Digit6: "weapon6",
+      Digit7: "weapon7",
+      Digit8: "weapon8",
+      Digit9: "weapon9",
       Numpad1: "weapon1",
       Numpad2: "weapon2",
       Numpad3: "weapon3",
       Numpad4: "weapon4",
       Numpad5: "weapon5",
+      Numpad6: "weapon6",
+      Numpad7: "weapon7",
+      Numpad8: "weapon8",
+      Numpad9: "weapon9",
       Enter: "fire",
       NumpadEnter: "fire",
       ArrowLeft: "turnL",
@@ -67986,7 +67994,10 @@ void main() {
         if (!r) return;
         ne.preventDefault();
         let ye = performance.now();
-        ye - g < 280 || Math.abs(ne.deltaY) < 1 || ((g = ye), s.add("swap"));
+        // "swap" for the game's own pair; a run steps through its weapons with next / prev
+        ye - g < 150 ||
+          Math.abs(ne.deltaY) < 1 ||
+          ((g = ye), s.add("swap"), s.add(ne.deltaY > 0 ? "next" : "prev"));
       },
       { passive: !1 },
     ),

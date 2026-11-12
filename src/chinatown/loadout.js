@@ -20,22 +20,22 @@ export const AMMO = {
 export const AMMO_TYPES = Object.keys(AMMO);
 
 // ammo: pool it draws on (null = needs none), per: pool units per round (a form may differ),
-// group: number key, own: one of the game's own rigs
+// own: one of the game's own rigs
 export const ARMS = {
-  rifle: { ammo: "bullets", per: 1, group: 1, own: true },
-  smg: { ammo: "bullets", per: 0.75, group: 1 },
-  shotgun: { ammo: "heavy", per: 1, group: 2 },
-  revolver: { ammo: "heavy", per: 1, group: 2 },
-  lever: { ammo: "heavy", per: 1, group: 2 },
-  flamer: { ammo: "fuel", per: 0.5, group: 3 },
-  firework: { ammo: "fuel", per: { base: 12, a: 4, b: 20 }, group: 3 },
-  nailgun: { ammo: "parts", per: 1.5, group: 4 },
-  crossbow: { ammo: "parts", per: 4, group: 4 },
-  arc: { ammo: "parts", per: 1, group: 4 },
-  pistol: { ammo: null, group: 5, own: true },
-  talisman: { ammo: null, group: 5 },
-  coinsword: { ammo: null, group: 5 },
-  guandao: { ammo: null, group: 5 },
+  rifle: { ammo: "bullets", per: 1, own: true },
+  smg: { ammo: "bullets", per: 0.75 },
+  shotgun: { ammo: "heavy", per: 1 },
+  revolver: { ammo: "heavy", per: 1 },
+  lever: { ammo: "heavy", per: 1 },
+  flamer: { ammo: "fuel", per: 0.5 },
+  firework: { ammo: "fuel", per: { base: 12, a: 4, b: 20 } },
+  nailgun: { ammo: "parts", per: 1.5 },
+  crossbow: { ammo: "parts", per: 4 },
+  arc: { ammo: "parts", per: 1 },
+  pistol: { ammo: null, own: true },
+  talisman: { ammo: null },
+  coinsword: { ammo: null },
+  guandao: { ammo: null },
 };
 export const MAX_LEVEL = 5;
 const LEVEL_DAMAGE = [1, 1.2, 1.35, 1.6, 1.85];
@@ -338,12 +338,10 @@ export function createLoadout(G, on = {}) {
       const i = Math.max(0, ids.indexOf(cur));
       return wield(ids[(i + dir + ids.length) % ids.length]);
     },
-    /** Number key: the weapons that share that ammunition; pressing again goes round them. */
-    group(n) {
-      const ids = owned().filter((id) => ARMS[id].group === n);
-      if (!ids.length) return false;
-      const i = ids.indexOf(cur);
-      return wield(ids[(i + 1) % ids.length]);
+    /** Number key n: the n-th weapon picked up this run (1 is the sidearm). */
+    slot(n) {
+      const id = owned()[n - 1];
+      return !!id && id !== cur && wield(id);
     },
     // ---------- ammunition
     cap,

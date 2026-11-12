@@ -168,26 +168,20 @@ export function createRunHud(G) {
     if (key === last.weapons) return;
     last.weapons = key;
     const touch = G.input && G.input.touch;
+    // in the order picked up, numbered for the keys 1-9; a phone has no keys, and no room
+    // for the row of pools either, so there each weapon shows what is left of its ammunition
     let html = "";
-    let group = -1;
-    for (const w of weaponList) {
-      if (w.group !== group) {
-        if (group >= 0) html += "</span>";
-        group = w.group;
-        // keys have numbers; a phone has no keys, and no room for the row of pools either,
-        // so there each group is headed by what is left of its ammunition
-        const pool = touch && w.ammo && poolList.find((p) => p.type === w.ammo);
-        html += `<span class="rl-wg">${
-          touch
-            ? pool
-              ? `<em class="rl-wg-n a-${w.ammo}${pool.have <= 0 ? " dry" : ""}" data-pool="${w.ammo}">${pool.have}</em>`
-              : ""
-            : `<kbd>${group}</kbd>`
-        }`;
-      }
-      html += `<button class="rl-w${w.cur ? " cur" : ""}${w.ok ? "" : " dry"} a-${w.ammo || "none"}" data-w="${w.id}"><b>${L10N.t("weapon." + w.id + ".s")}</b><sup>${w.level}</sup></button>`;
-    }
-    if (group >= 0) html += "</span>";
+    weaponList.forEach((w, i) => {
+      const pool = touch && w.ammo && poolList.find((p) => p.type === w.ammo);
+      const lead = touch
+        ? pool
+          ? `<em class="rl-wg-n a-${w.ammo}${pool.have <= 0 ? " dry" : ""}" data-pool="${w.ammo}">${pool.have}</em>`
+          : ""
+        : i < 9
+          ? `<kbd>${i + 1}</kbd>`
+          : "";
+      html += `<button class="rl-w${w.cur ? " cur" : ""}${w.ok ? "" : " dry"} a-${w.ammo || "none"}" data-w="${w.id}">${lead}<b>${L10N.t("weapon." + w.id + ".s")}</b><sup>${w.level}</sup></button>`;
+    });
     weapons.innerHTML = html;
   }
   weapons.addEventListener("click", (ev) => {
@@ -216,7 +210,7 @@ export function createRunHud(G) {
           `<span class="rl-pool a-${p.type}${p.cur ? " cur" : ""}${p.have <= 0 ? " dry" : ""}"><b>${L10N.t("run.ammo." + p.type + ".s")}</b><em>${p.have}</em><i style="--f:${Math.max(0, Math.min(1, p.have / Math.max(1, p.cap))).toFixed(3)}"></i></span>`,
       )
       .join("");
-    // (touch) the same numbers at the head of each group of the weapon bar
+    // (touch) the same numbers on the weapons of the weapon bar
     for (const el of weapons.querySelectorAll("[data-pool]")) {
       const p = poolList.find((q) => q.type === el.dataset.pool);
       if (!p) continue;
