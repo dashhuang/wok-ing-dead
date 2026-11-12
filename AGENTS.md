@@ -82,7 +82,7 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
   死亡重试 → 通关再开 → 换分店，
   桌面、手机竖屏、手机横屏各看一次，确认按钮没有被别的元素盖住。
 - 手动验证用 `npm run build` + `npx vite preview --port 5185` 之类的独立端口，不要用开发服务器：别的会话改文件会触发热重载打断测试。
-  端口约定：dev 5173、arsenal 5311（测试 5312）、e2e 5199。
+  端口约定：dev 5173、arsenal 5311（测试 5312）、e2e 5199；CI 在同一台 Mac 上跑测试时用 5399 / 5412，不会和本地冲突。
 - 后台标签页会被浏览器限帧，自动化里的后台帧率不代表真实性能；性能对比用 `?bench=1`、`?q=low`。
 - 调试钩子：`window.__G`（`game.state`、`player`、`game.debugCut()`）、`__ready`、`__fatal`、`__errors`、`__stats()`；
   `?cam=x,y,z,lx,ly,lz&noweapon=1` 固定机位截图，`?lang=` 指定语言。完整列表见 README「调试」。

@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 5199;
+// CI sets E2E_PORT so a run on the shared Mac Studio never collides with a local session.
+const PORT = Number(process.env.E2E_PORT) || 5199;
 
 export default defineConfig({
   testDir: "tests/e2e",

@@ -1,7 +1,8 @@
 // Tests for the weapon lab, separate from the game's (tests/e2e): npm run arsenal:test
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 5312;
+// CI sets ARSENAL_E2E_PORT so a run on the shared Mac Studio never collides with a local session.
+const PORT = Number(process.env.ARSENAL_E2E_PORT) || 5312;
 
 export default defineConfig({
   testDir: "tests",
