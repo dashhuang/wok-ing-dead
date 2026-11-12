@@ -1,6 +1,9 @@
 // Interface of the weapon lab: weapon list, the upgrade card (levels, the two forks, capstones),
 // the rules drawer, and the firing-range HUD (crosshair, ammunition, damage numbers, DPS meter).
-// Everything is rendered from data/weapons.js so the lab and the design document cannot drift apart.
+// Everything is rendered from data: the weapons from data/weapons.js, what a form really
+// carries and how fast it fires from its behaviour (the numbers the game plays with), and the
+// rules of a run — seasonings, ammunition — from the game's own tables, with the game's own
+// names for them. Nothing about the run is written out a second time here.
 import {
   WEAPONS,
   EXISTING,
@@ -11,6 +14,17 @@ import {
   INSCRIPTIONS,
   byId,
 } from "../data/weapons.js";
+import { BEHAVIOURS } from "../combat/behaviours.js";
+import {
+  RANGE_SPICES,
+  OTHER_SPICES,
+  RUN,
+  AMMO,
+  ARMS,
+  ammoPer,
+  spiceVars,
+} from "../combat/meal.js";
+import ZH from "../../../src/i18n/locales/zh-CN.js";
 
 const esc = (s) =>
   String(s).replace(
@@ -25,9 +39,30 @@ const KIND = {
   melee: "近战",
 };
 const BRANCH_LABEL = { base: "基础", a: "甲", b: "乙" };
+// the game's own words (its Chinese language pack), with {placeholders} filled in
+const tr = (key, vars = {}) =>
+  (ZH[key] || key).replace(/\{(\w+)\}/g, (m, k) => vars[k] ?? m);
+const num = (n) => String(+(+n).toFixed(2));
+const ammoName = (type) => tr("run.ammo." + type);
+// "吃重弹，每发 1" / "不吃弹药": what a form draws from the run's pools
+function ammoLine(id, b = "base", lv = 1) {
+  const a = ARMS[id];
+  if (!a || !a.ammo) return "不吃弹药";
+  return `吃${ammoName(a.ammo)}，每发 ${num(ammoPer(id, b, lv))}`;
+}
+// a seasoning at a level, in the words of the game's ticket (the total, not one level's worth)
+function spiceLine(s, level) {
+  const v = spiceVars(s.id, level || 1);
+  const total = { ...v, n: s.id === "soup" ? v.n * (level || 1) : v.t };
+  return tr("run.spice." + s.id + ".d", s.per !== undefined ? total : v);
+}
 
-function statLine(w) {
+// The headline numbers of a form. Magazine, rate and reload are read from the behaviour, so
+// they are the form's real ones; damage and range are the base weapon's design values (the
+// forms' own are in their descriptions).
+function statLine(w, b = "base", lv = 1) {
   const f = w.fire;
+  const spec = BEHAVIOURS[w.id] ? BEHAVIOURS[w.id].spec(b, lv) : {};
   const out = [];
   if (f.kind === "melee") {
     out.push(
@@ -38,10 +73,11 @@ function statLine(w) {
     if (f.combo) out.push(["连段", f.combo]);
   } else if (f.kind === "stream") {
     out.push(
-      ["伤害", `${f.damage}×${f.tick}/秒`],
+      ["伤害", `${f.damage}×${spec.tickRate ?? f.tick}/秒`],
       ["射程", `${f.range} 米`],
-      ["燃料", w.mag],
+      ["燃料", spec.mag ?? w.mag],
     );
+    if (spec.reload) out.push(["换弹", `${spec.reload} 秒`]);
     if (f.chain) out.push(["跳电", f.chain]);
   } else {
     out.push(
@@ -53,9 +89,11 @@ function statLine(w) {
             ? `${f.damage}+${f.splash}`
             : f.damage,
       ],
-      ["射速", `${f.rpm}/分`],
-      ["弹匣", w.mag === Infinity ? "∞" : w.mag],
+      ["射速", `${spec.rpm ?? f.rpm}/分`],
+      ["弹匣", spec.mag ?? w.mag],
     );
+    if (spec.reload) out.push(["换弹", `${spec.reload} 秒`]);
+    else if (spec.regen) out.push(["补充", `每 ${spec.regen} 秒 1 发`]);
     if (f.range) out.push(["射程", `${f.range} 米`]);
     if (f.head) out.push(["弱点", `×${f.head}`]);
     if (f.pierce) out.push(["穿透", f.pierce]);
@@ -86,7 +124,7 @@ export function createUI(lab) {
     <div class="hud" id="hud">
       <div class="cross"><i></i><i></i><i></i><i></i><b></b></div>
       <div class="scope"></div>
-      <div class="ammo"><div class="ammo-n" id="ammo-n"></div><div class="ammo-w" id="ammo-w"></div><div class="ammo-bar"><i id="ammo-bar"></i></div></div>
+      <div class="ammo"><div class="ammo-n" id="ammo-n"></div><div class="ammo-w" id="ammo-w"></div><div class="ammo-p" id="ammo-p"></div><div class="ammo-bar"><i id="ammo-bar"></i></div></div>
       <div class="alt" id="alt"></div>
       <div class="note" id="note"></div>
       <div class="meter">
@@ -94,16 +132,16 @@ export function createUI(lab) {
         <div><span>累计</span><b id="m-total">0</b></div>
         <div><span>击杀</span><b id="m-kills">0</b></div>
         <div><span>受伤</span><b id="m-taken">0</b></div>
+        <div title="打掉的弹药，按套餐的弹药池单位算"><span id="m-spent-k">耗弹</span><b id="m-spent">0</b></div>
         <button class="ghost" data-act="reset">清零</button>
       </div>
       <div class="range-opts">
         <div class="seg" id="seg-target"><span>靶子</span><button data-target="stand">站桩</button><button data-target="advance">逼近</button><button data-target="horde" title="按游戏本体的僵尸血量、速度和伤害成群涌来">尸潮</button></div>
-        <div class="seg" id="seg-infuse"><span>铭文附魔</span>
-          <button data-infuse="fire" title="炎：每 4 次命中叠 1 层灼烧">炎</button>
-          <button data-infuse="shock" title="霆：每 4 次命中感电">霆</button>
-          <button data-infuse="venom" title="蚀：每 3 次命中叠 1 层蚀骨">蚀</button>
-          <button data-infuse="seal" title="敕：爆头叠 1 层镇压">敕</button>
-        </div>
+        <div class="seg" id="seg-ammo"><span>弹药</span><button data-ammo="free" title="弹匣凭空补满">无限</button><button data-ammo="meal" title="按套餐结算：换弹从四种弹药池里扣，池子空了就换不了。再点一次把池子补满">套餐</button></div>
+        <div class="seg spices" id="seg-spice"><span title="套餐里的调料，名字、层数和数值都读自游戏本体。点一下加一层，满三层再点清掉">调料</span>${RANGE_SPICES.map(
+          (sp) =>
+            `<button data-spice="${sp.id}">${esc(tr("run.spice." + sp.id))}<i></i></button>`,
+        ).join("")}</div>
       </div>
       <div class="lock" id="lock">点击画面开始射击</div>
       <div class="keys">左键 开火　右键 特殊　R 换弹　1 / 2 / 3 形态　− / = 等级　Q / E 换武器　Tab 回展柜　Esc 释放鼠标</div>
@@ -119,6 +157,9 @@ export function createUI(lab) {
     nums = $("nums");
 
   // ---------------------------------------------------------------- weapon list
+  // one character for the pool a weapon draws on, as on the game's HUD
+  const pool = (id) =>
+    ARMS[id] && ARMS[id].ammo ? tr("run.ammo." + ARMS[id].ammo + ".s") : "—";
   function renderList() {
     const s = lab.state;
     let html = "";
@@ -129,12 +170,12 @@ export function createUI(lab) {
         const el = ELEMENTS[w.element];
         html += `<button class="item${s.weapon === w.id ? " on" : ""}" data-w="${w.id}" ${ok ? "" : "disabled"}>
           <i class="dot" style="background:${hex(el.color)}"></i>
-          <b>${esc(w.name)}</b><span>${esc(w.type)}</span><em>${esc(w.slot)}</em></button>`;
+          <b>${esc(w.name)}</b><span>${esc(w.type)}</span><em title="${esc(ammoLine(w.id))}">${esc(pool(w.id))}</em></button>`;
       }
     }
-    html += `<h4>现有<small>已在游戏里，只设计了岔路</small></h4>`;
+    html += `<h4>现有<small>游戏本体自己的两把，不在试验场里</small></h4>`;
     for (const w of EXISTING)
-      html += `<button class="item" disabled><i class="dot"></i><b>${esc(w.name)}</b><span>${esc(w.type)}</span><em>${esc(w.slot)}</em></button>`;
+      html += `<button class="item" disabled><i class="dot"></i><b>${esc(w.name)}</b><span>${esc(w.type)}</span><em title="${esc(ammoLine(w.id))}">${esc(pool(w.id))}</em></button>`;
     list.innerHTML = html;
   }
 
@@ -150,7 +191,7 @@ export function createUI(lab) {
     const b = forked ? s.branch : "base";
     const el =
       ELEMENTS[b === "base" ? w.element : w.branches[b].element || w.element];
-    const stats = statLine(w)
+    const stats = statLine(w, b, s.level)
       .map(([k, v]) => `<div><span>${k}</span><b>${esc(v)}</b></div>`)
       .join("");
     const lv = LEVELS[s.level - 1];
@@ -170,15 +211,15 @@ export function createUI(lab) {
     };
     card.innerHTML = `
       <div class="card-h">
-        <div class="cls">${esc(CLASSES[w.cls].name)} · ${esc(w.slot)}武器 · ${esc(KIND[w.fire.kind])}</div>
+        <div class="cls">${esc(CLASSES[w.cls].name)} · ${esc(KIND[w.fire.kind])} · ${esc(ammoLine(w.id, b, s.level))}</div>
         <h1>${esc(w.name)}</h1>
         <div class="type">${esc(w.type)}${el.name !== "无" ? `<i style="color:${hex(el.color)}">　${esc(el.name)} · ${esc(el.status)}</i>` : ""}</div>
         <p class="tag">${esc(w.tagline)}</p>
       </div>
       <div class="stats">${stats}</div>
-      <div class="sec">局内升级<small>拾到同名武器或在摊位强化时升一级</small></div>
+      <div class="sec">局内升级<small>捡到红包，手上那把升一级</small></div>
       <div class="pips">${pips}</div>
-      <div class="lvnote"><b>${lv.lv} 级 · ${esc(lv.name)}</b>　伤害 ×${lv.dmg}　铭文槽 ${lv.slots}　<span>${esc(lv.note)}</span></div>
+      <div class="lvnote"><b>${lv.lv} 级 · ${esc(lv.name)}</b>　伤害 ×${lv.dmg}　<span>${esc(lv.note)}</span></div>
       <div class="sec">三级岔路<small>二选一，外形和打法一起变</small></div>
       <div class="branches">
         <button class="branch base${!forked ? " on" : ""}" data-b="base"><div class="branch-h"><em>基础</em><b>${esc(w.name)}</b></div><p>${esc(w.reload)}。</p></button>
@@ -203,8 +244,35 @@ export function createUI(lab) {
     ).join("");
     const lv = LEVELS.map(
       (l) =>
-        `<li><b>${l.lv} · ${esc(l.name)}</b><span>伤害 ×${l.dmg}，铭文槽 ${l.slots}。${esc(l.note)}</span></li>`,
+        `<li><b>${l.lv} · ${esc(l.name)}</b><span>伤害 ×${l.dmg}。${esc(l.note)}</span></li>`,
     ).join("");
+    // a seasoning's three levels in one line, in the words of the game's tickets
+    const spice = (sp) =>
+      `<li><em>${esc(tr("run.spice." + sp.id))}</em><span>${[1, 2, 3]
+        .filter((n) => n <= RUN.spiceMax)
+        .map((n) => esc(spiceLine(sp, n)))
+        .join("　/　")}</span></li>`;
+    const pools = Object.entries(AMMO)
+      .map(([type, a]) => {
+        const users = Object.entries(ARMS)
+          .filter(([, w]) => w.ammo === type)
+          .map(([id]) => {
+            const w = byId[id] || EXISTING.find((x) => x.id === id);
+            const per = ARMS[id].per;
+            const cost =
+              typeof per === "number"
+                ? num(per)
+                : `${num(per.base)}（甲 ${num(per.a)}、乙 ${num(per.b)}）`;
+            return `${esc(w ? w.name : id)} ${cost}`;
+          })
+          .join("，");
+        return `<li><b>${esc(ammoName(type))}</b><span>最多带 ${a.cap}，开局 ${a.start}，一包 ${a.pack}。每发消耗：${users}</span></li>`;
+      })
+      .join("");
+    const free = Object.entries(ARMS)
+      .filter(([, w]) => !w.ammo)
+      .map(([id]) => (byId[id] || EXISTING.find((x) => x.id === id) || {}).name)
+      .join("、");
     const groups = [...new Set(INSCRIPTIONS.map((i) => i.group))];
     const ins = groups
       .map(
@@ -227,14 +295,22 @@ export function createUI(lab) {
       <div class="rules-in">
         <button class="close" data-act="rules">关闭</button>
         <h2>一局里武器怎么成长</h2>
-        <p class="lead">每局从一把副武器开始，沿路拾取或在摊位换购。武器在局内最多升到 5 级：3 级时在两条岔路里选一条，外形和打法一起改变；5 级解锁这条岔路的终极词条。铭文是通用的小改造，插进武器的铭文槽。</p>
+        <p class="lead">这一页说的就是游戏本体「套餐」的规则，数字直接读自本体的数值表，本体改了这里跟着变。开局三选一，之后能带的武器不限数量；捡到红包，<b>手上那把</b>升一级，最高 ${LEVELS.length} 级：3 级时在两条岔路里选一条，外形和打法一起改变，5 级解锁这条岔路的终极词条。击杀攒镬气，每升一级从小票里选一种调料，每种最多 ${RUN.spiceMax} 层。</p>
         <div class="cols">
-          <section><h3>等级</h3><ul>${lv}</ul></section>
+          <section><h3>等级</h3><ul>${lv}</ul>
+            <h3>弹药</h3><ul>${pools}<li><b>不吃弹药</b><span>${esc(free)}</span></li></ul></section>
           <section><h3>元素与状态</h3><ul>${el}</ul><h3>元素反应</h3><ul>${re}</ul></section>
-          <section><h3>铭文</h3>${ins}</section>
+          <section><h3>调料</h3>
+            <h5>靶场里能试（右上角「调料」）</h5><ul class="ins wide">${RANGE_SPICES.map(spice).join("")}</ul>
+            <h5>只在整局里有意义，靶场里试不了</h5><ul class="ins wide">${OTHER_SPICES.map(spice).join("")}</ul></section>
         </div>
-        <h3>现有两把枪的岔路</h3><ul>${ex}</ul>
-        <p class="foot">靶场里已实现全部 12 把新武器的基础、甲、乙三种形态和四种状态、四种元素反应；铭文只接入了四种元素附魔（靶场右上角开关），其余铭文目前只有设计。</p>
+        <p class="foot">靶场和本体共用同一份代码：武器的模型、开火、特效、声音，状态与反应，等级倍率，调料对武器的作用，每发吃多少弹药，僵尸的血量、速度和出手节奏。靶场里没有的：走位、捡弹药、精英和关底、胀尸、「爆炒」这类靠整局流程的调料，以及本体自己的 LK-9 和 LK-4。</p>
+        <h2>还没做进游戏的设计</h2>
+        <p class="lead">下面这些只是设计稿，本体和靶场里都没有。</p>
+        <div class="cols">
+          <section><h3>铭文</h3>${ins}</section>
+          <section><h3>现有两把枪的岔路</h3><ul>${ex}</ul></section>
+        </div>
       </div>`;
   }
 
@@ -251,8 +327,18 @@ export function createUI(lab) {
     if (c) {
       for (const b of root.querySelectorAll("#seg-target button"))
         b.classList.toggle("on", b.dataset.target === c.targets.mode);
-      for (const b of root.querySelectorAll("#seg-infuse button"))
-        b.classList.toggle("on", c.infuse.has(b.dataset.infuse));
+    }
+    const meal = lab.meal;
+    if (meal) {
+      for (const b of root.querySelectorAll("#seg-ammo button"))
+        b.classList.toggle("on", b.dataset.ammo === meal.ammo);
+      for (const b of root.querySelectorAll("#seg-spice button")) {
+        const sp = RANGE_SPICES.find((x) => x.id === b.dataset.spice);
+        const n = meal.level(sp.id);
+        b.classList.toggle("on", n > 0);
+        b.querySelector("i").textContent = n || "";
+        b.title = `${tr("run.spice." + sp.id)} ${n} / ${RUN.spiceMax} 层${n ? "：" + spiceLine(sp, n) : "（下一层：" + spiceLine(sp, 1) + "）"}`;
+      }
     }
     $("btn-hands").classList.toggle("on", !!s.hands);
     $("btn-hands").hidden = s.mode === "fp";
@@ -296,10 +382,9 @@ export function createUI(lab) {
     else if (d.target && lab.combat) {
       lab.combat.targets.setMode(d.target);
       render();
-    } else if (d.infuse && lab.combat) {
-      lab.combat.setInfuse(d.infuse, !lab.combat.infuse.has(d.infuse));
-      render();
-    } else if (d.act === "reset" && lab.combat) lab.combat.resetMeter();
+    } else if (d.spice && lab.meal) lab.meal.cycle(d.spice);
+    else if (d.ammo && lab.meal) lab.meal.setAmmo(d.ammo);
+    else if (d.act === "reset" && lab.combat) lab.combat.resetMeter();
     else if (d.act === "hands") lab.setHands(!lab.state.hands);
     else if (d.act === "sound") {
       lab.audio.setMuted(!lab.audio.muted);
@@ -384,6 +469,16 @@ export function createUI(lab) {
           : `${Math.ceil(w.rounds)}<small>/ ${mag}</small>`;
     $("ammo-w").textContent =
       `${def.name}${b !== "base" ? " · " + def.branches[b].name : ""}　${w.level} 级`;
+    // the pool this weapon draws on: what is left of it when the range plays by the run's
+    // ammunition, and what has been fired off either way
+    const p = lab.meal && lab.meal.of(w);
+    $("ammo-p").textContent = !p
+      ? "不吃弹药"
+      : lab.meal.ammo === "meal"
+        ? `${ammoName(p.type)} ${Math.floor(p.have)} / ${p.cap}`
+        : `${ammoName(p.type)} · 每发 ${num(p.per)}`;
+    $("m-spent-k").textContent = p ? `耗${ammoName(p.type)}` : "耗弹";
+    $("m-spent").textContent = p ? Math.round(c.meter.spent * p.per) : "—";
     $("ammo-bar").style.width =
       (w.spec.kind === "melee"
         ? 100

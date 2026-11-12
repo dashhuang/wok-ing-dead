@@ -133,10 +133,25 @@ test("showcase and range answer to clicks and keys", async ({ page }) => {
   await page.evaluate(() => document.exitPointerLock());
   await page.waitForTimeout(300);
   expect((await state(page)).locked).toBe(false);
-  await click(page, '#seg-infuse button[data-infuse="venom"]');
-  expect(
-    await page.evaluate(() => window.__lab.combat.infuse.has("venom")),
-  ).toBe(true);
+  // the run's seasonings and ammunition: one click a level, the third click back to none
+  const meal = () =>
+    page.evaluate(() => {
+      const lab = window.__lab;
+      return {
+        vinegar: lab.meal.level("vinegar"),
+        infusions: lab.combat.targets.rules.infusions.map((i) => i.element),
+        damage: lab.combat.mods.damage,
+        ammo: lab.meal.ammo,
+      };
+    });
+  await click(page, '#seg-spice button[data-spice="vinegar"]');
+  expect(await meal()).toMatchObject({ vinegar: 1, infusions: ["venom"] });
+  await click(page, '#seg-spice button[data-spice="fire"]');
+  expect((await meal()).damage).toBeGreaterThan(1);
+  await click(page, '#seg-ammo button[data-ammo="meal"]');
+  expect((await meal()).ammo).toBe("meal");
+  await click(page, '#seg-ammo button[data-ammo="free"]');
+  expect((await meal()).ammo).toBe("free");
   await page.keyboard.press("Tab");
   await page.waitForTimeout(400);
   expect((await state(page)).mode, "Tab goes back to the showcase").toBe(

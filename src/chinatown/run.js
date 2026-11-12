@@ -12,213 +12,21 @@
 // - Red envelopes (elites, sirens, the boss) raise the weapon in hand one level, up to five;
 //   at level three a weapon forks into one of two forms.
 //
-// game.js owns the state machine and calls in here; everything tunable is in RUN below.
+// game.js owns the state machine and calls in here; everything tunable is in RUN (runtune.js).
 import * as L10N from "../i18n/index.js";
 import { createPickups } from "./pickups.js";
 import { createRunHud } from "./runhud.js";
 import { createWheel } from "./wheel.js";
 import { createLoadout, ARMS, AMMO, AMMO_TYPES, MAX_LEVEL } from "./loadout.js";
+import {
+  RUN,
+  spiceValue,
+  spiceVars,
+  weaponMods,
+  infusionsOf,
+} from "./runtune.js";
 
-export const RUN = {
-  bossAt: 540,
-  // Courses of the meal. Between one entry and the next the numbers slide from the first
-  // value to the second: alive = how many may be up at once, every = seconds between spawns,
-  // runner = share of walkers that sprint, brute = share of heavies, bloater = share that burst.
-  stages: [
-    {
-      id: "starter",
-      at: 0,
-      alive: [9, 13],
-      every: [2.2, 1.6],
-      runner: [0.2, 0.3],
-      brute: 0,
-      bloater: 0,
-    },
-    {
-      id: "stirfry",
-      at: 120,
-      alive: [14, 19],
-      every: [1.5, 1.05],
-      runner: [0.3, 0.5],
-      brute: 0.06,
-      bloater: [0.03, 0.07],
-    },
-    {
-      id: "mains",
-      at: 270,
-      alive: [20, 25],
-      every: [0.95, 0.72],
-      runner: [0.5, 0.6],
-      brute: 0.1,
-      bloater: 0.08,
-    },
-    {
-      id: "highheat",
-      at: 420,
-      alive: [25, 28],
-      every: [0.65, 0.5],
-      runner: [0.65, 0.75],
-      brute: 0.14,
-      bloater: 0.1,
-    },
-    {
-      id: "signature",
-      at: 540,
-      alive: [20, 20],
-      every: [0.85, 0.85],
-      runner: [0.7, 0.7],
-      brute: 0.06,
-      bloater: 0.08,
-    },
-  ],
-  // Where the meal is served (G.stage). The street is the numbers here as written. The docks
-  // are open ground with long sight lines: more of the dead up at once, more of them running,
-  // elites closer together and a tougher house special. Shares are added to a course's own
-  // (only where the course has any).
-  places: {
-    street: {},
-    docks: {
-      glow: 2.6, // lamps and beams of pickups: evening daylight, see pickups.setGain
-      alive: 1.12,
-      every: 0.92,
-      runner: 0.1,
-      brute: 0.02,
-      bloater: 0.02,
-      eliteEvery: 55,
-      bossHp: 1.25,
-    },
-  },
-  difficulty: {
-    // bossHit: how hard the house special claws, on top of boss.damage. On mild it is the
-    // climax of a run that should usually be finished, not the wall it ends against.
-    standard: {
-      every: 1.18,
-      alive: 0.88,
-      bossHp: 8000,
-      bossHit: 0.75,
-      bossSpeed: 0.85,
-    },
-    hard: { every: 1, alive: 1, bossHp: 11000, bossHit: 1, bossSpeed: 1 },
-    brutal: {
-      every: 0.86,
-      alive: 1.1,
-      bossHp: 15000,
-      bossHit: 1.15,
-      bossSpeed: 1.05,
-    },
-  },
-  bruteCap: 3, // ordinary heavies up at once; the rest of the pool is kept for elites and the boss
-  opening: 6, // walkers already standing in the street when the run starts
-  xp: {
-    walker: 1,
-    bloater: 2,
-    brute: 5,
-    elite: 20,
-    need: (level) => 5 + 8 * level,
-  },
-  // how slow the street runs while tickets are up: all but stopped, never a full stop.
-  // There is no time limit; the mouse is let go so a ticket can be clicked.
-  pick: {
-    slow: 0.05,
-    guard: 0.35,
-    hold: 0.25,
-    gap: 0.5,
-    start: { slow: 0.02 }, // choosing the first weapon
-    fork: { slow: 0.04 }, // choosing a weapon's form
-  },
-  // the weapon wheel: how slow the street runs while it is open, and how long the swap key
-  // (or the touch swap button) is held before it opens; a shorter press is a quick swap
-  wheel: { slow: 0.15, hold: 0.22, touchHold: 0.32 },
-  // level-ups (counted from 1) whose three tickets are all weapons, and the chance that
-  // one of the three is a weapon on any other level-up
-  weaponPicks: [2, 5, 9, 13],
-  weaponChance: 0.3,
-  ammo: {
-    drop: 0.15, // chance a walker leaves a pack; its kind is rolled evenly over the four
-    bruteDrop: 0.5, // heavies; theirs is bullets more often than not
-    bruteBullets: 0.6,
-    copDrop: 0.3, // uniformed walkers carry heavy rounds
-    needBoost: 1.6, // the kind the weapon in hand is short of is this much more likely
-    lowAt: 0.3, // "short of" = pool below this share of its cap
-    packLife: 40,
-    reach: 1.6,
-    pull: 2.8, // packs slide towards the player from this far
-    caches: 2, // crates stocked per kind of ammunition
-    cacheGive: 0.5, // share of the cap one crate hands over
-    cacheEvery: 60,
-    cacheReach: 1.9,
-    cacheSpot: 15, // seeing a stocked crate from this close puts it on the compass
-  },
-  cases: { count: 5, reach: 1.7, spot: 12, apart: 14 },
-  // The first one comes while every weapon is still at level one, so it is the weakest:
-  // a heavy's claw and a little slower than one. Each one after it has hpGrow more health
-  // (in heavies' worth) and hits dmgGrow harder.
-  elite: {
-    first: 110,
-    every: 65,
-    hp: 3,
-    hpGrow: 0.4,
-    scale: 1.25,
-    damage: 1,
-    dmgGrow: 0.06,
-    speed: 0.92,
-    glow: [0.85, 0.16, 0.03, 1],
-    packs: 2,
-  },
-  boss: {
-    heal: true, // full health when it arrives
-    scale: 1.6,
-    damage: 1.6,
-    speed: 0.92,
-    glow: [1.1, 0.3, 0.05, 1],
-    summonEvery: 18,
-    summon: 5,
-  },
-  bloater: {
-    hp: 0.8,
-    scale: 1.08,
-    glow: [0.04, 0.34, 0.07, 1],
-    radius: 3.6,
-    damage: 85, // to the dead around it, less with distance
-    // To the player at its centre, less with distance (about half of this at arm's length).
-    // Late on one arrives every few seconds: it has to sting, not to be the thing that
-    // ends the run.
-    hurt: 22,
-  },
-  surge: { seconds: 30, every: 0.5, alive: 6, xp: 2 },
-  burst: { radius: 3.2, damage: 70, delay: 0.14, perFrame: 3 },
-  // Seasonings: three levels each. per = what one level adds.
-  spices: [
-    { id: "fire", per: 0.15 }, // damage
-    { id: "hands", per: 0.12 }, // rate of fire
-    { id: "portion", per: 0.3 }, // ammunition carried
-    { id: "toss", per: 0.22 }, // reload speed
-    { id: "soup", per: 25 }, // health
-    { id: "runner", per: 0.07 }, // movement
-    { id: "burst", per: [0.12, 0.22, 0.32] }, // chance a kill blows up
-    { id: "takeout", per: 0.3 }, // drops and pickup reach
-    // the four elements: every so many hits (by level) the target takes the status
-    { id: "chili", element: "fire", every: [6, 4, 3] },
-    { id: "pepper", element: "shock", every: [7, 5, 4] },
-    { id: "vinegar", element: "venom", every: [5, 4, 3] },
-    { id: "rice", element: "seal", chance: [0.4, 0.7, 1] }, // on a hit to the head
-  ],
-  spiceMax: 3,
-  // Weapons on the menu from the first visit, and what puts the others on it. p is the
-  // profile kept between runs: { kills, runs, bossSeen, clears, hardClears, allSirens }.
-  unlocks: {
-    start: ["rifle", "shotgun", "smg", "nailgun", "flamer", "revolver"],
-    rules: [
-      { id: "lever", when: (p) => p.kills >= 250 },
-      { id: "talisman", when: (p) => p.kills >= 600 },
-      { id: "firework", when: (p) => p.bossSeen >= 1 },
-      { id: "arc", when: (p) => p.clears >= 1 },
-      { id: "crossbow", when: (p) => p.allSirens >= 1 },
-      { id: "coinsword", when: (p) => p.kills >= 1500 },
-      { id: "guandao", when: (p) => p.hardClears >= 1 },
-    ],
-  },
-};
+export { RUN };
 
 const lerp = (a, b, t) => a + (b - a) * t;
 const pair = (v, t) => (Array.isArray(v) ? lerp(v[0], v[1], t) : v);
@@ -271,7 +79,6 @@ export function createRun(G, hooks) {
     spotT: 0,
     bursts: [],
     burstDepth: 0,
-    hits: 0,
     lowHintT: 0,
     scale: 1,
     unlocked: [],
@@ -374,20 +181,11 @@ export function createRun(G, hooks) {
     );
 
   // ---------- derived numbers
-  // total effect of `level` levels of a seasoning
-  function spiceValue(id, level = 0) {
-    const def = RUN.spices.find((s) => s.id === id);
-    if (!def || !level || def.per === undefined) return 0;
-    return Array.isArray(def.per) ? def.per[level - 1] : def.per * level;
-  }
   function applyStats() {
     const sp = S.active ? S.spice : {};
     loadout.setCapMul(1 + spiceValue("portion", sp.portion));
-    loadout.setMods({
-      damage: 1 + spiceValue("fire", sp.fire),
-      rate: 1 + spiceValue("hands", sp.hands),
-      reload: 1 + spiceValue("toss", sp.toss),
-    });
+    loadout.setMods(weaponMods(sp));
+    loadout.setInfusions(infusionsOf(sp));
     const P = G.player;
     if (P && P.tuning && baseTune) {
       const move = 1 + spiceValue("runner", sp.runner);
@@ -414,6 +212,28 @@ export function createRun(G, hooks) {
     S.spice[id] = (S.spice[id] || 0) + 1;
     applyStats();
     hud.setSpices(spiceList());
+  }
+  // For trying in a real run what was set up in the weapon lab, the game takes the lab's own
+  // address parameters: ?w=flamer&b=a&lv=5 opens the run with that weapon in that form in
+  // hand instead of the first ticket, ?spice=chili:2,fire:3 with those seasonings already on.
+  function preset() {
+    const p = G.params || {};
+    const spice = {};
+    for (const part of String(p.spice || "").split(",")) {
+      const [id, lv] = part.split(":");
+      if (RUN.spices.some((x) => x.id === id))
+        spice[id] = Math.max(1, Math.min(RUN.spiceMax, +lv || 1));
+    }
+    const forked = p.b === "a" || p.b === "b";
+    const weapon =
+      p.w && ARMS[p.w]
+        ? {
+            id: p.w,
+            level: Math.max(1, Math.min(MAX_LEVEL, +p.lv || (forked ? 3 : 1))),
+            branch: p.b === "b" ? "b" : "a",
+          }
+        : null;
+    return { weapon, spice };
   }
 
   // ---------- timeline
@@ -622,20 +442,12 @@ export function createRun(G, hooks) {
       while (k < bag.length - 1 && (roll -= bag[k].w) > 0) k++;
       const s = bag.splice(k, 1)[0].s;
       const next = (S.spice[s.id] || 0) + 1;
-      const gain = spiceValue(s.id, next) - spiceValue(s.id, next - 1);
       cards.push({
         kind: "spice",
         id: s.id,
         nameKey: "run.spice." + s.id,
         descKey: "run.spice." + s.id + ".d",
-        // n: what this level adds, t: the total afterwards (percent unless it is flat health),
-        // e: every how many hits an element lands, c: its chance in percent
-        vars: {
-          n: Math.round(gain < 2 ? gain * 100 : gain),
-          t: Math.round(spiceValue(s.id, next) * 100),
-          e: s.every ? s.every[next - 1] : 0,
-          c: s.chance ? Math.round(s.chance[next - 1] * 100) : 0,
-        },
+        vars: spiceVars(s.id, next),
         level: next,
         max: RUN.spiceMax,
       });
@@ -1246,20 +1058,13 @@ export function createRun(G, hooks) {
       burstAt(pos, depth);
   }
   G.events.on("enemy:killed", onKill);
-  // the four elemental seasonings: hits by any weapon in hand leave their status
+  // The four elemental seasonings: hits by any weapon in hand leave their status. The rule
+  // is in the status rules (arsenal/src/combat/status.js). The arsenal's weapons report their
+  // hits to it themselves; the carbine's and the sidearm's are passed on from here.
   G.events.on("player:hitEnemy", (e) => {
-    if (!S.active || !e || !e.enemy || e.spread || e.killed) return;
+    if (!S.active || !e || !e.enemy || e.armory || e.spread || e.killed) return;
     const targets = loadout.armory && loadout.armory.targets;
-    if (!targets) return;
-    S.hits++;
-    for (const s of RUN.spices) {
-      const lv = S.spice[s.id] || 0;
-      if (!lv || !s.element) continue;
-      const hit = s.every
-        ? S.hits % s.every[lv - 1] === 0
-        : e.weak && rng() < s.chance[lv - 1];
-      if (hit) targets.apply(targets.of(e.enemy), s.element);
-    }
+    if (targets) targets.struck(targets.of(e.enemy), { head: !!e.weak });
   });
   G.events.on("player:dead", () => {
     if (!S.active) return;
@@ -1309,6 +1114,7 @@ export function createRun(G, hooks) {
       if (S.active) applyStats();
     },
     reset() {
+      const pre = preset();
       Object.assign(S, {
         active: true,
         t: 0,
@@ -1316,7 +1122,7 @@ export function createRun(G, hooks) {
         xp: 0,
         kills: 0,
         sirens: 0,
-        spice: {},
+        spice: pre.spice,
         spawnT: 1.2,
         eliteAt: RUN.elite.first,
         eliteN: 0,
@@ -1328,13 +1134,12 @@ export function createRun(G, hooks) {
         surgeT: 0,
         extractOpen: false,
         pending: 0,
-        queue: [{ kind: "start" }],
+        queue: pre.weapon ? [] : [{ kind: "start" }],
         picking: null,
         pickHold: 0,
         pickGap: 0.4,
         bursts: [],
         burstDepth: 0,
-        hits: 0,
         lowHintT: 10,
         scale: 1,
         unlocked: [],
@@ -1355,9 +1160,11 @@ export function createRun(G, hooks) {
         });
       hud.show(true);
       hud.setRunLayout(true);
-      hud.setSpices([]);
+      hud.setSpices(spiceList());
       hud.setXp(0, 1);
       hud.setClock(RUN.bossAt, "starter", 0);
+      if (pre.weapon)
+        api.debug.set(pre.weapon.id, pre.weapon.level, pre.weapon.branch);
     },
     // back to the title or into the other mode: undo everything we changed
     stop() {
@@ -1585,7 +1392,8 @@ export function createRun(G, hooks) {
       give: (id) => takeWeapon(id),
       // put a weapon at a given level and form straight into the hands
       async set(id, level = 1, branch = "a") {
-        takeWeapon(id, false);
+        // (not taken in hand yet: it has to come up at the level and in the form set below)
+        takeWeapon(id, false, false);
         const it = loadout.item(id);
         if (!it) return false;
         it.level = Math.max(1, Math.min(MAX_LEVEL, level));

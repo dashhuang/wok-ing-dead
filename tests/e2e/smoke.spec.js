@@ -93,8 +93,10 @@ async function expectButtonsReachable(page, timeout = 10_000) {
 /**
  * Clicks a menu button with the real mouse once nothing covers it. Give it longer after a
  * change of window size: the renderer rebuilds its buffers and the page can stall meanwhile.
+ * (The default allows for a busy machine: the runner shares its processor with other work,
+ * and a menu that fades in over a second can take ten times that to appear.)
  */
-async function clickAct(page, act, timeout = 10_000) {
+async function clickAct(page, act, timeout = 30_000) {
   let target;
   await expect
     .poll(
@@ -184,6 +186,63 @@ test("a player can start, arm, level up, pause, die and retry with real input", 
     .toBe("pistol");
   await chooseFirstWeapon(page, 1);
   expect(await page.evaluate(() => window.__G.run.state.level)).toBe(0);
+
+  const runtime = await page.evaluate(() => ({
+    fatal: window.__fatal,
+    errors: window.__errors,
+  }));
+  expect(runtime.fatal).toBeNull();
+  expect(runtime.errors).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+// The weapon lab and the game play by one set of rules, and take the same address
+// parameters: what was set up on the lab's firing range can be carried into a real run.
+test("the lab's address parameters arm a real run", async ({ page }) => {
+  const pageErrors = [];
+  page.on("pageerror", (e) => pageErrors.push(e.message));
+
+  await page.goto("/?lang=en&w=flamer&b=a&lv=5&spice=chili:2,fire:3,hands:1");
+  await waitForTitle(page);
+  await expectButtonsReachable(page);
+  await clickAct(page, "deploy");
+  await expect.poll(() => state(page)).toBe("playing");
+
+  // no first ticket: the weapon is already in hand, in its form, with the seasonings on
+  await expect.poll(() => inHand(page)).toBe("flamer");
+  const run = () =>
+    page.evaluate(() => {
+      const R = window.__G.run;
+      const a = R.armory;
+      return {
+        ticket: !!R.state.picking,
+        item: R.loadout.item("flamer"),
+        spice: R.state.spice,
+        // what reached the weapon controller and the status rules the lab shares
+        mods: a && { ...a.combat.mods },
+        infusions: a && a.targets.rules.infusions,
+        form: a && a.weapon && [a.weapon.branch, a.weapon.level],
+        rounds: a ? a.rounds : null,
+        fuel: R.loadout.have("fuel"),
+      };
+    });
+  await expect.poll(async () => (await run()).form).toEqual(["a", 5]);
+  const start = await run();
+  expect(start.ticket).toBe(false);
+  expect(start.item).toMatchObject({ level: 5, branch: "a" });
+  expect(start.spice).toEqual({ chili: 2, fire: 3, hands: 1 });
+  expect(start.mods.damage).toBeCloseTo(1.45, 6);
+  expect(start.mods.rate).toBeCloseTo(1.12, 6);
+  expect(start.infusions).toEqual([{ element: "fire", every: 4 }]);
+
+  // holding fire burns fuel; the reload is paid for from the run's pool
+  await page.keyboard.down("Enter");
+  await expect
+    .poll(async () => (await run()).rounds)
+    .toBeLessThan(start.rounds);
+  await page.keyboard.up("Enter");
+  await page.keyboard.press("KeyR");
+  await expect.poll(async () => (await run()).fuel).toBeLessThan(start.fuel);
 
   const runtime = await page.evaluate(() => ({
     fatal: window.__fatal,

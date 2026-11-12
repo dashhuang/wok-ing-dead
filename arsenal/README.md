@@ -1,15 +1,18 @@
 # 鬼市 · 军械试验场
 
 肉鸽（roguelike）武器的试验场：在这里看模型、试开火、检查战斗特效。它可以单独运行——
-不引用 `src/game.js`，只复用 `public/assets/` 里的僵尸模型和贴图。反过来，游戏本体的套餐通过 `src/chinatown/armory.js`
-直接导入这里的武器模型、特效、战斗和双手模块，所以改这些模块的接口要同时跑本体的 `npm run test:e2e`。武器设计见 [docs/weapons-roguelike.md](../docs/weapons-roguelike.md)。
+不引用 `src/game.js`，复用 `public/assets/` 里的僵尸模型和贴图。武器设计见 [docs/weapons-roguelike.md](../docs/weapons-roguelike.md)。
+
+**试验场和游戏本体跑的是同一份规则，改一处两边一起变**（见下面「和本体的关系」）。所以改了这里的战斗和数据模块，
+`npm run arsenal:test` 和本体的 `npm run test:e2e` 都要跑。
 
 ```sh
 npm run arsenal          # http://127.0.0.1:5311/
 npm run arsenal:build    # 产物在 arsenal/dist/
 npm run arsenal:single   # 单文件展柜 arsenal/dist-single/arsenal-showcase.html（约 1 MB，可直接发到手机上打开）
 npm run arsenal:test     # 试验场自己的测试：全部形态冒烟 + 真实点击和按键（约 2 分钟，首次运行前 npx playwright install chromium）
-node arsenal/scripts/design-doc.mjs   # 改了 src/data/weapons.js 之后重新生成设计文档
+node arsenal/scripts/design-doc.mjs   # 改了武器数据或本体的数值表之后重新生成设计文档
+node arsenal/scripts/check-data.mjs   # 卡片上的数值和实际开火的数值对不对得上（npm run check 也会跑）
 node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了之后重新抽取到试验场
 ```
 
@@ -21,6 +24,35 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
 
 ![靶场里的战斗特效](preview/effects.jpg)
 
+## 和本体的关系
+
+本体的套餐通过 `src/chinatown/armory.js` 直接导入这里的武器模型、特效、战斗控制器和双手；这里的靶场反过来读本体的数值表。
+没有哪条规则写了两遍：
+
+| 内容 | 唯一的出处 |
+| --- | --- |
+| 每种形态开火做什么，伤害、弹匣、射速、换弹时间 | `src/combat/behaviours.js` |
+| 输入、后坐、换弹、近战、投掷、范围伤害 | `src/combat/combat.js`（本体用的是同一个控制器） |
+| 伤害结算、四种状态、四种反应、精英和关底的抗性、附魔调料怎么触发 | `src/combat/status.js`，数字在 `src/data/status.js` |
+| 每级的伤害倍率 | `src/data/levels.js` |
+| 调料的层数和数值、对武器的作用 | 本体的 `src/chinatown/runtune.js` |
+| 四种弹药的上限、每把武器每发吃多少 | 本体的 `src/chinatown/loadout.js`（`AMMO`、`ARMS`） |
+| 僵尸的血量、速度、伤害、出手节奏、受击硬直、弱点大小 | 本体的 `src/chinatown/zombietune.js` |
+| 调料和弹药的名字 | 本体的 `src/i18n/locales/zh-CN.js` |
+
+- **靶场里试本体的调料**：右上角「调料」，点一下加一层（最多三层，再点清掉）。能试的是作用在武器上的八种：猛火、快手、颠勺、大份、
+  辣椒、花椒、陈醋、糯米。老火汤、跑堂、爆炒、打包要靠整局流程，靶场里试不了。
+- **靶场里按本体的弹药结算**：右上角「弹药」选「套餐」，换弹就从四种弹药池里扣，池子空了换不了弹；再点一次「套餐」补满。
+  选「无限」时弹匣凭空补满，但「耗弹」一栏照样按弹药池的单位记账。
+- **同一组地址参数两边都认**：`?w=flamer&b=a&lv=5&spice=chili:2,fire:3`。在这里是这把武器的这个形态加这些调料
+  （再加 `&mode=fp` 直接进靶场，`&ammo=meal` 按套餐结算弹药）；换成本体的地址，就是带着它们开一局，跳过开局的三选一。
+- **靶场里没有的**：走位和捡弹药、精英、关底、胀尸、本体自己的 LK-9 和 LK-4。靶场是按亮巷子打的光，本体的夜街曝光暗得多，
+  本体把这里的特效整体压暗（`src/chinatown/armory.js` 的 `ARMORY_TUNE`），所以特效的亮度两边看起来不一样，调亮度要到本体里看。
+- **还是两份、靠检查保证一致的**：`src/data/weapons.js` 里给卡片和设计文档看的基础数值（射速、弹匣、换弹时间）和 `behaviours.js`
+  里实际开火的数值，由 `scripts/check-data.mjs` 核对；伤害、射程和岔路的说明文字是手写的，改数值时要一起改。
+
+要让靶场多模拟一样本体的东西，把本体那部分抽成两边共用的代码，不要在这里照抄一份。
+
 ## 怎么用
 
 - **展柜**：左边选武器，右边是升级卡片——点等级 1–5、点「甲」「乙」切换岔路，模型跟着换；拖动旋转，滚轮缩放。右上角「升级规则」是等级、元素、反应和铭文的总表。
@@ -28,8 +60,9 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
   1 / 2 / 3 切换基础、甲、乙，− / = 调等级，Q / E 换武器，Esc 释放鼠标后可以点右上角的开关。
 - **手机 / 单文件**：单文件版只有展柜（靶场需要僵尸模型和街道贴图，会让文件涨到约 25 MB），默认显示双手；窄屏时武器列表变成顶部横条、
   升级卡片变成底部面板，单指拖动旋转、双指缩放。
-- 右上角：每秒伤害、累计伤害、击杀和受伤；靶子「站桩 / 逼近 / 尸潮」；四个元素附魔开关（用来试元素反应，比如给喷火器开「蚀」看爆燃）。拿近战武器时靶子会自动站近。
-- **尸潮**：16 只僵尸从巷子尽头一批批走过来，速度、血量和攻击力用的是游戏本体的数字（行尸 55 血、走 1.25 / 跑 4.3 米每秒、每下 12；重型 320 血、每下 26），
+- 右上角：每秒伤害、累计伤害、击杀、受伤和耗弹；靶子「站桩 / 逼近 / 尸潮」；「弹药」和「调料」（本体的规则，见上面「和本体的关系」；
+  比如给喷火器加一层陈醋看爆燃）。拿近战武器时靶子会自动站近。
+- **尸潮**：16 只僵尸从巷子尽头一批批走过来，血量、速度、每下伤害、出手节奏和受击硬直读的就是本体的僵尸数值表，
   走到跟前会打人，屏幕泛红并计入「受伤」。武器数值就是在这个模式下校的，见设计文档的「尸潮下的数值」。
 - **声音**：顶部「声音」开关。枪声、换弹的每一下、近战、爆炸、落雷、持续的火焰和电弧声全部用 WebAudio 现场合成，没有音频文件；浏览器要求先点一下页面才会出声。
 
@@ -37,7 +70,8 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
 
 | 路径 | 内容 |
 | --- | --- |
-| `src/data/weapons.js` | 武器、岔路、元素、反应、等级、铭文的设计数据（唯一来源，界面和设计文档都读它） |
+| `src/data/weapons.js` | 武器、岔路、元素、反应、铭文的设计数据（界面和设计文档都读它） |
+| `src/data/levels.js`、`status.js` | 每级的伤害倍率；四种状态和反应的全部数字。本体读的也是这两张表 |
 | `src/kit/geo.js` | 建模基元：带圆角的挤出、车削、扫掠、导轨、螺丝；网格合并 |
 | `src/kit/mats.js` | 材质库：三向投影的磨损贴图、边缘掉漆、木纹／滚花／布纹等图案 |
 | `src/kit/index.js` | 交给武器模型的工具箱：基元 + 材质 + Canvas 贴标 + `kit.weapon()` 包装 |
@@ -49,12 +83,15 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
 | `src/fx/core.js` | 特效运行时：粒子、拖尾与闪电、贴花、光源池、弹壳、镜头震动 |
 | `src/fx/effects.js` | 具名特效：枪口焰、曳光、命中、爆炸、烟花、火焰喷射、落雷、符咒、火池等 |
 | `src/combat/behaviours.js` | 每把武器每种形态开火时做什么（弹道、伤害、状态、特效编排） |
-| `src/combat/combat.js` | 靶场控制器：输入、弹药与换弹、后坐力、近战挥砍、投掷、范围伤害 |
+| `src/combat/combat.js` | 战斗控制器（靶场和本体共用）：输入、弹药与换弹、后坐力、近战挥砍、投掷、范围伤害；`setMods()` 接调料倍率，`lab.supply` 决定换弹从哪里拿子弹 |
+| `src/combat/status.js` | 两边共用的规则：伤害结算、四种状态、元素反应、附魔调料。靶场和本体各自只提供僵尸 |
+| `src/combat/meal.js` | 靶场这边的「套餐」：按本体的表管调料层数和四种弹药池，再通过 `setMods()`、`setInfusions()`、`lab.supply` 作用到武器上 |
 | `src/combat/projectiles.js` | 飞行弹体：钉子、弩箭、铜钱、符纸、烟花、油、剑气 |
-| `src/combat/targets.js` | 僵尸靶：命中判定、伤害、四种状态和元素反应 |
+| `src/combat/targets.js` | 靶场的僵尸靶：模型和动作、站桩 / 逼近 / 尸潮、命中体积。数值读本体的 `zombietune.js`，规则在 `status.js` |
 | `src/audio/audio.js` | 声音：合成的枪声、换弹动作声、命中与爆炸、循环声，巷子混响 |
 | `src/ui/` | 界面与靶场 HUD |
-| `scripts/design-doc.mjs` | 从设计数据生成 `docs/weapons-roguelike.md` |
+| `scripts/design-doc.mjs` | 从设计数据和本体的数值表生成 `docs/weapons-roguelike.md` |
+| `scripts/check-data.mjs` | 核对卡片上的基础数值和实际开火的数值、武器在本体的弹药表里是否齐全 |
 | `scripts/single.mjs` | 生成单文件展柜 |
 | `scripts/extract-hands.mjs` | 从本体的打包文件里抽出手部模块（解析后按引用关系取出需要的声明），本体代码不改 |
 | `scripts/balance.json` | 尸潮测试的结果，设计文档里的数值表读它（由 `tools/balance.mjs --write` 更新） |
@@ -63,10 +100,12 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
 
 ## 检查与脚本控制
 
-- 地址参数：`/?w=<id>&b=base|a|b&lv=1..5&mode=show|fp&yaw=&pitch=&dist=&ui=0`。
+- 地址参数：`/?w=<id>&b=base|a|b&lv=1..5&mode=show|fp&yaw=&pitch=&dist=&ui=0`，以及 `spice=chili:2,fire:3`（调料和层数）、`ammo=meal`（按套餐结算弹药）。
 - `window.__lab`：`select(id)`、`setBranch(b)`、`setLevel(n)`、`setMode("fp")`；`window.__errors` 收集运行错误。
-- 靶场：`__lab.combat.press("fire" | "alt")`、`release(...)`、`aimAt(僵尸序号)`、`targets.setMode("stand" | "advance" | "horde")`、`setInfuse("venom", true)`；
-  `__lab.combat.meter` 里有累计伤害、击杀和受伤，`resetMeter()` 清零。
+- 靶场：`__lab.combat.press("fire" | "alt")`、`release(...)`、`aimAt(僵尸序号)`、`targets.setMode("stand" | "advance" | "horde")`；
+  `__lab.combat.meter` 里有累计伤害、击杀、受伤和打掉的发数（`spent`），`resetMeter()` 清零。
+- 套餐：`__lab.meal.set("vinegar", 2)`（调料层数，0 去掉）、`clear()`、`setAmmo("meal" | "free")`、`refill()`；`__lab.meal.pool` 是四种弹药池。
+  `__lab.combat.mods` 是当前的伤害、射速、换弹倍率，`__lab.combat.targets.rules.infusions` 是生效的附魔。
 - 声音：`__lab.audio.measure("magIn")` 离线渲染一个声音并返回峰值和响度，用来在没有扬声器的环境里检查它确实有内容。
 - 逐帧步进（抓枪口焰这类几十毫秒的瞬间）：`__lab.manual = true` 之后用 `__lab.advance(秒)` 推进时间并渲染一帧。
 - 开发服务器关掉了热重载，改完文件刷新页面即可；新增武器文件后需要重启服务器。
@@ -78,8 +117,10 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
 `npm run arsenal:test` 跑 `tests/` 里的两组 Playwright 测试（对着构建产物，端口 5312，和本体的测试互不相干；CI 在本体的冒烟测试之后也会跑）：
 
 - `smoke.spec.js`：12 把武器 × 5 种形态各开火、用特殊动作、再开火，不许报错，每种形态都必须打出伤害。
+- `rules.spec.js`：靶场确实在按本体的表走——僵尸的血量和速度、等级和调料对伤害、射速、换弹的作用、附魔调料在第几次命中触发、
+  按套餐结算时一次换弹从弹药池里扣多少、池子空了换不了弹。
 - `input.spec.js`：用真实鼠标点击和按键走一遍——展柜选武器、点等级和岔路、拖动旋转；靶场左右键、`R`、`Q`/`E`、数字键；
-  「双手」「演示动作」「声音」「尸潮」；九把枪按 `R` 换弹并按顺序听到各自的换弹声；手机宽度下顶栏每个按钮都点得到。
+  「双手」「演示动作」「声音」「尸潮」「调料」「弹药」；九把枪按 `R` 换弹并按顺序听到各自的换弹声；手机宽度下顶栏每个按钮都点得到。
   点击前先确认按钮没有被别的元素盖住。
 
 `tools/` 里是测量和出图的脚本，直接用 node 跑；试验场开着（`npm run arsenal`）就用开着的，没开会自己起一个。
