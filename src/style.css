@@ -970,6 +970,668 @@ kbd {
   box-shadow: 0 0 8px rgba(241, 235, 224, 0.4);
 }
 
+/* =====================================================================  run (the set meal)  */
+/* Clock and course, wok-hei bar, seasoning chips, boss bar, toasts and the order tickets.
+   Sits right after .hud in the DOM and shows with it. */
+.rl {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+  color: var(--paper);
+  text-shadow: var(--shadow);
+}
+.hud.on ~ .rl.on {
+  opacity: 1;
+}
+/* the four kinds of ammunition, one hue each (the same as the lamps in the street) */
+.a-bullets {
+  --ammo: var(--jade);
+}
+.a-heavy {
+  --ammo: #f4755c;
+}
+.a-fuel {
+  --ammo: #f0b248;
+}
+.a-parts {
+  --ammo: #86b4ff;
+}
+.a-none {
+  --ammo: var(--paper-dim);
+}
+.h-cm.cache,
+.h-wm.cache {
+  color: var(--ammo, var(--jade));
+}
+/* the game's "other weapon" line: a run shows every weapon carried instead */
+.hud.in-run .h-alt {
+  display: none;
+}
+/* a blade has no magazine: only its name and level stay */
+.hud.no-mag .h-ammo-row,
+.hud.no-mag .h-pips,
+.hud.no-mag .h-cue {
+  visibility: hidden;
+}
+/* extra marker kinds on the compass and in the world */
+.h-cm.loot,
+.h-wm.loot {
+  color: var(--brass);
+}
+.h-cm.elite,
+.h-wm.elite {
+  color: var(--cinnabar-hot);
+}
+.h-cm.cache.empty,
+.h-wm.cache.empty {
+  color: var(--paper-mute);
+}
+.h-wm.loot i,
+.h-wm.cache i {
+  border-radius: 2px;
+  box-shadow: 0 0 8px currentColor;
+}
+.h-wm.elite i {
+  border-radius: 2px;
+  transform: rotate(45deg);
+  box-shadow: 0 0 8px rgba(226, 65, 44, 0.6);
+}
+.h-wm.loot b,
+.h-wm.cache b,
+.h-wm.elite b,
+.h-cm.loot b,
+.h-cm.cache b,
+.h-cm.elite b {
+  font-family: var(--f-ui);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* clock + course */
+.rl-clock {
+  position: absolute;
+  top: calc(84px + var(--sat));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  white-space: nowrap;
+}
+.rl-stage {
+  font: 600 11px/1 var(--f-ui);
+  letter-spacing: var(--trk-m);
+  text-transform: var(--caps);
+  color: var(--jade);
+}
+.rl-time {
+  font: 800 26px/1 var(--f-num);
+  font-stretch: 75%;
+  font-variant-numeric: tabular-nums;
+}
+.rl-time:empty {
+  display: none;
+}
+.rl-clock.late .rl-time {
+  color: var(--brass);
+}
+.rl-surge {
+  font: 700 11px/1 var(--f-ui);
+  font-style: normal;
+  letter-spacing: var(--trk-s);
+  text-transform: var(--caps);
+  color: var(--cinnabar-hot);
+}
+.rl-surge:empty {
+  display: none;
+}
+.rl-clock.flash .rl-stage {
+  animation: objflash 0.6s var(--ease-out);
+}
+
+/* boss */
+.rl-boss {
+  position: absolute;
+  /* takes the clock's place: the clock is hidden once the boss is out */
+  top: calc(84px + var(--sat));
+  left: 50%;
+  width: min(420px, 62vw);
+  transform: translateX(-50%);
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.rl-boss.on {
+  opacity: 1;
+}
+.rl-boss-n {
+  font: 800 15px/1 var(--f-display);
+  letter-spacing: var(--trk-m);
+  color: var(--cinnabar-hot);
+}
+.rl-boss-bar {
+  height: 6px;
+  margin-top: 7px;
+  background: rgba(7, 8, 10, 0.55);
+  border: 1px solid var(--line-2);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.rl-boss-bar i {
+  display: block;
+  height: 100%;
+  background: var(--cinnabar-hot);
+  box-shadow: 0 0 8px rgba(226, 65, 44, 0.8);
+  transform-origin: 0 50%;
+  transition: transform 0.12s linear;
+}
+
+/* wok hei (experience) */
+.rl-xp {
+  position: absolute;
+  left: 50%;
+  bottom: calc(20px + var(--sab));
+  width: min(380px, 44vw);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rl-xp-k {
+  font: 600 10px/1 var(--f-ui);
+  letter-spacing: var(--trk-l);
+  text-transform: var(--caps);
+  color: var(--brass);
+  white-space: nowrap;
+}
+.rl-xp-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--paper-faint);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.rl-xp-bar i {
+  display: block;
+  height: 100%;
+  background: var(--brass);
+  box-shadow: 0 0 6px rgba(232, 195, 124, 0.7);
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  transition: transform 0.18s ease-out;
+}
+.rl-xp-n {
+  min-width: 1.2em;
+  font: 800 20px/0.9 var(--f-num);
+  font-stretch: 75%;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+@keyframes xpup {
+  0% {
+    transform: scale(1.7);
+    color: var(--brass);
+  }
+  100% {
+    transform: none;
+  }
+}
+.rl-xp.up .rl-xp-n {
+  animation: xpup 0.5s var(--ease-out);
+}
+
+/* weapon level pips, inside the ammo block */
+.rl-wlv {
+  display: flex;
+  justify-content: flex-end;
+  gap: 3px;
+  margin-top: 7px;
+}
+.rl-wlv:empty {
+  display: none;
+}
+.rl-wlv i,
+.rl-chip em i,
+.rl-card em i {
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+  background: var(--brass);
+}
+.rl-wlv i.off,
+.rl-chip em i.off {
+  background: var(--paper-faint);
+}
+
+/* seasonings */
+.rl-spices {
+  position: absolute;
+  left: var(--gl);
+  bottom: calc(104px + var(--sab));
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 6px;
+}
+.rl-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 12px/1 var(--f-ui);
+  letter-spacing: var(--trk-xs);
+  color: var(--paper-2);
+}
+.rl-chip b {
+  font-weight: 600;
+}
+.rl-chip em,
+.rl-card em {
+  display: inline-flex;
+  gap: 3px;
+}
+
+/* weapons carried: grouped by the number key that selects them */
+.rl-weapons {
+  position: absolute;
+  left: 50%;
+  bottom: calc(42px + var(--sab));
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+  max-width: min(760px, calc(100vw - 2 * 230px));
+}
+.rl-wg {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.rl-wg kbd {
+  min-width: 16px;
+  margin-right: 2px;
+  padding: 2px 3px 1px;
+  font-size: 9px;
+  color: var(--paper-mute);
+  border-color: var(--line);
+}
+.rl-w {
+  margin: 0;
+  padding: 4px 6px 3px;
+  font: 600 11px/1 var(--f-ui);
+  letter-spacing: var(--trk-xs);
+  color: var(--paper-dim);
+  background: rgba(7, 8, 10, 0.35);
+  border: 0;
+  border-bottom: 2px solid color-mix(in srgb, var(--ammo) 45%, transparent);
+  border-radius: 2px 2px 0 0;
+  text-shadow: var(--shadow);
+  -webkit-appearance: none;
+  appearance: none;
+}
+.hud.on ~ .rl.on .rl-w {
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.rl-w b {
+  font-weight: 600;
+}
+.rl-w sup {
+  margin-left: 2px;
+  font-size: 8px;
+  color: var(--brass);
+}
+.rl-w.cur {
+  color: var(--paper);
+  background: rgba(7, 8, 10, 0.7);
+  border-bottom-color: var(--ammo);
+  box-shadow: 0 0 10px -2px var(--ammo);
+}
+.rl-w.dry {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+/* ammunition pools */
+.rl-pools {
+  position: absolute;
+  right: var(--gr);
+  bottom: calc(206px + var(--sab));
+  display: flex;
+  gap: 8px;
+}
+.rl-pool {
+  position: relative;
+  min-width: 34px;
+  padding-bottom: 5px;
+  text-align: center;
+  font: 600 10px/1 var(--f-ui);
+  color: var(--paper-mute);
+}
+.rl-pool b {
+  display: block;
+  margin-bottom: 3px;
+  font-weight: 700;
+  color: var(--ammo);
+}
+.rl-pool em {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  color: var(--paper-2);
+}
+.rl-pool i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--ammo) calc(var(--f) * 100%),
+    var(--paper-faint) 0
+  );
+}
+.rl-pool.cur em {
+  color: var(--paper);
+  font-weight: 700;
+}
+.rl-pool.cur i {
+  height: 3px;
+  box-shadow: 0 0 6px var(--ammo);
+}
+.rl-pool.dry em {
+  color: var(--cinnabar-hot);
+}
+
+/* pickup toasts */
+.rl-toasts {
+  position: absolute;
+  right: var(--gr);
+  bottom: calc(252px + var(--sab));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.rl-toast {
+  font: 600 13px/1.3 var(--f-ui);
+  letter-spacing: var(--trk-xs);
+  color: var(--paper);
+  transition:
+    opacity 0.45s,
+    transform 0.45s;
+  animation: toastin 0.25s var(--ease-out);
+}
+.rl-toast[class*="a-"] {
+  color: var(--ammo);
+}
+.rl-toast.gold {
+  color: var(--brass);
+}
+.rl-toast.warn {
+  color: var(--cinnabar-hot);
+}
+.rl-toast.out {
+  opacity: 0;
+  transform: translateX(8px);
+}
+@keyframes toastin {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* order tickets: three small receipts, chosen with 1 2 3 while the street runs slow */
+.rl-cards {
+  position: absolute;
+  left: 50%;
+  bottom: calc(92px + var(--sab));
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-shadow: none;
+}
+.rl-cards.on {
+  display: flex;
+}
+.rl-cards-h {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: 700 11px/1 var(--f-ui);
+  letter-spacing: var(--trk-l);
+  text-transform: var(--caps);
+  color: var(--brass);
+  text-shadow: var(--shadow);
+}
+.rl-cards-bar {
+  width: 120px;
+  height: 3px;
+  background: var(--paper-faint);
+  overflow: hidden;
+}
+.rl-cards-bar i {
+  display: block;
+  height: 100%;
+  background: var(--brass);
+  transform-origin: 0 50%;
+}
+.rl-cards-row {
+  display: flex;
+  gap: 10px;
+}
+.rl-card {
+  --rc-ink: #1d1813;
+  --rc-dim: rgba(29, 24, 19, 0.66);
+  position: relative;
+  width: min(196px, 29vw);
+  min-height: 96px;
+  margin: 0;
+  padding: 12px 12px 18px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "key name" "pips pips" "desc desc";
+  align-content: start;
+  align-items: center;
+  gap: 5px 8px;
+  text-align: left;
+  color: var(--rc-ink);
+  background: #efe7d8;
+  border: 0;
+  border-top: 3px solid var(--cinnabar);
+  border-radius: 2px 2px 0 0;
+  font: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  box-shadow: 0 14px 30px -10px rgba(0, 0, 0, 0.85);
+  -webkit-mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - 7px) no-repeat,
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg)
+      bottom / 11px 7px repeat-x;
+  mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - 7px) no-repeat,
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg)
+      bottom / 11px 7px repeat-x;
+  animation: ticket 0.28s var(--ease-out) both;
+}
+.rl-card:nth-child(2) {
+  animation-delay: 0.05s;
+}
+.rl-card:nth-child(3) {
+  animation-delay: 0.1s;
+}
+@keyframes ticket {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+.hud.on ~ .rl.on .rl-cards.on .rl-card {
+  pointer-events: auto;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+.rl-card kbd {
+  grid-area: key;
+  color: var(--rc-ink);
+  border-color: var(--rc-dim);
+  background: rgba(29, 24, 19, 0.06);
+}
+.rl-card b {
+  grid-area: name;
+  font: 800 18px/1.1 var(--f-display);
+  letter-spacing: 0.02em;
+}
+.rl-card kbd + b {
+  grid-column: 2;
+}
+/* the two forms of a weapon: 甲 / 乙 in a seal before the name */
+.rl-tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 4px 2px;
+  font: 800 12px/1 var(--f-display);
+  font-style: normal;
+  color: #fff;
+  background: var(--cinnabar);
+  border-radius: 2px;
+  vertical-align: 2px;
+}
+.rl-card.k-weapon,
+.rl-card.k-branch {
+  border-top-color: var(--brass);
+}
+.rl-card > b:first-child {
+  grid-column: 1 / -1;
+}
+.rl-card em {
+  grid-area: pips;
+}
+.rl-card em i.off {
+  background: rgba(29, 24, 19, 0.2);
+}
+.rl-card em i {
+  background: var(--cinnabar);
+}
+.rl-card span {
+  grid-area: desc;
+  font: 500 12px/1.35 var(--f-ui);
+  color: var(--rc-dim);
+}
+.rl-card u {
+  position: absolute;
+  right: 8px;
+  top: -3px;
+  padding: 3px 6px 2px;
+  font: 700 9px/1 var(--f-ui);
+  letter-spacing: var(--trk-s);
+  text-decoration: none;
+  color: #fff;
+  background: var(--cinnabar);
+  border-radius: 0 0 3px 3px;
+}
+.rl-card.picked {
+  outline: 2px solid var(--brass);
+  transform: translateY(-6px);
+  transition: transform 0.12s;
+}
+.rl-cards.out {
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+/* the radio subtitle and the toasts would sit on top of the tickets */
+.rl:has(.rl-cards.on) ~ .comms,
+.rl:has(.rl-cards.on) .rl-toasts {
+  opacity: 0;
+}
+
+/* touch: keep the thumbs' corners clear */
+.is-touch .rl-xp {
+  bottom: calc(8px + var(--sab));
+  width: min(300px, 36vw);
+}
+.is-touch .rl-spices {
+  bottom: auto;
+  top: calc(196px + var(--sat));
+  flex-direction: column;
+}
+.is-touch .rl-weapons {
+  bottom: calc(24px + var(--sab));
+  max-width: calc(100vw - 2 * 200px);
+}
+.is-touch .rl-w {
+  padding: 9px 9px 7px;
+  font-size: 12px;
+}
+/* no room for the row of pools between the thumbs: each group of the weapon bar is headed
+   by what is left of its ammunition instead (runhud.js) */
+.is-touch .rl-pools {
+  display: none;
+}
+.rl-wg-n {
+  min-width: 22px;
+  margin-right: 1px;
+  font: 700 11px/1 var(--f-num, var(--f-ui));
+  font-style: normal;
+  text-align: right;
+  color: var(--ammo, var(--paper-dim));
+  text-shadow: var(--shadow);
+}
+.rl-wg-n.dry {
+  color: var(--cinnabar-hot);
+}
+/* portrait: the bar runs the width of the screen, above the right thumb's buttons */
+@media (max-width: 600px) {
+  .is-touch .rl-weapons {
+    left: 8px;
+    right: 8px;
+    bottom: calc(262px + var(--sab));
+    max-width: none;
+    transform: none;
+    gap: 4px 8px;
+  }
+  .is-touch .rl-w {
+    padding: 8px 6px 6px;
+  }
+}
+.is-touch .rl-toasts {
+  right: auto;
+  left: 50%;
+  bottom: auto;
+  top: calc(116px + var(--sat));
+  transform: translateX(-50%);
+  align-items: center;
+}
+.is-touch .rl-cards {
+  bottom: auto;
+  top: calc(96px + var(--sat));
+  flex-direction: column-reverse;
+  gap: 5px;
+}
+.is-touch .rl-cards-h span {
+  display: none;
+}
+.is-touch .rl-card {
+  min-height: 0;
+  padding: 9px 10px 14px;
+}
+.is-touch .rl-card b {
+  font-size: 15px;
+}
+.is-touch .rl-card span {
+  font-size: 11px;
+}
+/* portrait phones: below the objective, ammo and health blocks */
+@media (max-width: 600px) {
+  .is-touch .rl-cards {
+    top: calc(200px + var(--sat));
+  }
+}
+
 /* =====================================================================  radio subtitles  */
 .comms {
   position: absolute;
@@ -1523,6 +2185,33 @@ kbd {
 .m-order .btn.primary {
   width: 100%;
 }
+/* the branch (stage) row: same shape as the spice row, a little closer to it */
+.m-spice.m-place {
+  margin: 12px 0 -4px;
+}
+.m-lock {
+  display: none;
+  width: 9px;
+  height: 11px;
+  margin-left: 6px;
+  vertical-align: -1px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 11'%3E%3Cpath d='M1 5h7v6H1z'/%3E%3Cpath d='M2.5 5V3.4a2 2 0 0 1 4 0V5' fill='none' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E")
+    0 0 / 9px 11px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 11'%3E%3Cpath d='M1 5h7v6H1z'/%3E%3Cpath d='M2.5 5V3.4a2 2 0 0 1 4 0V5' fill='none' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E")
+    0 0 / 9px 11px no-repeat;
+}
+.seg button.locked {
+  color: var(--paper-mute);
+}
+.seg button.locked .m-lock {
+  display: inline-block;
+}
+.m-place-note {
+  margin: -4px 0 12px;
+  font: 500 12px/1.4 var(--f-ui);
+  color: var(--paper-dim);
+}
 .chili {
   display: inline-block;
   width: calc(var(--n) * 9px);
@@ -1933,6 +2622,14 @@ kbd {
 .m-receipt .m-badge {
   color: #fff;
   background: var(--cinnabar);
+}
+.m-unlock {
+  margin: 12px 0 0 !important;
+  padding: 7px 10px;
+  font: 600 12px/1.4 var(--f-ui);
+  color: var(--cinnabar-deep);
+  border: 1px dashed var(--rc-line);
+  text-align: center;
 }
 .m-thanks {
   margin-top: 14px !important;
@@ -2532,6 +3229,31 @@ kbd {
   }
   .h-prompt {
     top: 64%;
+  }
+}
+
+/* A phone held sideways: short and wide. The branch and the spice level share one line of a
+   wider ticket, so the lockup above is not squeezed off the top. */
+@media (max-height: 560px) and (min-width: 620px) {
+  .m-order {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    column-gap: 10px;
+    max-width: 600px;
+  }
+  .m-order > * {
+    grid-column: 1 / -1;
+  }
+  .m-order > .m-spice {
+    grid-column: auto;
+    grid-template-columns: minmax(0, 1fr);
+    margin: 8px 0 10px;
+  }
+  .m-order > .m-spice > span {
+    display: none;
+  }
+  .m-place-note {
+    margin: -4px 0 8px;
   }
 }
 

@@ -2,6 +2,7 @@
 // See docs/architecture.md for subsystem names, lifecycle and safe edit points.
 import { createSettingsStore } from "./settings.js";
 import * as L10N from "./i18n/index.js";
+import { createRun } from "./chinatown/run.js";
 
 (() => {
   var bT = Object.defineProperty;
@@ -37296,6 +37297,9 @@ ${ge}`,
           a.position.z < ee.max.z &&
           a.position.y < ee.max.y
         );
+      // (a weapon drawn ahead of time needs its shaders for indoors and outdoors alike:
+      // armory.js asks for one, then the other, for a few frames each)
+      Q.envWarm && (le = Q.envWarm === "in" && !!Q.interiorEnv);
       (le && (r.environment = Q.interiorEnv),
         (r.environmentIntensity =
           te * (le ? i_ / n_ : 1) * (Q.viewFill || 1.1)));
@@ -37346,6 +37350,7 @@ ${ge}`,
         exposure: 1,
         env: y ? y.texture : null,
         interiorEnv: null,
+        envWarm: null,
         resolution: new We(4, 4),
         depthTextureIsLive: !1,
         tune: E ? E.TUNE : {},
@@ -67785,8 +67790,14 @@ void main() {
       KeyQ: "swap",
       Digit1: "weapon1",
       Digit2: "weapon2",
+      Digit3: "weapon3",
+      Digit4: "weapon4",
+      Digit5: "weapon5",
       Numpad1: "weapon1",
       Numpad2: "weapon2",
+      Numpad3: "weapon3",
+      Numpad4: "weapon4",
+      Numpad5: "weapon5",
       Enter: "fire",
       NumpadEnter: "fire",
       ArrowLeft: "turnL",
@@ -78760,6 +78771,13 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         slots: [m.slot, x.slot],
         rigs: v,
         pending: null,
+        // run seasoning: >1 plays the whole reload faster
+        reloadScale: 1,
+        // Weapons from the armoury (src/chinatown/armory.js) run beside this one. ext is
+        // { frame(dt, input), held, ads, reloading, hud: { id, ammo, mag, reserve } }: frame
+        // runs every update; while held is true these two rigs are put away and the HUD
+        // reads the outside weapon's numbers.
+        ext: null,
         arms: p,
         info: { tris: m.info.tris, meshes: m.info.meshes, pistol: x.info },
         update: O,
@@ -78836,22 +78854,30 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       name: { enumerable: !0, get: () => b.slot.name },
       ammo: {
         enumerable: !0,
-        get: () => b.slot.ammo,
+        get: () => (E.ext && E.ext.held ? E.ext.hud.ammo : b.slot.ammo),
         set: (B) => {
           b.slot.ammo = B;
         },
       },
-      magSize: { enumerable: !0, get: () => b.slot.magSize },
+      magSize: {
+        enumerable: !0,
+        get: () => (E.ext && E.ext.held ? E.ext.hud.mag : b.slot.magSize),
+      },
       reserve: {
         enumerable: !0,
-        get: () => b.slot.reserve,
+        get: () => (E.ext && E.ext.held ? E.ext.hud.reserve : b.slot.reserve),
         set: (B) => {
           b.slot.reserve = B;
         },
       },
       damage: { enumerable: !0, get: () => b.def.damage },
       rpm: { enumerable: !0, get: () => b.def.rpm },
-      current: { enumerable: !0, get: () => b.id },
+      current: {
+        enumerable: !0,
+        get: () => (E.ext && E.ext.held ? E.ext.hud.id : b.id),
+      },
+      // which of the two built-in rigs is up (the HUD's `current` may be an armoury weapon)
+      rig: { enumerable: !0, get: () => b.id },
       root: { enumerable: !0, get: () => b.root },
     });
     function _(B) {
@@ -79273,6 +79299,28 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     function O(B) {
       let X = n.player,
         re = n.input;
+      if (E.ext && !l.pause) {
+        try {
+          E.ext.frame(
+            B,
+            E.ext.held && X && X.alive && X.enabled !== !1 ? re : null,
+          );
+        } catch (err) {
+          O.extErr ||
+            ((O.extErr = 1),
+            console.error(
+              "[weapon] armoury frame threw: " + ((err && err.stack) || err),
+            ));
+        }
+        if (E.ext.held) {
+          ((a.prevFire = !1),
+            b.flash && (b.flash.visible = !1),
+            (E.ads = E.ext.ads || 0),
+            (E.state = E.ext.reloading ? "reloading" : "idle"),
+            (E.spread = 0.02));
+          return;
+        }
+      }
       if (
         (X && re && !X.alive && !l.pause && (W.active || oe(), le(B), xe(B)),
         !X || !re || !X.alive)
@@ -79281,8 +79329,11 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         return;
       }
       if (l.pause) return;
+      // in a run the director owns the weapon keys (many weapons, grouped by ammunition)
+      let runKeys = n.run && n.run.active;
       ((a.t += B),
-        re.pressed &&
+        !runKeys &&
+          re.pressed &&
           (re.pressed("swap")
             ? E.swap()
             : re.pressed("weapon1")
@@ -79311,7 +79362,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           ? ($e.t = l.reloadT)
           : $e.fresh
             ? ($e.fresh = !1)
-            : ($e.t += B),
+            : ($e.t += B * (E.reloadScale || 1)),
           Y.reload($e, $e.t),
           $e.t >= $e.T &&
             l.reloadT == null &&
@@ -79320,6 +79371,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
             (a.rackW = 0),
             (a.antYT = 0),
             (a.antRT = 0),
+            // trigger still held: the next empty magazine reloads by itself too
+            (a.dryDone = !1),
             Y.endReload(),
             n.events.emit("weapon:reload", {
               phase: "done",
@@ -83802,6 +83855,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     ${gmRow("ctl.reload", "<kbd>R</kbd>")}
     ${gmRow("ctl.swap", gmHtml("ctl.swapKeysHtml"))}
     ${gmRow("ctl.cut", gmHtml("ctl.holdEHtml"))}
+    ${gmRow("ctl.pick", "<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>")}
     ${gmRow("ctl.jump", "<kbd>Space</kbd>")}
     ${gmRow("ctl.sprint", "<kbd>Shift</kbd>")}
     ${gmRow("ctl.crouch", gmHtml("ctl.crouchKeysHtml"))}
@@ -83815,6 +83869,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     ${gmRow("ctl.reload", "<kbd>X</kbd>")}
     ${gmRow("ctl.cut", gmHtml("ctl.padCutHtml"))}
     ${gmRow("ctl.swap", gmHtml("ctl.padSwapHtml"))}
+    ${gmRow("ctl.pick", "<kbd>\u2190</kbd> <kbd>\u2191</kbd> <kbd>\u2192</kbd>")}
     ${gmRow("ctl.jump", "<kbd>A</kbd>")}
     ${gmRow("ctl.crouch", gmHtml("ctl.padCrouchHtml"))}
     ${gmRow("ctl.sprint", gmTxt("ctl.padSprint"))}
@@ -83830,6 +83885,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     ${gmRow("ctl.reload", gmTxt("ctl.touchReload"))}
     ${gmRow("ctl.jump", gmTxt("ctl.touchJump"))}
     ${gmRow("ctl.cut", gmTxt("ctl.touchCut"))}
+    ${gmRow("ctl.pick", gmTxt("ctl.touchPick"))}
     ${gmRow("ctl.sprint", gmTxt("ctl.touchSprint"))}
   </dl>`,
     // Spice level buttons: label plus one to three chilies.
@@ -83871,7 +83927,9 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         <div class="m-order">
           <div class="m-order-h"><span id="l-tm" data-i18n="title.mode"></span><span class="m-order-no">No. 07</span></div>
           <div class="seg m-modes" role="group" aria-labelledby="l-tm">${uT.map((W) => `<button data-m="${W[0]}" aria-pressed="false"><b data-i18n="mode.${W[0]}"></b><small data-i18n="modeNote.${W[0]}"></small></button>`).join("")}</div>
+          <div class="m-spice m-place"><span id="l-ts" data-i18n="title.stage"></span><div class="seg" role="group" aria-labelledby="l-ts"><button data-p="street" aria-pressed="false"><span data-i18n="stage.street"></span></button><button data-p="docks" aria-pressed="false"><span data-i18n="stage.docks"></span><i class="m-lock" aria-hidden="true"></i></button></div></div>
           <div class="m-spice"><span id="l-td" data-i18n="title.difficulty"></span><div class="seg" role="group" aria-labelledby="l-td">${gmDiffs()}</div></div>
+          <div class="m-place-note" data-f="placenote" role="status" hidden></div>
           <div class="m-pick-note" data-f="modenote" hidden></div>
           <button class="btn primary" data-act="deploy"><span data-i18n="act.deploy"></span></button>
         </div>
@@ -83905,7 +83963,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       <i class="m-stamp" data-i18n="dead.stamp" aria-hidden="true"></i>
       <div class="m-k" data-i18n="dead.kicker"></div>
       <h2 class="m-h" data-i18n="dead.title"></h2>
-      <dl class="m-stats"><div><dt data-i18n="dead.time"></dt><dd data-f="dead-time">00:00</dd></div><div data-only="mission"><dt data-i18n="dead.sirens"></dt><dd data-f="dead-relays">0/3</dd></div><div data-only="holdout"><dt data-i18n="dead.waves"></dt><dd data-f="dead-wave">0</dd></div><div data-only="holdout"><dt data-i18n="dead.kills"></dt><dd data-f="dead-kills">0</dd></div><div data-only="holdout"><dt data-i18n="dead.score"></dt><dd data-f="dead-score">0</dd></div><div data-only="holdout"><dt data-i18n="dead.best"></dt><dd data-f="dead-best">0</dd></div></dl>
+      <dl class="m-stats"><div><dt data-i18n="dead.time"></dt><dd data-f="dead-time">00:00</dd></div><div data-only="mission"><dt data-i18n="dead.sirens"></dt><dd data-f="dead-relays">0/3</dd></div><div data-only="mission"><dt data-i18n="dead.kills"></dt><dd data-f="dead-rkills">0</dd></div><div data-only="mission"><dt data-i18n="run.level"></dt><dd data-f="dead-level">1</dd></div><div data-only="holdout"><dt data-i18n="dead.waves"></dt><dd data-f="dead-wave">0</dd></div><div data-only="holdout"><dt data-i18n="dead.kills"></dt><dd data-f="dead-kills">0</dd></div><div data-only="holdout"><dt data-i18n="dead.score"></dt><dd data-f="dead-score">0</dd></div><div data-only="holdout"><dt data-i18n="dead.best"></dt><dd data-f="dead-best">0</dd></div></dl>
+      <p class="m-unlock" data-f="dead-unlock" hidden></p>
       <div class="m-actions col"><button class="btn primary" data-act="retry" data-i18n="act.retry"></button></div>
     </section>
 
@@ -83916,10 +83975,11 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       <div class="m-rating"><span data-i18n="debrief.rating"></span><b data-f="rating"></b></div>
       <dl class="m-stats">
         <div><dt data-i18n="debrief.time"></dt><dd data-f="time">00:00</dd></div>
-        <div><dt data-i18n="debrief.accuracy"></dt><dd data-f="acc">0%</dd></div>
         <div><dt data-i18n="debrief.kills"></dt><dd data-f="kills">0</dd></div>
-        <div><dt data-i18n="debrief.retries"></dt><dd data-f="retries">0</dd></div>
+        <div><dt data-i18n="run.level"></dt><dd data-f="level">1</dd></div>
+        <div><dt data-i18n="dead.sirens"></dt><dd data-f="sirens">0/3</dd></div>
       </dl>
+      <p class="m-unlock" data-f="unlock" hidden></p>
       <p class="m-thanks" data-i18n="debrief.thanks"></p>
       <div class="m-actions col"><button class="btn primary" data-act="redeploy" data-i18n="act.redeploy"></button></div>
     </section>
@@ -84028,6 +84088,11 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         G.setAttribute("aria-pressed", String(+G.dataset.v === i.view));
       for (let G of r(".seg button[data-m]"))
         G.setAttribute("aria-pressed", String(G.dataset.m === i.mode));
+      for (let G of r(".seg button[data-p]")) {
+        let open = !n.run || !n.run.placeOpen || n.run.placeOpen(G.dataset.p);
+        (G.setAttribute("aria-pressed", String(G.dataset.p === n.stage)),
+          G.classList.toggle("locked", !open));
+      }
       ((s.dataset.mode = i.mode),
         (c("modenote").textContent = L10N.t("modeNote." + i.mode)),
         (u.value = i.sens),
@@ -84141,6 +84206,26 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       }
       if (J.dataset.m) {
         ((i.mode = J.dataset.m), x(), cc(i));
+        return;
+      }
+      if (J.dataset.p) {
+        // another branch is another map: the page is loaded again at its address
+        let note = c("placenote");
+        if (J.dataset.p === n.stage) {
+          note.hidden = !0;
+          return;
+        }
+        if (J.classList.contains("locked")) {
+          ((note.textContent = L10N.t("stage.locked")), (note.hidden = !1));
+          return;
+        }
+        ((note.textContent = L10N.t("stage.loading")), (note.hidden = !1));
+        let u = new URL(location.href);
+        (J.dataset.p === "docks"
+          ? u.searchParams.set("lvl", "harbor")
+          : u.searchParams.delete("lvl"),
+          u.searchParams.delete("autostart"),
+          location.assign(u.toString()));
         return;
       }
       if (J.dataset.d) {
@@ -84283,9 +84368,13 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         },
         setDead(dd) {
           lastDead = dd;
-          let { time: W, relays: J, total: G, holdout: te } = dd;
+          let { time: W, relays: J, total: G, holdout: te, run: rn } = dd;
           ((c("dead-time").textContent = Z(W)),
             (c("dead-relays").textContent = `${J}/${G}`),
+            rn &&
+              ((c("dead-rkills").textContent = String(rn.kills)),
+              (c("dead-level").textContent = String(rn.level))),
+            gmUnlock(c("dead-unlock"), rn && rn.unlocked),
             te &&
               ((c("dead-wave").textContent = String(te.waves)),
               (c("dead-kills").textContent = String(te.kills)),
@@ -84298,17 +84387,25 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         },
         setDebrief(db) {
           lastDebrief = db;
-          let { time: W, accuracy: J, kills: G, retries: te, rating: oe } = db;
+          let { time: W, kills: G, rating: oe } = db;
           ((c("time").textContent = Z(W)),
-            (c("acc").textContent =
-              J == null ? "\u2014" : Math.round(J * 100) + "%"),
             (c("kills").textContent = String(G)),
-            (c("retries").textContent = String(te)),
+            (c("level").textContent = String(db.level || 1)),
+            gmUnlock(c("unlock"), db.unlocked),
+            (c("sirens").textContent = `${db.relays || 0}/${db.total || 0}`),
             (c("rating").textContent =
               typeof oe == "number" ? L10N.t("rating." + oe) : oe));
         },
         applySettings: m,
       };
+    // "new on the menu": weapons a run unlocked, on its receipt
+    function gmUnlock(el, list) {
+      let on = !!(list && list.length);
+      ((el.hidden = !on),
+        (el.textContent = on
+          ? L10N.t("run.unlock", { list: list.join(L10N.t("run.listSep")) })
+          : ""));
+    }
     let lastDead = null,
       lastDebrief = null;
     return (
@@ -84423,7 +84520,11 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         return L10N.t("radio.contact");
       },
       get cut() {
-        return [L10N.t("radio.cut1"), L10N.t("radio.cut2")];
+        return [
+          L10N.t("radio.cut1"),
+          L10N.t("radio.cut2"),
+          L10N.t("radio.cut3"),
+        ];
       },
       get all() {
         return L10N.t("radio.all");
@@ -84499,7 +84600,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         ne(V.brute, f.enemies.brute, he.brute)),
         ne(i.tuning, f.player, he.player),
         Object.assign(xi, c(f.flow), c(he.flow || {})),
-        (C.difficulty = lb[Y] ? Y : "hard"));
+        (C.difficulty = lb[Y] ? Y : "hard"),
+        RUN && RUN.onTuning());
     }
     let p = () => g.mode === "holdout",
       d = (Y) => L10N.fmtNum(Y);
@@ -84693,6 +84795,25 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           Y && ce(Y);
         },
       };
+    // The set meal is a run (src/chinatown/run.js): a timeline of the dead, level-ups and
+    // pickups. Its meshes are created here, before the renderer pre-compiles shaders.
+    let RUN = null;
+    try {
+      ((RUN = createRun(n, {
+        pickSpawn: (Y, he) => O(Y, he),
+        spawn: (Y, he, V) => q(Y, he, V),
+        alive: () => se(),
+        refreshMarkers: () => J(),
+        refreshObjective: () => o.setObjective(oe()),
+        warn: (Y, he) => o.warn && o.warn(Y, he),
+        radio: (Y, he) => o.radio && o.radio(Y, he),
+        message: (Y, he) => o.message(Y, he),
+      })),
+        (n.run = RUN));
+    } catch (Y) {
+      console.error("[run] setup failed: " + ((Y && Y.stack) || Y));
+    }
+    let runOn = () => !!RUN && !p();
     function A(Y) {
       let he = C.state;
       Y !== he &&
@@ -84820,7 +84941,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       (J(),
         o.setRelays && o.setRelays(0, g.relays.length),
         o.setTally && o.setTally(p() ? L10N.t("wave.standby") : null),
-        p() || ue());
+        p() ? RUN && RUN.stop() : RUN ? (RUN.reset(), J()) : ue());
     }
     function W(Y, he) {
       try {
@@ -84841,7 +84962,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           pos: he.o.pos,
           kind: "relay",
         }));
-      (g.allCut &&
+      ((runOn() ? RUN.extractOpen : g.allCut) &&
         s.extraction &&
         Y.push({
           id: "extract",
@@ -84850,6 +84971,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           pos: s.extraction.pos,
           kind: "extract",
         }),
+        runOn() && Y.push(...RUN.markers()),
         o.setMarkers(Y));
     }
     function G({
@@ -84896,6 +85018,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         return L10N.t(
           g.waveOn ? "obj.hold" : g.wave ? "obj.breathe" : "obj.coming",
         );
+      if (runOn()) return L10N.t(RUN.objectiveKey());
       if (g.allCut) return L10N.t("obj.extract");
       let Y = g.relays.length - g.cut;
       return g.cut === 0
@@ -85185,13 +85308,18 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       if (V && V.pos) {
         let ne = Math.hypot(V.pos.x - i.pos.x, V.pos.z - i.pos.z),
           ye = ne < (V.radius || 2.5) && Math.abs(V.pos.y - i.pos.y) < 3.5;
-        (ye && g.allCut && i.alive && !p()
+        let Te = runOn() ? RUN.extractOpen : g.allCut;
+        (ye && Te && i.alive && !p()
           ? P()
           : ye &&
-            !g.allCut &&
+            !Te &&
             !p() &&
             g.extractHint <= 0 &&
-            ((g.extractHint = 8), o.message(L10N.t("obj.extractLocked"), 3.5)),
+            ((g.extractHint = 8),
+            o.message(
+              L10N.t(runOn() ? "run.obj.locked" : "obj.extractLocked"),
+              3.5,
+            )),
           (g.extractHint = Math.max(0, g.extractHint - Y)));
       }
     }
@@ -85211,8 +85339,17 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       (n.events.emit("objective:done", { id: Y.id, index: g.cut, total: he }),
         o.setRelays && o.setRelays(g.cut, he),
         o.setPrompt && o.setPrompt(null),
-        i.addShake(0.18),
-        ctResupply(),
+        i.addShake(0.18));
+      if (runOn()) {
+        // in a run a siren is an optional rush: the director takes it from here
+        (RUN.onSiren(Y),
+          o.radio &&
+            o.radio(Vu.cut[Math.min(g.cut - 1, Vu.cut.length - 1)], 3.6),
+          o.setObjective(oe()),
+          J());
+        return;
+      }
+      (ctResupply(),
         de(g.cut - 1),
         g.cut >= he
           ? ((g.allCut = !0),
@@ -85237,6 +85374,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           relays: g.cut,
           total: g.relays.length,
           holdout: p() ? b() : null,
+          run: runOn() ? RUN.summary() : null,
         }),
         A("dead"));
     });
@@ -85256,14 +85394,23 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           (g.time < 270 ? 2 : g.time < 400 ? 1 : 0) +
           (he >= 0.5 ? 2 : he >= 0.3 ? 1 : 0) +
           (g.retries === 0 ? 1 : 0),
-        ne = V;
-      (l.setDebrief({
-        time: g.time,
-        accuracy: he,
-        kills: Y.kills || 0,
-        retries: g.retries,
-        rating: ne,
-      }),
+        // a run is rated on getting out (2) plus one for every siren shut off
+        ne = runOn() ? Math.min(5, 2 + g.cut) : V,
+        ye = null;
+      // (finish first: it settles what the run unlocked, which the summary reports)
+      (RUN && RUN.finish(),
+        (ye = runOn() ? RUN.summary() : null),
+        l.setDebrief({
+          time: g.time,
+          accuracy: he,
+          kills: Y.kills || 0,
+          retries: g.retries,
+          rating: ne,
+          level: ye ? ye.level : 0,
+          unlocked: ye ? ye.unlocked : [],
+          relays: g.cut,
+          total: g.relays.length,
+        }),
         A("complete"));
     }
     let D = 0;
@@ -85346,15 +85493,18 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
               : (E >= M && (l.locationCard(!1), (e.fade = 0), te()), !0)
           );
         case "playing": {
+          // the street's clock: slowed while the run's order tickets are up
+          let Yw = Y * (n.time.scale ?? 1);
           if (
-            ((g.time += Y),
+            ((g.time += Yw),
             (e.fade = j0(e.fade || 0, 0, 6, Y)),
             w > 0 && (w -= Y),
             r.pressed("pause"))
           )
             return (le(), !1);
           if ((ge(Y), C.state !== "playing")) return !0;
-          ($(Y),
+          ($(Yw),
+            runOn() && RUN.update(Yw, Y),
             p() && y(Y),
             (g.alertT = Math.max(0, g.alertT - Y)),
             (g.waveHot = Math.max(0, g.waveHot - Y)));
@@ -85364,8 +85514,9 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
             !g.queue.length &&
             g.waveHot < 24 &&
             (g.waveHot = 0);
-          let V =
-            g.allCut || g.queue.length || (g.waveHot > 0 && he > 0)
+          let V = runOn()
+            ? RUN.intensity(he)
+            : g.allCut || g.queue.length || (g.waveHot > 0 && he > 0)
               ? 1
               : g.alertT > 0 || (he > 0 && fe(26))
                 ? 0.6
@@ -85667,12 +85818,16 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     globalThis.__SALTLINE_THREE__ = ut;
     let ctHarbor = n.lvl === "harbor";
     ctHarbor || CT.apply();
+    document.documentElement.dataset.stage = ctHarbor ? "docks" : "street";
     let t = {
       THREE: ut,
       params: n,
+      // which stage this page is: the street, or the docks (the original harbor map)
+      stage: ctHarbor ? "docks" : "street",
       events: BM(),
       rng: su(+(n.seed || 4207)),
-      time: { t: 0, dt: 0, frame: 0, real: 0 },
+      // scale < 1 slows the street (enemies, explosives, run clock); the player keeps full speed
+      time: { t: 0, dt: 0, frame: 0, real: 0, scale: 1 },
       quality: UM(n.q || (n.shot ? "test" : "")),
       util: { mergeStatic: ig },
     };
@@ -85781,7 +85936,14 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           "level",
           async () =>
             ctHarbor
-              ? Pg(t)
+              ? Pg(t).then(async (lv) => {
+                  try {
+                    (await import("./chinatown/docks.js")).prepareDocks(t, lv);
+                  } catch (err) {
+                    console.error("[boot] docks stage setup failed: " + err);
+                  }
+                  return lv;
+                })
               : (await import("./chinatown/level.js")).createLevel(t),
           !0,
         ),
@@ -85922,8 +86084,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           x &&
             (h("player", m),
             h("weapon", m),
-            h("enemies", m),
-            h("explosives", m));
+            h("enemies", m * t.time.scale),
+            h("explosives", m * t.time.scale));
         if (
           t.weapon &&
           t.weapon.setWetness &&

@@ -53,6 +53,8 @@ export const TUNE = {
   corpseTime: 16,
   maxCorpses: 12,
   pool: { romero: 9, girl: 8, cop: 8, soldier: 5 },
+  // desktop presets keep more bodies ready: the run wants a real crowd in the late courses
+  poolLarge: { romero: 13, girl: 12, cop: 12, soldier: 6 },
 };
 
 const HEAD_R = 0.14;
@@ -235,6 +237,23 @@ export async function createZombies(G) {
     });
   }
 
+  // Elites and the boss smoulder: an emissive tint on that rig's own materials (a uniform,
+  // so no shader is recompiled). null puts the rig back to normal.
+  function setGlow(z, glow) {
+    for (const m of z.mats) {
+      if (!m.emissive) continue;
+      const base = (m.userData.baseGlow ??= [
+        m.emissive.r,
+        m.emissive.g,
+        m.emissive.b,
+        m.emissiveIntensity,
+      ]);
+      const g = glow || base;
+      m.emissive.setRGB(g[0], g[1], g[2]);
+      m.emissiveIntensity = g[3] ?? 1;
+    }
+  }
+
   function createZombie(template) {
     const rig = cloneSkinned(template.scene);
     shareSkeletons(template.scene, rig);
@@ -249,6 +268,7 @@ export async function createZombies(G) {
     rig.visible = false;
     const meshes = [];
     rig.traverse((o) => o.isMesh && meshes.push(o));
+    const mats = [...new Set(meshes.map((m) => m.material))];
     // The skeleton lives outside the scene graph. Skinning only needs each bone's world
     // matrix, so there is no reason for the renderer to walk ~65 bones per zombie every frame
     // (matrix update and culling traversal). Bones are re-posed here, and only on frames where
@@ -360,6 +380,17 @@ export async function createZombies(G) {
       lodT: 0,
       lodAcc: 0,
       screamT: 0,
+      // run director overrides: "" | "elite" | "boss", and per-spawn multipliers
+      rank: "",
+      reach: 1.5,
+      dmgMul: 1,
+      speedMul: 1,
+      glow: null,
+      // What the run's weapons are doing to this one (written by armory.js each frame):
+      // pin = seconds held in place (rate = how fast its animation still plays), fear = seconds
+      // it runs from the player, push = knock-back velocity, lift = height it has been thrown to.
+      ctl: { pin: 0, rate: 0.25, fear: 0, push: new V3(), lift: 0 },
+      mats,
       meshes,
       skel,
       holder,
@@ -375,11 +406,20 @@ export async function createZombies(G) {
         z.pos.y = G.physics.groundHeight(pos.x, pos.z, 1.5);
         z.vel.set(0, 0, 0);
         z.yaw = opts.yaw !== undefined ? opts.yaw : rand(0, Math.PI * 2);
-        z.hp = z.maxHp = tune.hp;
+        z.rank = opts.rank || "";
+        z.hp = z.maxHp = Math.round(tune.hp * (opts.hpMul || 1));
+        z.dmgMul = opts.dmgMul || 1;
+        z.speedMul = opts.speedMul || 1;
         z.home.copy(z.pos);
-        z.scale = rand(tune.scale[0], tune.scale[1]);
+        z.scale = rand(tune.scale[0], tune.scale[1]) * (opts.scale || 1);
+        z.reach = tune.reach * Math.max(1, opts.scale || 1);
         rig.scale.setScalar(z.scale);
-        z.runner = rng() < tune.runnerShare;
+        z.glow = opts.glow || null;
+        setGlow(z, z.glow);
+        z.ctl.pin = z.ctl.fear = z.ctl.lift = 0;
+        z.ctl.push.set(0, 0, 0);
+        z.runner =
+          opts.runner !== undefined ? !!opts.runner : rng() < tune.runnerShare;
         z.crawling = false;
         z.legDamage = 0;
         z.speed = 0;
@@ -472,6 +512,8 @@ export async function createZombies(G) {
     return z;
   }
 
+  if (G.quality && G.quality.name !== "low" && !(G.params && G.params.pool))
+    TUNE.pool = { ...TUNE.poolLarge };
   for (const [name, count] of Object.entries(TUNE.pool))
     for (let i = 0; i < count; i++) pool.push(createZombie(templates[name]));
 
@@ -520,7 +562,7 @@ export async function createZombies(G) {
 
   function place(z) {
     const r = z.rig;
-    const y = z.pos.y - z.sink;
+    const y = z.pos.y - z.sink + (z.alive ? z.ctl.lift : 0);
     if (
       r.position.x !== z.pos.x ||
       r.position.y !== y ||
@@ -708,7 +750,7 @@ export async function createZombies(G) {
     const engaged = z.mode === "engage";
     if (!engaged)
       return z.mode === "investigate" ? tune.walkSpeed : tune.walkSpeed * 0.6;
-    return z.runner ? tune.runSpeed : tune.walkSpeed;
+    return (z.runner ? tune.runSpeed : tune.walkSpeed) * z.speedMul;
   }
 
   function locomotionClip(z) {
@@ -729,7 +771,21 @@ export async function createZombies(G) {
     z.staggerT -= dt;
     z.wantSpeed = 0;
 
-    if (z.screamT > 0) {
+    const ctl = z.ctl;
+    const held = ctl.pin > 0 || ctl.lift > 0.02;
+    if (held) {
+      // nailed down, sealed or in the air: nothing it wants happens
+      z.wantSpeed = 0;
+      z.attackT = -1;
+      z.screamT = 0;
+    } else if (ctl.fear > 0 && player) {
+      // frightened: straight away from the player, as fast as it can go
+      z.attackT = -1;
+      tmp.d.subVectors(z.pos, player.pos).setY(0);
+      if (tmp.d.lengthSq() < 1e-4) tmp.d.set(1, 0, 0);
+      tmp.d.normalize().multiplyScalar(6).add(z.pos);
+      follow(z, tmp.d, dt, tune.runSpeed);
+    } else if (z.screamT > 0) {
       z.screamT -= dt;
       if (player) steer(z, player.pos, dt, 0);
       z.wantSpeed = 0;
@@ -749,8 +805,8 @@ export async function createZombies(G) {
             ((player.pos.x - z.pos.x) * z.fwd.x +
               (player.pos.z - z.pos.z) * z.fwd.z) /
             (d || 1);
-          if (d < tune.reach + 0.55 && dy < 1.7 && facing > 0.2) {
-            player.damage(tune.damage, z.pos);
+          if (d < z.reach + 0.55 && dy < 1.7 && facing > 0.2) {
+            player.damage(tune.damage * z.dmgMul, z.pos);
             emit("enemy:melee", { enemy: z, pos: z.pos, type: z.type });
           }
         }
@@ -768,15 +824,19 @@ export async function createZombies(G) {
       if (player && player.alive === false) {
         z.mode = "patrol";
         z.home.copy(z.pos);
-      } else if (d < tune.reach && dy < 1.6) {
+      } else if (d < z.reach && dy < 1.6) {
         steer(z, target, dt, 0);
         z.wantSpeed = 0;
         if (z.cooldown <= 0 && z.staggerT <= 0) {
           if (z.crawling) {
             // crawlers just bite at ankle height, no wind-up clip
             z.cooldown = rand(tune.cooldown[0], tune.cooldown[1]) + 0.3;
-            player.damage(tune.damage * 0.7, z.pos);
+            player.damage(tune.damage * 0.7 * z.dmgMul, z.pos);
             emit("enemy:melee", { enemy: z, pos: z.pos, type: z.type });
+          } else if (z.rank === "bloater") {
+            // close enough: it goes off (the run turns the death into a blast)
+            z.damage(z.hp + 1, z.pos, null, "body");
+            return;
           } else {
             z.attackT = 0;
             z.attackHit = false;
@@ -842,10 +902,17 @@ export async function createZombies(G) {
       } else z.stuckT = 0;
     }
 
+    if (ctl.push.lengthSq() > 0.01) {
+      z.vel.set(ctl.push.x, -2, ctl.push.z);
+      G.physics.moveCapsule(z.pos, z.vel, dt, 0.3, 1.7, true);
+      ctl.push.multiplyScalar(Math.exp(-6 * dt));
+    } else ctl.push.set(0, 0, 0);
+
     // ---- animation ----
     if (z.attackT < 0 && z.screamT <= 0) {
       if (z.speed > 0.12 || z.crawling) {
-        const name = locomotionClip(z);
+        const name =
+          ctl.fear > 0 && !held && !z.crawling ? "run" : locomotionClip(z);
         const native = clips[name].userData.speed || 1;
         // walk mocap is a very slow drag, so let it play faster and accept a little slide
         const slide = name === "walk" ? 0.55 : name === "crawl" ? 0.7 : 1;
@@ -855,7 +922,7 @@ export async function createZombies(G) {
     }
 
     place(z);
-    tickAnimation(z, dt);
+    tickAnimation(z, ctl.pin > 0 ? dt * ctl.rate : dt);
     if (z.dirty) sync(z);
 
     // ---- sound ----
@@ -954,7 +1021,13 @@ export async function createZombies(G) {
       if (old.active && !old.alive && old.deadT < TUNE.corpseTime)
         old.deadT = TUNE.corpseTime;
     }
-    emit("enemy:killed", { enemy: z, pos: z.pos, type: z.type, part });
+    emit("enemy:killed", {
+      enemy: z,
+      pos: z.pos,
+      type: z.type,
+      part,
+      rank: z.rank,
+    });
   }
 
   function updateCorpse(z, dt) {
@@ -1105,16 +1178,19 @@ export async function createZombies(G) {
       emit("enemy:spawn", { enemy: z });
       return z;
     },
-    raycast(origin, dir, maxDist = 300) {
+    // skip: optional Set of zombies the ray passes through (piercing shots)
+    raycast(origin, dir, maxDist = 300, skip = null) {
       let out = null;
       for (const z of list) {
-        if (!z.alive) continue;
+        if (!z.alive || (skip && skip.has(z))) continue;
+        const sc = z.scale > 1.3 ? z.scale : 1;
         const dx = z.pos.x - origin.x;
-        const dy = z.pos.y + 0.9 - origin.y;
+        const dy = z.pos.y + 0.9 * sc - origin.y;
         const dz = z.pos.z - origin.z;
         const along = dx * dir.x + dy * dir.y + dz * dir.z;
-        if (along < -1.5 || along > maxDist + 1.5) continue;
-        if (dx * dx + dy * dy + dz * dz - along * along > 2.6) continue;
+        if (along < -1.5 * sc || along > maxDist + 1.5 * sc) continue;
+        if (dx * dx + dy * dy + dz * dz - along * along > 2.6 * sc * sc)
+          continue;
         // the pose on screen right now (the renderer updated the bones after our update)
         readBones(z);
         if (!out)

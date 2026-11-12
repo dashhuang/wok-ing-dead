@@ -58,8 +58,20 @@ function detect() {
   return "en";
 }
 
+// A place (a stage) may word a line its own way: "radio.intro@docks" is used instead of
+// "radio.intro" while that place is set.
+let variant = "";
+export function setVariant(v) {
+  variant = v ? "@" + v : "";
+}
+
 export function t(key, vars) {
-  let s = current.dict[key];
+  let s;
+  if (variant) {
+    s = current.dict[key + variant];
+    if (s == null) s = en[key + variant];
+  }
+  if (s == null) s = current.dict[key];
   if (s == null) s = en[key];
   if (s == null) return key;
   if (vars)
