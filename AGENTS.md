@@ -92,10 +92,14 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
   或用户要求时才跑，在本机或按上文在 CI 上跑。
 - **必须用真实鼠标点击和按键走入口**，不能只靠 `?autostart=1` 或直接调用 `G.game.start()`——曾经标题页按钮被透明元素挡住，
   脚本直达的检查全部通过，用户一上手就点不动。界面改动走一遍：标题页 → 开镬 → 选主菜 → 数字键换武器 → Esc 暂停 → 设置里换语言 → 继续 →
-  死亡重试 → 通关再开 → 换分店，
+  死亡重试 → 通关再开（第二关码头暂时没有在用，不用验证），
   桌面、手机竖屏、手机横屏各看一次，确认按钮没有被别的元素盖住。
 - 手动验证用 `npm run build` + `npx vite preview --port 5185` 之类的独立端口，不要用开发服务器：别的会话改文件会触发热重载打断测试。
   端口约定：dev 5173、arsenal 5311（测试 5312）、e2e 5199；CI 在同一台 Mac 上跑测试时用 5399 / 5412，不会和本地冲突。
+- **这台 Mac 有人在用：浏览器自动化不能真的锁定鼠标。** Chromium 在 macOS 上执行 `requestPointerLock()` 会移动系统光标（无头模式也会），
+  用户的鼠标会乱跳。用 Playwright 默认的无头浏览器（headless shell，锁定会失败，不影响光标），或在页面里注入
+  `tests/support/fake-pointer-lock.js`（`page.addInitScript({ path })`，试验场的测试已经这样做）；不要用系统 Chrome 开有窗口的浏览器做验证。
+  需要真实锁定的测试只在隔离的机器上跑（Linux 虚拟机或容器，`REAL_POINTER_LOCK=1`）。
 - 后台标签页会被浏览器限帧，自动化里的后台帧率不代表真实性能；性能对比用 `?bench=1`、`?q=low`。
 - 调试钩子：`window.__G`（`game.state`、`player`、`game.debugCut()`）、`__ready`、`__fatal`、`__errors`、`__stats()`；
   `?cam=x,y,z,lx,ly,lz&noweapon=1` 固定机位截图，`?lang=` 指定语言。完整列表见 README「调试」。

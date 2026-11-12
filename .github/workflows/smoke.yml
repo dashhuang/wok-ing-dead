@@ -33,19 +33,23 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
+      # No `cache: npm` here: on this Mac it would upload and restore the whole user npm
+      # cache (~900 MB) every run, costing ~8 minutes; the local cache is already warm.
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
-          cache: npm
       - run: npm ci
       - run: npm run build
       - name: Install Chromium
         run: npx playwright install chromium
-      - name: Title → deploy → arm → level up → pause → die → retry; docks
+      - name: Title (desktop + phones) → deploy → arm → level up → pause → die → retry
         run: npm run test:e2e
       - name: Weapon lab (every form fires; clicks, keys, reloads, phone taps)
         if: ${{ !cancelled() && hashFiles('arsenal/playwright.config.js') != '' }}
         run: npm run arsenal:test
+      - name: Call out flaky tests
+        if: ${{ !cancelled() }}
+        run: node scripts/report-flaky.mjs test-results/results.json arsenal/test-results/results.json
       - name: Upload report
         if: ${{ !cancelled() && failure() }}
         uses: actions/upload-artifact@v4

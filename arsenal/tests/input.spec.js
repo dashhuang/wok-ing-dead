@@ -1,7 +1,7 @@
 // The lab driven the way a person drives it: real mouse clicks and key presses, no calls into
 // the lab to make things happen (it is only read to see what happened). A button that is
 // covered by something else fails here, where a scripted call would pass.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
 
 const W = 1440,
   H = 810;

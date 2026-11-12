@@ -1,6 +1,6 @@
 // Every weapon in every form: fire, use the special move, fire again (which reloads the ones
 // that run dry). Nothing may throw, and every form has to hurt something.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
 
 const FORMS = [
   ["base", 1],

@@ -1,7 +1,9 @@
-// Plays the real entry path with real mouse clicks and key presses: title → deploy → choose
-// a weapon → fire → level up → pause → resume → die → retry, then the second branch (the
-// docks). Shortcuts like ?autostart skip the title page and once hid a fully blocked Deploy
+// Plays the real entry path with real mouse clicks and key presses: title (checked at desktop
+// and phone sizes) → deploy → choose a weapon → fire → level up → pause → resume → die →
+// retry. Shortcuts like ?autostart skip the title page and once hid a fully blocked Deploy
 // button, so this test must keep going through the menus.
+// Each test loads the whole street (about a minute), so checks share a page where they can.
+// The second stage (the docks) is not covered yet: it is not in use.
 import { test, expect } from "@playwright/test";
 
 const state = (page) => page.evaluate(() => window.__G?.game?.state);
@@ -138,12 +140,22 @@ test("a player can start, arm, level up, pause, die and retry with real input", 
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(e.message));
 
-  await page.goto("/?lang=en");
+  await page.goto("/?lang=zh-CN");
   await waitForTitle(page);
   await expectButtonsReachable(page);
 
-  // Title → mission.
-  await clickAct(page, "deploy");
+  // The title page at phone sizes, on the same page load.
+  for (const viewport of [
+    { width: 390, height: 844 }, // portrait
+    { width: 844, height: 390 }, // landscape
+    { width: 1280, height: 720 }, // back to desktop
+  ]) {
+    await page.setViewportSize(viewport);
+    await expectButtonsReachable(page, 30_000);
+  }
+
+  // Title → mission. After a resize the renderer rebuilds its buffers, so allow longer.
+  await clickAct(page, "deploy", 60_000);
   await expect.poll(() => state(page)).toBe("playing");
 
   // The first ticket is a weapon; holding fire spends its rounds.
@@ -268,9 +280,9 @@ test("the lab's address parameters arm a real run", async ({ page }) => {
 });
 
 // The firing range is the game itself with the timeline off (src/chinatown/range.js): its
-// panel is worked with real clicks, and its state comes back from the address after a reload.
+// panel is worked with real clicks, and its state is kept in the address (the page opens
+// set up the way the address says, which is how it comes back after a reload).
 test("the firing range sets a run up by hand", async ({ page }) => {
-  test.setTimeout(480_000); // the street is built twice: once to open, once for the reload
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(e.message));
   const ready = () =>
@@ -313,6 +325,7 @@ test("the firing range sets a run up by hand", async ({ page }) => {
         form: a.weapon && a.current ? [a.weapon.branch, a.weapon.level] : null,
         spice: R.state.spice,
         mode: R.range.opt.z,
+        ammo: R.range.opt.ammo,
         standing: alive.filter((z) => z.passive).length,
         ranks: alive
           .map((z) => z.rank)
@@ -326,16 +339,29 @@ test("the firing range sets a run up by hand", async ({ page }) => {
       };
     });
 
-  await page.goto("/?range=1&lang=zh-CN");
+  // the address sets it up: a weapon at a level, a seasoning, who is on the street, the
+  // ammunition. No title, no first ticket, no timeline.
+  await page.goto(
+    "/?range=1&lang=zh-CN&w=smg&lv=2&spice=fire:1&z=advance&ammo=meal",
+  );
   await ready();
-  // no title, no first ticket, no timeline: targets standing in the street and the sidearm
-  await expect.poll(async () => (await range()).standing).toBeGreaterThan(3);
+  await expect.poll(async () => (await range()).form).toEqual(["base", 2]);
   expect(await range()).toMatchObject({
-    hand: "pistol",
-    mode: "stand",
+    hand: "smg",
+    spice: { fire: 1 },
+    mode: "advance",
+    ammo: "meal",
+    standing: 0,
     invulnerable: true,
   });
   expect(await tickets(page)).toBeNull();
+  await press('[data-spice="fire"]');
+  await press('[data-spice="fire"]');
+  await press('[data-spice="fire"]'); // past the third level it comes off
+  await press('[data-ammo="free"]');
+  await press('[data-z="stand"]');
+  await expect.poll(async () => (await range()).standing).toBeGreaterThan(3);
+  expect(await range()).toMatchObject({ spice: {}, ammo: "free" });
 
   // a weapon, its form and level, two seasonings
   await press('[data-w="shotgun"]');
@@ -378,18 +404,15 @@ test("the firing range sets a run up by hand", async ({ page }) => {
   await expect.poll(async () => (await range()).alive).toBeGreaterThan(2);
   expect((await range()).state).toBe("playing");
 
-  // the address carries the set-up: after a reload the range is as it was left
-  expect(page.url()).toContain("w=shotgun");
-  expect(page.url()).toContain("spice=vinegar:2,chili:1");
-  expect(page.url()).toContain("z=horde");
-  await page.reload();
-  await ready();
-  await expect.poll(async () => (await range()).form).toEqual(["a", 5]);
-  expect(await range()).toMatchObject({
-    hand: "shotgun",
-    spice: { vinegar: 2, chili: 1 },
-    mode: "horde",
-  });
+  // and the address has followed every click
+  const url = decodeURIComponent(page.url());
+  expect(url).toContain("w=shotgun");
+  expect(url).toContain("lv=5");
+  expect(url).toContain("b=a");
+  expect(url).toContain("spice=vinegar:2,chili:1");
+  expect(url).toContain("z=horde");
+  expect(url).toContain("course=mains");
+  expect(url).not.toContain("ammo=");
 
   const runtime = await page.evaluate(() => ({
     fatal: window.__fatal,
@@ -398,63 +421,4 @@ test("the firing range sets a run up by hand", async ({ page }) => {
   expect(runtime.fatal).toBeNull();
   expect(runtime.errors).toEqual([]);
   expect(pageErrors).toEqual([]);
-});
-
-test("the docks branch opens from the title and plays", async ({ page }) => {
-  const pageErrors = [];
-  page.on("pageerror", (e) => pageErrors.push(e.message));
-
-  // (?unlock=all stands in for having cleared the street once)
-  await page.goto("/?lang=en&unlock=all");
-  await waitForTitle(page);
-  expect(await page.evaluate(() => window.__G.stage)).toBe("street");
-
-  // The other branch is another map: clicking it loads the page again at its address.
-  await clickAct(page, "branch:docks");
-  await page.waitForURL(/lvl=harbor/);
-  await waitForTitle(page);
-  expect(await page.evaluate(() => window.__G.stage)).toBe("docks");
-  await expectButtonsReachable(page);
-
-  await clickAct(page, "deploy");
-  await expect.poll(() => state(page)).toBe("playing");
-  await chooseFirstWeapon(page, 1);
-  // supplies and weapon cases are out, and the way out can be walked to
-  const run = await page.evaluate(() => {
-    const G = window.__G;
-    const out = G.level.extraction.pos;
-    return {
-      crates: G.run.state.caches.length,
-      cases: G.run.pickups.cases.length,
-      wayOut: !!G.physics.nav.findPath(G.level.playerStart.pos, out),
-    };
-  });
-  expect(run).toEqual({ crates: 8, cases: 5, wayOut: true });
-
-  const runtime = await page.evaluate(() => ({
-    fatal: window.__fatal,
-    errors: window.__errors,
-  }));
-  expect(runtime.fatal).toBeNull();
-  expect(runtime.errors).toEqual([]);
-  expect(pageErrors).toEqual([]);
-});
-
-test("title buttons are reachable on phones", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/?lang=zh-CN");
-  await waitForTitle(page);
-  for (const viewport of [
-    { width: 390, height: 844 }, // portrait
-    { width: 844, height: 390 }, // landscape
-  ]) {
-    await page.setViewportSize(viewport);
-    await expectButtonsReachable(page);
-  }
-
-  // The docks stay shut until the street has been cleared once: a tap explains, nothing loads.
-  await clickAct(page, "branch:docks", 60_000);
-  await expect(page.locator('[data-f="placenote"]')).toBeVisible();
-  await expect(page.locator('[data-f="placenote"]')).not.toBeEmpty();
-  expect(page.url()).not.toContain("lvl=harbor");
 });

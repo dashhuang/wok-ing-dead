@@ -12,7 +12,13 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [["list"], ["github"]] : "list",
+  reporter: process.env.CI
+    ? [
+        ["list"],
+        ["github"],
+        ["json", { outputFile: "test-results/results.json" }],
+      ]
+    : "list",
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
     trace: "retain-on-failure",
@@ -24,8 +30,9 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1440, height: 810 },
-        // the full browser in headless mode, not the cut-down headless shell: the range
-        // captures the mouse (pointer lock), which the shell does not do
+        // the full browser in headless mode, not the cut-down headless shell. On macOS the
+        // page gets a stand-in for the mouse lock (see tests/fixtures.js): a real lock moves
+        // the system cursor of whoever is using the Mac
         channel: "chromium",
         launchOptions: {
           // WebGL 2 on the GPU where there is one; software rendering on Linux CI and containers
