@@ -86,7 +86,8 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `src/chinatown/zombies.js` | 僵尸：骨骼动画、寻路、感知、近战、分部位命中；精英、关底、胀尸是带倍率和自发光的变体；受定身、减速、恐惧、击退的控制 |
 | `src/chinatown/run.js` | 套餐（肉鸽关卡）的全部规则：时间线刷怪、镬气与调料、弹药掉落与补给箱、武器箱、红包与岔路、精英、关底、分店差异、解锁 |
 | `src/chinatown/runtune.js` | 套餐的全部数值 `RUN`（纯数据，武器试验场也读它） |
-| `src/chinatown/zombietune.js` | 僵尸的数值表（纯数据，试验场靶场里的僵尸也读它） |
+| `src/chinatown/zombietune.js` | 僵尸的数值表（纯数据，试验场的测试台也读它） |
+| `src/chinatown/range.js` | 靶场（`/?range=1`）：套餐关掉时间线，加一块调试面板。见下面「调试」 |
 | `src/chinatown/loadout.js` | 一局里带着的武器和四种弹药池：换武器（数字键按捡到的顺序）、等级与形态、打空自动换枪 |
 | `src/chinatown/wheel.js` | 武器轮盘：按住切枪键时把带着的武器排成一圈，鼠标或右摇杆指向、触屏点选 |
 | `src/chinatown/armory.js` | 把 `arsenal/` 的十二把武器接进游戏：模型和双手画在武器图层，特效亮度按场景校正，提前把每把画一遍免得第一次上手卡顿 |
@@ -102,7 +103,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `.github/` | CI、Dependabot、PR 和 issue 模板 |
 | `public/assets/` | 贴图、道具、僵尸、字体（`fonts/ui` 界面字体，`fonts/world` 场景贴图字体）、音效 |
 | `scripts/assets/` | 素材下载与转换脚本、素材清单；`build-ui-fonts.py` 按语言包生成界面字体子集 |
-| `arsenal/` | 肉鸽武器的试验场（模型、特效、战斗逻辑、靶场），可以单独运行；游戏本体直接导入其中的武器、特效和战斗模块，所以它必须和游戏一起发布。靶场和本体跑同一份规则，靶场里能叠本体的调料、按本体的弹药池结算。见 [arsenal/README.md](arsenal/README.md) 和 [武器设计](docs/weapons-roguelike.md) |
+| `arsenal/` | 肉鸽武器的试验场（模型、特效、战斗逻辑、靶场），可以单独运行；游戏本体直接导入其中的武器、特效和战斗模块，所以它必须和游戏一起发布。试验场只管看模型和握法；**靶场在游戏里**（`/?range=1`），试验场的「靶场」按钮会带着当前武器直接打开它。见 [arsenal/README.md](arsenal/README.md) 和 [武器设计](docs/weapons-roguelike.md) |
 | `upstream/` | 提取时的原件和来源记录，不应直接编辑 |
 
 实现导读见 [架构与代码导航](docs/architecture.md)，素材来源和许可见 [素材来源与许可](docs/assets.md)。
@@ -119,6 +120,13 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 - `window.__G.run`：套餐关卡。`state` 是当前局的状态，`tune` 是全部数值，`loadout` 是武器和弹药；`debug.addXp(n)`、
   `debug.setTime(秒)`、`debug.envelope()`、`debug.pack("heavy")`、`debug.give("flamer")`、`debug.set("shotgun", 5, "b")`
   用来直接造出升级、关底、红包、弹药包、新武器，以及指定等级和形态的武器。`/?pool=1` 在电脑上也用手机的 30 只僵尸池。
+- `/?range=1`：**靶场**。就是套餐本身，只是关掉了时间线，换成左边一块面板手动摆（`src/chinatown/range.js`）：
+  街道、僵尸、武器、调料、弹药、画面全是真的，所以在这里试到的就是玩到的。面板能把任意一把武器（含 LK-9、LK-4）调到任意等级和形态、
+  给任意调料加层、弹药选「无限」或「套餐」、让僵尸「站桩 / 逼近 / 尸潮（按前菜、热炒、大菜、猛火的配比）」、单独召行尸、奔尸、重型、
+  胀尸、精英、关底，看每秒伤害、击杀、受伤和耗弹；最下面的「数值」能在游戏运行时直接改共用的数值表（状态与反应、等级倍率、僵尸、弹药、
+  调料、精英 / 关底 / 胀尸、特效亮度），「复制改动」列出改了什么、该写回哪个文件。Tab 松开 / 收回鼠标（不会暂停）。
+  面板的状态记在地址里（`&w=&b=&lv=&spice=&ammo=meal&z=stand|advance|horde|none&course=&god=0&tickets=1`），刷新回到原样——
+  开发服务器每次存盘都会刷新，所以改代码、改数值表之后直接回到同一个场面。靶场不记战绩、不解锁。
 - `/?w=flamer&b=a&lv=5&spice=chili:2,fire:3`：和武器试验场同一组地址参数。带着这把武器的这个形态（`b` 是 `a` / `b`，`lv` 1–5）
   和这些调料（`名字:层数`，名字见 `runtune.js` 的 `RUN.spices`）开局，跳过开局的三选一。在试验场里调好的配置换个地址就能进真实关卡试。
 - `/?lang=ja`：指定界面语言（不写入存储）。

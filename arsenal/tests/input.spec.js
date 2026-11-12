@@ -68,6 +68,12 @@ test("showcase and range answer to clicks and keys", async ({ page }) => {
   expect((await state(page)).level).toBe(1);
   await click(page, '.branch[data-b="a"]');
   expect(await state(page)).toMatchObject({ branch: "a", level: 3 });
+  // "靶场" leaves for the game's own range, taking the weapon, its form and level with it
+  await page.evaluate(() => (window.__lab.noNavigate = true));
+  await click(page, "#btn-range");
+  await expect
+    .poll(() => page.evaluate(() => window.__lab.rangeUrl || ""))
+    .toContain("?range=1&w=revolver&lv=3&b=a");
   await click(page, 'button[data-act="rules"]');
   expect((await state(page)).rules).toBe(true);
   await page.keyboard.press("Escape");

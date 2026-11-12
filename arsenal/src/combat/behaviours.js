@@ -1,6 +1,8 @@
 // What each weapon does when it fires, in each of its three forms (base / 甲 a / 乙 b) and,
-// where it changes what you see, at level 5 (ctx.cap). The numbers come from data/weapons.js;
-// this file turns them into rays, projectiles, statuses and effects.
+// where it changes what you see, at level 5 (ctx.cap). The base weapon's headline numbers —
+// damage, pellets, range, splash, weak-spot multiplier, reach: the ones its card shows — are
+// read from data/weapons.js (F.<id> below), so the card cannot say one thing and the weapon do
+// another. What a form changes is written here, next to what it does.
 //
 // A behaviour is { spec(b, lv), fire?, stream?, tick?, swing?, alt?, frame?, hint? }.
 //   spec   -> { kind: "gun" | "stream" | "melee", rpm, mag, reload, casing, charge, tickRate, swingTime, hitAt, ... }
@@ -11,6 +13,10 @@
 //   frame(ctx, dt)       every frame while equipped (pilot lights, marks, pools)
 import * as THREE from "three";
 import { C, P, rand, srand, coneDir, randDir } from "../fx/core.js";
+import { WEAPONS } from "../data/weapons.js";
+
+// the design data of each weapon's fire: F.shotgun.damage, F.lever.range, ...
+const F = Object.fromEntries(WEAPONS.map((w) => [w.id, w.fire]));
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const UP = V(0, 1, 0);
@@ -209,12 +215,12 @@ export const BEHAVIOURS = {
           light: 40,
         });
         const knocked = new Set();
-        for (let i = 0; i < 9; i++) {
+        for (let i = 0; i < F.shotgun.pellets; i++) {
           ctx.hitscan({
-            dir: ctx.spread(0.045),
-            range: 34,
-            falloff: [10, 30, 0.25],
-            damage: 15,
+            dir: ctx.spread(F.shotgun.spread),
+            range: F.shotgun.range,
+            falloff: F.shotgun.falloff,
+            damage: F.shotgun.damage,
             tracer: { width: 0.014, color: C(0xffd9a0, 2.2), len: 5 },
             impact: { scale: 0.55 },
             onHit: (z) => knocked.add(z),
@@ -293,9 +299,9 @@ export const BEHAVIOURS = {
         });
         ctx.hitscan({
           dir: ctx.spread(0.016),
-          range: 60,
-          falloff: [25, 55, 0.5],
-          damage: 14,
+          range: F.smg.range,
+          falloff: F.smg.falloff,
+          damage: F.smg.damage,
           element: "shock",
           tracer: { width: 0.03, color: C(0x6fd8ff, 5), core: [4, 6, 8] },
           impact: { pal: "shock", scale: 0.8 },
@@ -322,9 +328,9 @@ export const BEHAVIOURS = {
         });
         ctx.hitscan({
           dir: ctx.spread(ctx.b === "a" ? 0.022 * (1 - 0.7 * spin) : 0.02),
-          range: 60,
-          falloff: [25, 55, 0.5],
-          damage: 14,
+          range: F.smg.range,
+          falloff: F.smg.falloff,
+          damage: F.smg.damage,
           tracer: { width: 0.016, color: C(0xffd9a0, 3) },
           impact: { scale: 0.6 },
         });
@@ -353,10 +359,10 @@ export const BEHAVIOURS = {
       });
       ctx.hitscan({
         dir,
-        range: 120,
+        range: F.revolver.range,
         pierce: seal ? 1 : 0,
-        damage: 85,
-        headMul: 3,
+        damage: F.revolver.damage,
+        headMul: F.revolver.head,
         forceHead: o.forceHead,
         knock: 0.9,
         stagger: 0.4,
@@ -496,9 +502,9 @@ export const BEHAVIOURS = {
         });
         const r = ctx.hitscan({
           dir,
-          range: 200,
-          pierce: 1,
-          damage: 140,
+          range: F.lever.range,
+          pierce: F.lever.pierce,
+          damage: F.lever.damage,
           knock: 1,
           stagger: 0.5,
           tracer: charged
@@ -569,9 +575,9 @@ export const BEHAVIOURS = {
         E.muzzle(m, dir, { scale: 1.25, sparks: 8, smoke: 4, light: 34 });
         ctx.hitscan({
           dir,
-          range: 200,
-          pierce: 1,
-          damage: 140,
+          range: F.lever.range,
+          pierce: F.lever.pierce,
+          damage: F.lever.damage,
           knock: 1,
           stagger: 0.5,
           tracer: { width: 0.035, color: C(0xffe0b0, 4), smoke: 0.045 },
@@ -695,7 +701,7 @@ export const BEHAVIOURS = {
             },
             onTick: (p, dt) => E.embers(p.pos, dt, 60),
             onHit(p, h) {
-              ctx.hit(h.z, 22, {
+              ctx.hit(h.z, F.nailgun.damage, {
                 dir: h.dir,
                 point: h.point,
                 head: h.head,
@@ -744,7 +750,7 @@ export const BEHAVIOURS = {
             radius: 0.035,
             trail: { span: 0.06, width: 0.012, color: C(0xe8ecf0, 1.2) },
             onHit(p, h) {
-              ctx.hit(h.z, 22, {
+              ctx.hit(h.z, F.nailgun.damage, {
                 dir: h.dir,
                 point: h.point,
                 head: h.head,
@@ -772,7 +778,11 @@ export const BEHAVIOURS = {
           radius: 0.03,
           trail: { span: 0.05, width: 0.01, color: C(0xe8ecf0, 1.1) },
           onHit(p, h) {
-            ctx.hit(h.z, 22, { dir: h.dir, point: h.point, head: h.head });
+            ctx.hit(h.z, F.nailgun.damage, {
+              dir: h.dir,
+              point: h.point,
+              head: h.head,
+            });
             proj.stick(p, h.z, 8, 0.03);
             return "stop";
           },
@@ -807,7 +817,7 @@ export const BEHAVIOURS = {
       const { E, fx } = ctx;
       const blue = ctx.b === "a";
       const m = ctx.muzzle();
-      const dir = ctx.aimFrom(m, blue ? 14 : 9);
+      const dir = ctx.aimFrom(m, blue ? 14 : F.flamer.range);
       ctx.st.hot = (ctx.st.hot || 0) + dt;
       const white = blue && ctx.cap && ctx.st.hot > 2;
       E.flame(
@@ -822,7 +832,11 @@ export const BEHAVIOURS = {
               rate: 150,
               scale: white ? 1.5 : 1,
             }
-          : { range: 9, cone: 0.2, rate: ctx.b === "b" ? 120 : 110 },
+          : {
+              range: F.flamer.range,
+              cone: F.flamer.cone,
+              rate: ctx.b === "b" ? 120 : 110,
+            },
       );
       if (blue) {
         // the lance itself: a tight blue-white jet all the way to where it lands
@@ -905,16 +919,16 @@ export const BEHAVIOURS = {
     tick(ctx) {
       const blue = ctx.b === "a";
       const m = ctx.muzzle();
-      const dir = ctx.aimFrom(m, blue ? 14 : 9);
+      const dir = ctx.aimFrom(m, blue ? 14 : F.flamer.range);
       const white = blue && ctx.cap && ctx.st.hot > 2;
       ctx.st.n = (ctx.st.n || 0) + 1;
       for (const h of ctx.targets.inCone(
         ctx.aim.origin,
         dir,
-        blue ? 14 : 9,
-        blue ? 0.07 : 0.2,
+        blue ? 14 : F.flamer.range,
+        blue ? 0.07 : F.flamer.cone,
       )) {
-        let d = 8 * (blue ? 1.6 : 1);
+        let d = F.flamer.damage * (blue ? 1.6 : 1);
         if (blue && h.z.st.burn > 0) d *= 1.5;
         if (white && h.z.type === "brute") d *= 1.8;
         ctx.hit(h.z, d, {
@@ -1213,7 +1227,7 @@ export const BEHAVIOURS = {
       ctx.kick(0.9);
       ctx.shake(0.1);
       const direct = (p, h) => {
-        ctx.hit(h.z, 60, {
+        ctx.hit(h.z, F.firework.damage, {
           dir: h.dir,
           point: h.point,
           head: h.head,
@@ -1224,7 +1238,7 @@ export const BEHAVIOURS = {
       };
       const boom = (pos) => {
         burst(pos);
-        splash(ctx, pos, 3.0, 80, {
+        splash(ctx, pos, F.firework.radius, F.firework.splash, {
           element: "fire",
           status: "fire",
           knock: 1.2,
@@ -1366,9 +1380,9 @@ export const BEHAVIOURS = {
     },
     targetsOf(ctx) {
       // the arc grabs whatever is nearest the crosshair, then jumps on from there
-      const jumps = ctx.b === "a" ? 6 : 2;
+      const jumps = ctx.b === "a" ? 6 : F.arc.chain;
       const first = ctx.targets
-        .inCone(ctx.aim.origin, ctx.aim.dir, 20, 0.16)
+        .inCone(ctx.aim.origin, ctx.aim.dir, F.arc.range, 0.16)
         .sort((p, q) => ctx.angleTo(p.z.chest) - ctx.angleTo(q.z.chest))[0];
       if (!first) return [];
       const chain = [first.z];
@@ -1487,7 +1501,7 @@ export const BEHAVIOURS = {
       chain.forEach((z, i) => {
         if (!z.alive) return;
         const before = z.alive;
-        ctx.hit(z, 8 * (ctx.b === "a" ? 1 + 0.1 * i : 1), {
+        ctx.hit(z, F.arc.damage * (ctx.b === "a" ? 1 + 0.1 * i : 1), {
           dir: _a.subVectors(z.chest, ctx.aim.origin).normalize().clone(),
           element: "shock",
           blood: false,
@@ -1737,7 +1751,7 @@ export const BEHAVIOURS = {
               dir: h.dir,
               point: h.point,
               head: h.head,
-              headMul: 2.5,
+              headMul: F.crossbow.head,
             });
             const rec = proj.stick(p, h.z, 0.6, 0.08);
             const z = h.z;
@@ -1776,7 +1790,7 @@ export const BEHAVIOURS = {
               dir: h.dir,
               point: h.point,
               head: h.head,
-              headMul: 2.5,
+              headMul: F.crossbow.head,
               element: "seal",
             });
             proj.stick(p, h.z, 10, 0.08);
@@ -1796,11 +1810,11 @@ export const BEHAVIOURS = {
           kind: "bolt",
           trail: { span: 0.08, width: 0.012, color: C(0xe8e4d8, 0.9) },
           onHit(p, h) {
-            ctx.hit(h.z, 52, {
+            ctx.hit(h.z, F.crossbow.damage, {
               dir: h.dir,
               point: h.point,
               head: h.head,
-              headMul: 2.5,
+              headMul: F.crossbow.head,
             });
             proj.stick(p, h.z, 10, 0.08);
             return "stop";
@@ -1976,7 +1990,7 @@ export const BEHAVIOURS = {
         },
         onHit(p, h) {
           const z = h.z;
-          ctx.hit(z, 38, {
+          ctx.hit(z, F.talisman.damage, {
             dir: h.dir,
             point: h.point,
             head: h.head,
@@ -2081,7 +2095,7 @@ export const BEHAVIOURS = {
       for (const h of ctx.targets.inCone(
         ctx.aim.origin,
         ctx.aim.dir,
-        2.9,
+        F.coinsword.reach,
         1.05,
       )) {
         any = true;
@@ -2090,7 +2104,7 @@ export const BEHAVIOURS = {
           .setY(0)
           .normalize()
           .clone();
-        ctx.hit(h.z, 70 * (last ? 1.5 : 1), {
+        ctx.hit(h.z, F.coinsword.damage * (last ? 1.5 : 1), {
           dir,
           point: h.z.chest,
           element: "seal",
@@ -2364,7 +2378,7 @@ export const BEHAVIOURS = {
       for (const h of ctx.targets.inCone(
         ctx.aim.origin,
         ctx.aim.dir,
-        up ? 4.2 * (o.wide || 1) : 3.7,
+        up ? 4.2 * (o.wide || 1) : F.guandao.reach,
         up ? 0.8 * (o.wide || 1) : 1.5,
       )) {
         any = true;
@@ -2373,7 +2387,7 @@ export const BEHAVIOURS = {
           .setY(0)
           .normalize()
           .clone();
-        ctx.hit(h.z, up ? 320 : 160, {
+        ctx.hit(h.z, F.guandao.damage * (up ? 2 : 1), {
           dir,
           point: h.z.chest,
           element: ctx.b === "a" ? "fire" : undefined,
@@ -2528,7 +2542,7 @@ export const BEHAVIOURS = {
         time: 1.5,
         onPass(z, dir) {
           const reach = ctx.cap ? 1 + 0.2 * bonus.n : 1;
-          const killed = ctx.hit(z, 160 * reach, {
+          const killed = ctx.hit(z, F.guandao.damage * reach, {
             dir,
             point: z.chest,
             knock: 0.8,
