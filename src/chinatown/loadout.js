@@ -117,6 +117,10 @@ export function createLoadout(G, on = {}) {
     get reloading() {
       return !!armory && armory.reloading;
     },
+    // what the crosshair opens to (rad)
+    get spread() {
+      return armory ? armory.spread : 0.02;
+    },
     hud: {
       get id() {
         return cur;

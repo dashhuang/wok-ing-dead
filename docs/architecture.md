@@ -189,6 +189,7 @@
 | 每种形态开火做什么，伤害、弹匣、射速、换弹时间 | `arsenal/src/combat/behaviours.js` | 两边 |
 | 输入、后坐、换弹、近战、投掷、范围伤害；调料倍率怎么作用（`setMods`）；换弹从哪里拿子弹（`lab.supply`） | `arsenal/src/combat/combat.js` | 两边用同一个控制器 |
 | 伤害结算、四种状态、四种反应、精英和关底的抗性、附魔调料怎么触发 | `arsenal/src/combat/status.js`，数字在 `arsenal/src/data/status.js` | 本体的 `armtargets.js` 和测试台的 `targets.js` 都只是它的宿主 |
+| 手感：每发的枪口上跳、后坐、侧倾、镜头上抬和保留多少、连射的散布扩张、持续喷射的抖动、近战命中的顿挫和镜头跟随 | 数字在 `arsenal/src/data/feel.js`，模型在 `arsenal/src/combat/recoil.js`（照原版两把枪的做法：冲量打在阻尼弹簧上，枪绕握把转） | 两边；靶场「数值」里的「手感」能边玩边改，`node arsenal/scripts/feel-report.mjs` 把数字换算成度、毫米和毫秒 |
 | 每级的伤害倍率 | `arsenal/src/data/levels.js` | 两边 |
 | 调料的层数和数值 | `src/chinatown/runtune.js` | `run.js`；测试台的 `combat/meal.js` |
 | 四种弹药的上限、每把武器每发吃多少 | `src/chinatown/loadout.js` 的 `AMMO`、`ARMS`、`ammoPer` | `loadout.js`；测试台的 `combat/meal.js` |

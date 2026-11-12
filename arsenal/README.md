@@ -36,7 +36,8 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
 | 内容 | 唯一的出处 |
 | --- | --- |
 | 每种形态开火做什么，伤害、弹匣、射速、换弹时间 | `src/combat/behaviours.js` |
-| 输入、后坐、换弹、近战、投掷、范围伤害 | `src/combat/combat.js`（本体用的是同一个控制器） |
+| 输入、换弹、近战、投掷、范围伤害 | `src/combat/combat.js`（本体用的是同一个控制器） |
+| 手感：后坐、镜头上抬、散布扩张、喷射抖动、近战顿挫 | 数字在 `src/data/feel.js`，模型在 `src/combat/recoil.js` |
 | 伤害结算、四种状态、四种反应、精英和关底的抗性、附魔调料怎么触发 | `src/combat/status.js`，数字在 `src/data/status.js` |
 | 每级的伤害倍率 | `src/data/levels.js` |
 | 调料的层数和数值、对武器的作用 | 本体的 `src/chinatown/runtune.js` |
@@ -87,7 +88,8 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
 | `src/fx/core.js` | 特效运行时：粒子、拖尾与闪电、贴花、光源池、弹壳、镜头震动 |
 | `src/fx/effects.js` | 具名特效：枪口焰、曳光、命中、爆炸、烟花、火焰喷射、落雷、符咒、火池等 |
 | `src/combat/behaviours.js` | 每把武器每种形态开火时做什么（弹道、伤害、状态、特效编排） |
-| `src/combat/combat.js` | 战斗控制器（测试台和本体共用）：输入、弹药与换弹、后坐力、近战挥砍、投掷、范围伤害；`setMods()` 接调料倍率，`lab.supply` 决定换弹从哪里拿子弹 |
+| `src/combat/combat.js` | 战斗控制器（测试台和本体共用）：输入、弹药与换弹、近战挥砍、投掷、范围伤害；`setMods()` 接调料倍率，`lab.supply` 决定换弹从哪里拿子弹 |
+| `src/combat/recoil.js`、`src/data/feel.js` | 手感。每把武器一组数：一发子弹让枪后坐多少、枪口上跳多少、往哪边歪、镜头抬多少、其中多少留在准星上要自己压回来、连射时准星张开多少；喷射类握着时怎么抖；近战砍中时停多久、镜头怎么跟。做法和原版两把枪一样（冲量打在阻尼弹簧上，枪绕握把转而不是绕眼睛转）。行为里的 `ctx.kick(a)` 只说这一下有多重，`a` 相对于表里的 `ref` 缩放。`node arsenal/scripts/feel-report.mjs` 把表里的数字换算成度、毫米和毫秒 |
 | `src/combat/status.js` | 两边共用的规则：伤害结算、四种状态、元素反应、附魔调料。测试台和本体各自只提供僵尸 |
 | `src/combat/meal.js` | 测试台这边的「套餐」：按本体的表管调料层数和四种弹药池，再通过 `setMods()`、`setInfusions()`、`lab.supply` 作用到武器上 |
 | `src/combat/projectiles.js` | 飞行弹体：钉子、弩箭、铜钱、符纸、烟花、油、剑气 |

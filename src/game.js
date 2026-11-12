@@ -79328,7 +79328,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
             b.flash && (b.flash.visible = !1),
             (E.ads = E.ext.ads || 0),
             (E.state = E.ext.reloading ? "reloading" : "idle"),
-            (E.spread = 0.02));
+            (E.spread = E.ext.spread ?? 0.02));
           return;
         }
       }
