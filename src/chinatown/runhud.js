@@ -60,11 +60,9 @@ export function createRunHud(G) {
   const cards = el(
     "div",
     "rl-cards",
-    '<div class="rl-cards-h"><span></span><b class="rl-cards-s"></b></div><div class="rl-cards-bar"><i></i></div><div class="rl-cards-row"></div><p class="rl-cards-hint"></p>',
+    '<div class="rl-cards-h"><span></span></div><div class="rl-cards-row"></div><p class="rl-cards-hint"></p>',
   );
   const cardsTitle = cards.querySelector(".rl-cards-h span");
-  const cardsSecs = cards.querySelector(".rl-cards-s");
-  const cardsBar = cards.querySelector(".rl-cards-bar i");
   const cardsRow = cards.querySelector(".rl-cards-row");
   const cardsHint = cards.querySelector(".rl-cards-hint");
   // while tickets are up the street darkens behind them: this is ordering, not fighting
@@ -94,8 +92,6 @@ export function createRunHud(G) {
     boss: -1,
     bossOn: null,
     spices: "",
-    bar: -1,
-    secs: -1,
     weapons: "",
     pools: "",
   };
@@ -329,28 +325,11 @@ export function createRunHud(G) {
         key: o.titleKey || "run.cards.title",
         varKeys: o.titleVarKeys || null,
       };
-      last.bar = -1;
-      last.secs = -1;
-      cardsSecs.textContent = "";
       drawCards();
       cards.classList.toggle("two", list.length === 2);
       cards.classList.remove("out");
       cards.classList.add("on");
       root.classList.add("pick");
-    },
-    /** frac: share of the time left (for the bar); secs: seconds left (for the count) */
-    setCardTime(frac, secs) {
-      const f = Math.round(Math.max(0, Math.min(1, frac)) * 100) / 100;
-      if (f !== last.bar) {
-        last.bar = f;
-        cardsBar.style.transform = `scaleX(${f})`;
-      }
-      const n = secs == null ? -1 : Math.max(0, Math.ceil(secs));
-      if (n !== last.secs) {
-        last.secs = n;
-        cardsSecs.textContent = n < 0 ? "" : String(n);
-        cards.classList.toggle("hurry", n >= 0 && n <= 3);
-      }
     },
     closeCards(picked) {
       if (!open) return;
@@ -377,7 +356,7 @@ export function createRunHud(G) {
       for (const t of live) t.el.remove();
       live = [];
       open = null;
-      cards.classList.remove("on", "out", "hurry");
+      cards.classList.remove("on", "out");
       root.classList.remove("pick");
       api.setBoss(null);
       api.setSpices([]);

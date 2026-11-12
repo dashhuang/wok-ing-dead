@@ -85035,6 +85035,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           return;
         }
         C.state === "playing" &&
+        !(runOn() && RUN.picking) &&
         (r.mode === "drag" ||
           (r.mode === "lock" &&
             !r.locked &&
@@ -85050,7 +85051,12 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           ((R = !0), ee(!1));
           return;
         }
-        ((C.state === "playing" || C.state === "intro") && R && le(), (R = !1));
+        // the run lets the mouse go while its tickets are up: that is not a pause
+        ((C.state === "playing" || C.state === "intro") &&
+          R &&
+          !(runOn() && RUN.picking) &&
+          le(),
+          (R = !1));
       }),
       document.addEventListener("visibilitychange", () => {
         document.hidden &&
@@ -85529,7 +85535,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
             !r.touch &&
             r.device !== "pad" &&
             !n.params.shot &&
-            !n.params.autostart
+            !n.params.autostart &&
+            !(runOn() && RUN.picking)
               ? ((I -= Y),
                 I <= 0 && ((I = 6), o.message(r.describeMode(), 2.6)))
               : (I = 1.5),

@@ -4,7 +4,7 @@
 //   arrives, and the checkpoint only opens once it is down.
 // - Kills fill the wok-hei bar. Every level offers three tickets: seasonings, or a new weapon.
 //   They are picked in deep slow motion, never a full stop: the player stops to choose
-//   (no walking or firing), and the house picks if nobody does.
+//   (no walking or firing), with the mouse let go to click one, and no time limit.
 // - Any number of weapons can be carried (loadout.js). Each draws on one of four pools of
 //   ammunition that has to be picked up from the street or fetched from the lit supply crates,
 //   so leaning on one weapon means hunting for its ammunition, and carrying one for every
@@ -115,16 +115,15 @@ export const RUN = {
     elite: 20,
     need: (level) => 5 + 8 * level,
   },
-  // seconds a ticket stays up, and how slow the street runs meanwhile: slow enough that
-  // choosing is clearly a pause in the fight, never a full stop
+  // how slow the street runs while tickets are up: all but stopped, never a full stop.
+  // There is no time limit; the mouse is let go so a ticket can be clicked.
   pick: {
     slow: 0.05,
-    seconds: 9,
     guard: 0.35,
     hold: 0.25,
     gap: 0.5,
-    start: { seconds: 20, slow: 0.02 }, // choosing the first weapon
-    fork: { seconds: 12, slow: 0.04 }, // choosing a weapon's form
+    start: { slow: 0.02 }, // choosing the first weapon
+    fork: { slow: 0.04 }, // choosing a weapon's form
   },
   // level-ups (counted from 1) whose three tickets are all weapons, and the chance that
   // one of the three is a weapon on any other level-up
@@ -662,7 +661,7 @@ export function createRun(G, hooks) {
           level: 1,
           max: 1,
         });
-    // the house recommendation is what gets served if nobody chooses
+    // the house recommendation: a hint for players who do not know the dishes yet
     let rec = cards.findIndex((c) => c.kind === "spice" && S.spice[c.id] > 0);
     if (rec < 0) rec = cards.findIndex((c) => c.kind === "weapon");
     if (rec < 0) rec = 0;
@@ -702,8 +701,6 @@ export function createRun(G, hooks) {
     S.picking = {
       kind: req.kind,
       cards,
-      left: timing.seconds,
-      total: timing.seconds,
       slow: timing.slow,
       guard: P.guard,
     };
@@ -723,16 +720,14 @@ export function createRun(G, hooks) {
     if (wield) loadout.wield(id);
     return true;
   }
-  // auto: nobody chose and the time ran out
-  function choose(i, auto = false) {
+  function choose(i) {
     const pk = S.picking;
     if (!pk || pk.guard > 0 || !pk.cards[i]) return;
     const c = pk.cards[i];
     if (c.kind === "spice") addSpice(c.id);
     else if (c.kind === "heal") G.player.heal(999);
     else if (c.kind === "ammo") loadout.refill();
-    else if (c.kind === "weapon")
-      takeWeapon(c.id, pk.kind !== "start", !auto || pk.kind === "start");
+    else if (c.kind === "weapon") takeWeapon(c.id, pk.kind !== "start");
     else if (c.kind === "branch") {
       loadout.setBranch(c.id, c.branch);
       hud.toast(
@@ -745,6 +740,16 @@ export function createRun(G, hooks) {
     S.pickHold = RUN.pick.hold;
     S.pickGap = RUN.pick.gap;
     hud.closeCards(i);
+    // back to aiming: take the mouse again (a click or key press just now allows it)
+    const I = G.input;
+    if (
+      I &&
+      I.requestLock &&
+      I.mode === "lock" &&
+      !I.touch &&
+      I.device !== "pad"
+    )
+      I.requestLock();
     play("ui_click", { gain: 1 });
     G.events.emit("run:pick", { card: c });
   }
@@ -762,24 +767,14 @@ export function createRun(G, hooks) {
       return;
     }
     pk.guard -= real;
-    pk.left -= real;
-    hud.setCardTime(pk.left / pk.total, pk.left);
     const I = G.input;
+    // let the mouse go so a ticket can be clicked (again after a pause hands it back)
+    if (I && I.locked && I.exitLock) I.exitLock();
     if (pk.guard <= 0 && I && I.pressed) {
       const pad = I.device === "pad";
       if (I.pressed("weapon1")) return choose(0);
       if (pad ? I.pressed("swap") : I.pressed("weapon2")) return choose(1);
       if (pad ? I.pressed("weapon2") : I.pressed("weapon3")) return choose(2);
-    }
-    if (pk.left <= 0) {
-      pk.guard = 0;
-      choose(
-        Math.max(
-          0,
-          pk.cards.findIndex((c) => c.recommended),
-        ),
-        true,
-      );
     }
   }
   // weapon keys, when no ticket is up: number = the weapons on that ammunition, Q = the last one
@@ -1308,11 +1303,12 @@ export function createRun(G, hooks) {
       hud.update(real);
       pickTick(real);
       keysTick();
-      // while tickets are up the player only chooses: no walking, firing or aiming (looking
-      // around is fine). The input is read before the player and the weapons update.
+      // while tickets are up the player only chooses: no walking, firing, aiming or turning
+      // (the free mouse is for the tickets). The input is read before the player updates.
       if (S.picking && G.input) {
         const I = G.input;
         if (I.move) I.move.x = I.move.y = 0;
+        if (I.look) I.look.dx = I.look.dy = 0;
         I.fire = I.ads = I.sprint = I.crouch = false;
       }
       const target = S.picking ? S.picking.slow : 1;
