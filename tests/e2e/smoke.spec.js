@@ -1,17 +1,18 @@
-// Plays the real entry path with real mouse clicks and key presses: title → deploy →
-// pause → resume → die → retry. Shortcuts like ?autostart skip the title page and once hid
-// a fully blocked Deploy button, so this test must keep going through the menus.
+// Plays the real entry path with real mouse clicks and key presses: title → deploy → choose
+// a weapon → fire → level up → pause → resume → die → retry, then the second branch (the
+// docks). Shortcuts like ?autostart skip the title page and once hid a fully blocked Deploy
+// button, so this test must keep going through the menus.
 import { test, expect } from "@playwright/test";
 
 const state = (page) => page.evaluate(() => window.__G?.game?.state);
 
 /**
- * Lists the visible menu buttons on screen and whether a click at each one's centre would
- * land on it (nothing drawn on top).
+ * Lists the visible menu buttons on screen (and the branch buttons of the title page) and
+ * whether a click at each one's centre would land on it (nothing drawn on top).
  */
 const probeButtons = (page) =>
   page.evaluate(() =>
-    [...document.querySelectorAll("[data-act]")]
+    [...document.querySelectorAll("[data-act], .seg button[data-p]")]
       .filter(
         (b) =>
           b.checkVisibility({
@@ -26,7 +27,7 @@ const probeButtons = (page) =>
         const inView = x >= 0 && y >= 0 && x <= innerWidth && y <= innerHeight;
         const hit = inView && document.elementFromPoint(x, y);
         return {
-          act: b.dataset.act,
+          act: b.dataset.act || `branch:${b.dataset.p}`,
           hit: hit
             ? `${hit.tagName.toLowerCase()}.${hit.className}`
             : "nothing",
@@ -89,8 +90,11 @@ async function expectButtonsReachable(page, timeout = 10_000) {
   ).toEqual([]);
 }
 
-/** Clicks a menu button with the real mouse once nothing covers it. */
-async function clickAct(page, act) {
+/**
+ * Clicks a menu button with the real mouse once nothing covers it. Give it longer after a
+ * change of window size: the renderer rebuilds its buffers and the page can stall meanwhile.
+ */
+async function clickAct(page, act, timeout = 10_000) {
   let target;
   await expect
     .poll(
@@ -98,13 +102,35 @@ async function clickAct(page, act) {
         target = (await probeButtons(page)).find((b) => b.act === act);
         return target?.reachable ?? "not on screen";
       },
-      { message: `"${act}" button is missing or covered`, timeout: 10_000 },
+      { message: `"${act}" button is missing or covered`, timeout },
     )
     .toBe(true);
   await page.mouse.click(target.x, target.y);
 }
 
-test("a player can start, pause, die and retry with real input", async ({
+/** The tickets on screen: null, or { kind, ids } once they accept a key. */
+const tickets = (page) =>
+  page.evaluate(() => {
+    const p = window.__G?.run?.state?.picking;
+    return p && p.guard <= 0
+      ? { kind: p.kind, ids: p.cards.map((c) => c.id) }
+      : null;
+  });
+const inHand = (page) => page.evaluate(() => window.__G.run.loadout.cur);
+
+/** A run opens with three weapons on tickets; a number key takes one in hand. */
+async function chooseFirstWeapon(page, key) {
+  await expect.poll(async () => (await tickets(page))?.kind).toBe("start");
+  const offered = (await tickets(page)).ids;
+  expect(offered).toHaveLength(3);
+  expect(await inHand(page)).toBe("pistol");
+  await page.keyboard.press(`Digit${key}`);
+  await expect.poll(() => inHand(page)).toBe(offered[key - 1]);
+  await expect.poll(() => page.evaluate(() => window.__G.time.scale)).toBe(1);
+  return offered[key - 1];
+}
+
+test("a player can start, arm, level up, pause, die and retry with real input", async ({
   page,
 }) => {
   const pageErrors = [];
@@ -117,6 +143,24 @@ test("a player can start, pause, die and retry with real input", async ({
   // Title → mission.
   await clickAct(page, "deploy");
   await expect.poll(() => state(page)).toBe("playing");
+
+  // The first ticket is a weapon; holding fire spends its rounds.
+  await chooseFirstWeapon(page, 2);
+  const rounds = () => page.evaluate(() => window.__G.weapon.ammo);
+  const full = await rounds();
+  await page.keyboard.down("Enter");
+  await expect.poll(rounds).toBeLessThan(full);
+  await page.keyboard.up("Enter");
+
+  // A level-up: tickets in slow motion, chosen with a number key, without a pause.
+  await page.evaluate(() => window.__G.run.debug.addXp(5));
+  await expect.poll(async () => (await tickets(page))?.kind).toBe("level");
+  expect(await state(page)).toBe("playing");
+  await page.keyboard.press("Digit1");
+  await expect.poll(() => tickets(page)).toBeNull();
+  await expect
+    .poll(() => page.evaluate(() => window.__G.run.state.level))
+    .toBe(1);
 
   // Pause and resume.
   await page.keyboard.press("Escape");
@@ -133,6 +177,53 @@ test("a player can start, pause, die and retry with real input", async ({
   await expectButtonsReachable(page);
   await clickAct(page, "retry");
   await expect.poll(() => state(page)).toBe("playing");
+
+  // The new run starts from nothing: the sidearm and a fresh choice of weapon.
+  await expect
+    .poll(() => page.evaluate(() => window.__G.run.loadout.owned().join()))
+    .toBe("pistol");
+  await chooseFirstWeapon(page, 1);
+  expect(await page.evaluate(() => window.__G.run.state.level)).toBe(0);
+
+  const runtime = await page.evaluate(() => ({
+    fatal: window.__fatal,
+    errors: window.__errors,
+  }));
+  expect(runtime.fatal).toBeNull();
+  expect(runtime.errors).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+test("the docks branch opens from the title and plays", async ({ page }) => {
+  const pageErrors = [];
+  page.on("pageerror", (e) => pageErrors.push(e.message));
+
+  // (?unlock=all stands in for having cleared the street once)
+  await page.goto("/?lang=en&unlock=all");
+  await waitForTitle(page);
+  expect(await page.evaluate(() => window.__G.stage)).toBe("street");
+
+  // The other branch is another map: clicking it loads the page again at its address.
+  await clickAct(page, "branch:docks");
+  await page.waitForURL(/lvl=harbor/);
+  await waitForTitle(page);
+  expect(await page.evaluate(() => window.__G.stage)).toBe("docks");
+  await expectButtonsReachable(page);
+
+  await clickAct(page, "deploy");
+  await expect.poll(() => state(page)).toBe("playing");
+  await chooseFirstWeapon(page, 1);
+  // supplies and weapon cases are out, and the way out can be walked to
+  const run = await page.evaluate(() => {
+    const G = window.__G;
+    const out = G.level.extraction.pos;
+    return {
+      crates: G.run.state.caches.length,
+      cases: G.run.pickups.cases.length,
+      wayOut: !!G.physics.nav.findPath(G.level.playerStart.pos, out),
+    };
+  });
+  expect(run).toEqual({ crates: 8, cases: 5, wayOut: true });
 
   const runtime = await page.evaluate(() => ({
     fatal: window.__fatal,
@@ -154,4 +245,10 @@ test("title buttons are reachable on phones", async ({ page }) => {
     await page.setViewportSize(viewport);
     await expectButtonsReachable(page);
   }
+
+  // The docks stay shut until the street has been cleared once: a tap explains, nothing loads.
+  await clickAct(page, "branch:docks", 60_000);
+  await expect(page.locator('[data-f="placenote"]')).toBeVisible();
+  await expect(page.locator('[data-f="placenote"]')).not.toBeEmpty();
+  expect(page.url()).not.toContain("lvl=harbor");
 });

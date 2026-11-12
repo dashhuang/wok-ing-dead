@@ -33,14 +33,14 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
 | 路径 | 说明 |
 | --- | --- |
 | `src/game.js` | 反压缩后的原版发布包（含内嵌 Three.js r180）。变量名是压缩名（`ov`、`hT`、`pT`…），靠 architecture.md 的入口表和搜索字符串定位 |
-| `src/chinatown/` | 唐人街关卡的全部新模块：布局、建筑、店铺、街市、车辆、招牌、灯光、僵尸、音效 |
+| `src/chinatown/` | 唐人街关卡的全部新模块：布局、建筑、店铺、街市、车辆、招牌、灯光、僵尸、音效；套餐（肉鸽关卡）的规则 `run.js`、武器与弹药 `loadout.js`、接入试验场武器的 `armory.js` / `armtargets.js`、第二关的补充 `docks.js` |
 | `src/i18n/` | 语言选择和四份语言包（`locales/`，英文是基准） |
 | `src/style.css` | 全部界面样式，设计变量在开头 |
 | `public/assets/` | 贴图、GLB、僵尸、字体、音效（来源和许可见 docs/assets.md） |
 | `scripts/` | 素材下载转换、字体子集、单文件构建、`check-syntax.mjs` |
 | `tests/e2e/` | Playwright 冒烟测试 |
 | `upstream/` | 提取时的原件，**只读** |
-| `arsenal/` | 肉鸽武器的独立试验场（若存在），规则见 `arsenal/README.md` |
+| `arsenal/` | 肉鸽武器的试验场，可单独运行；**本体直接导入它的武器、特效和战斗模块**，规则见 `arsenal/README.md` |
 
 ## 修改时的规则
 
@@ -54,8 +54,11 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
   静态网格标 `userData.staticShadow`，之后改动要调 `G.render.invalidateStaticShadows()`。
 - **存档键不改名**：设置和纪录用 `saltline.*`，语言用 `wokingdead.lang`。
 - **素材**：新增外部素材要在 docs/assets.md 写清来源和许可，只用 CC0 / OFL。僵尸来自 Mixamo（非 CC0），是已知的待解决问题。
-- **arsenal/** 与本体互不引用；`docs/weapons-roguelike.md` 由 `node arsenal/scripts/design-doc.mjs` 生成，改数据不改文档。
-  在用户决定接入本体之前，不要为武器去改 `src/`。
+- **arsenal/** 可以单独运行，但本体通过 `src/chinatown/armory.js` 导入它的武器模型、特效、战斗和双手模块（试验场不反过来引用本体）。
+  改这些模块的接口（`createCombat(lab)`、`lab` 舞台对象、`kit/hands.js`、`data/weapons.js` 的字段）要同时跑本体的 `npm run test:e2e`。
+  `docs/weapons-roguelike.md` 由 `node arsenal/scripts/design-doc.mjs` 生成，改数据不改文档。
+- **套餐的数值**只改 `src/chinatown/run.js` 开头的 `RUN` 和 `loadout.js` 的 `AMMO` / `ARMS`。用户定下的四条不要动：
+  弹药必须捡、弹药分四种、武器不限数量、红包只升手上那把。
 
 ## 工作流
 
@@ -70,7 +73,8 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
 
 - `npm run check`、`npm run build` 必须通过。改了界面、流程或启动逻辑，跑 `npm run test:e2e`。
 - **必须用真实鼠标点击和按键走入口**，不能只靠 `?autostart=1` 或直接调用 `G.game.start()`——曾经标题页按钮被透明元素挡住，
-  脚本直达的检查全部通过，用户一上手就点不动。界面改动走一遍：标题页 → 开镬 → Esc 暂停 → 设置里换语言 → 继续 → 死亡重试 → 通关再开，
+  脚本直达的检查全部通过，用户一上手就点不动。界面改动走一遍：标题页 → 开镬 → 选主菜 → 数字键换武器 → Esc 暂停 → 设置里换语言 → 继续 →
+  死亡重试 → 通关再开 → 换分店，
   桌面、手机竖屏、手机横屏各看一次，确认按钮没有被别的元素盖住。
 - 手动验证用 `npm run build` + `npx vite preview --port 5185` 之类的独立端口，不要用开发服务器：别的会话改文件会触发热重载打断测试。
   端口约定：dev 5173、arsenal 5311（测试 5312）、e2e 5199。
