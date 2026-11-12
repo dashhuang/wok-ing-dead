@@ -46,8 +46,11 @@ export async function createArmory(G) {
 
   const kit = kitMod.createKit();
   const arms = handsMod.createArms(kit);
+  // (the weapons' sounds go out through the game's own sound system: its volume, its buses)
   const audio =
-    G.params && G.params.noaudio ? null : audioMod.createAudio(() => G.camera);
+    G.params && G.params.noaudio
+      ? null
+      : audioMod.createAudio(() => G.camera, { host: () => G.audio });
   if (audio)
     for (const ev of ["pointerdown", "keydown", "touchend"])
       window.addEventListener(ev, () => audio.unlock(), { capture: true });
