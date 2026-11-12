@@ -85,9 +85,28 @@ export function createLoadout(G, on = {}) {
   };
 
   // ---------- the armoury's view of things
+  // The game brings its own rig and arms back up by itself at times (a run starting, a
+  // retry), after a weapon of the arsenal has already been taken in hand: the two would then
+  // be drawn together, the rifle at the eye like a wall across the street. While one of the
+  // arsenal's is up, the stock pair stays put away. (A rig a thousandth of its size is the
+  // armoury's warm-up drawing it ahead of time: left alone.)
+  function stowOwn() {
+    const W = G.weapon;
+    // (the game's own arms hang straight off the camera; the arsenal's are deeper down)
+    const arm =
+      G.camera && G.camera.children.find((o) => o.name === "arm-right");
+    let up = !!arm && arm.visible;
+    for (const rig of Object.values(W.rigs || {}))
+      if (rig.root.visible && rig.root.scale.x > 0.01) up = true;
+    if (!up) return;
+    W.setVisible(false);
+    for (const rig of Object.values(W.rigs || {}))
+      if (rig.root.scale.x > 0.01) rig.root.visible = false;
+  }
   const driver = {
     frame(dt, input) {
       if (armory) armory.frame(dt, busy ? null : input);
+      if (armory && armory.held) stowOwn();
     },
     get held() {
       return !!armory && armory.held;

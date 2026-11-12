@@ -11,7 +11,7 @@ import ZH from "../../src/i18n/locales/zh-CN.js";
 
 const pct = (v) => (v * 100).toFixed(0) + "%";
 const mmss = (s) =>
-  `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+  `${Math.floor(Math.round(s) / 60)}:${String(Math.round(s) % 60).padStart(2, "0")}`;
 
 /** facts: what report.mjs worked out ({ TL, W, WR, sims, calRows }). */
 export function guards({ TL, W, WR, sims, calRows }) {

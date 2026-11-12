@@ -85056,7 +85056,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           return;
         }
         C.state === "playing" &&
-        !(runOn() && RUN.picking) &&
+        !(runOn() && (RUN.picking || RUN.mouseFree)) &&
         (r.mode === "drag" ||
           (r.mode === "lock" &&
             !r.locked &&
@@ -85072,10 +85072,11 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           ((R = !0), ee(!1));
           return;
         }
-        // the run lets the mouse go while its tickets are up: that is not a pause
+        // the run lets the mouse go while its tickets are up (and the firing range while its
+        // panel is used): that is not a pause
         ((C.state === "playing" || C.state === "intro") &&
           R &&
-          !(runOn() && RUN.picking) &&
+          !(runOn() && (RUN.picking || RUN.mouseFree)) &&
           le(),
           (R = !1));
       }),
@@ -85557,7 +85558,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
             r.device !== "pad" &&
             !n.params.shot &&
             !n.params.autostart &&
-            !(runOn() && RUN.picking)
+            !(runOn() && (RUN.picking || RUN.mouseFree))
               ? ((I -= Y),
                 I <= 0 && ((I = 6), o.message(r.describeMode(), 2.6)))
               : (I = 1.5),
@@ -85843,6 +85844,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     let n = Object.fromEntries(new URLSearchParams(location.search)),
       e = !!n.bench || location.hash === "#bench";
     e && ((n.noaudio = "1"), (n.autostart = "1"));
+    // the firing range (src/chinatown/range.js) is the set meal, entered without the title
+    n.range && ((n.autostart = "1"), delete n.mode);
     globalThis.__SALTLINE_THREE__ = ut;
     let ctHarbor = n.lvl === "harbor";
     ctHarbor || CT.apply();

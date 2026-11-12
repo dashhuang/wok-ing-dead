@@ -835,7 +835,8 @@ body {
 }
 
 /* ---------------- single-file showcase: no firing range */
-#ui.solo .tabs {
+/* the single-file showcase has no bench; its way to the range (the published game) stays */
+#ui.solo .tabs button[data-mode] {
   display: none;
 }
 
@@ -860,6 +861,10 @@ body {
 #ui.narrow .tabs button {
   padding: 3px 9px !important;
   letter-spacing: 0.1em;
+}
+/* the bench is for scripts on a desk; on a phone the range is the game */
+#ui.narrow .tabs button.bench {
+  display: none;
 }
 /* the buttons stay on one line; on a very narrow screen that line scrolls instead of wrapping */
 #ui.narrow .bar-right {
@@ -1019,4 +1024,14 @@ body {
   100% {
     opacity: 0;
   }
+}
+
+/* the bench is for the automated checks: there, but out of the way */
+.tabs button.bench {
+  opacity: 0.55;
+  font-size: 12px;
+}
+.tabs button.bench.on,
+.tabs button.bench:hover {
+  opacity: 1;
 }

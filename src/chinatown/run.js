@@ -17,6 +17,7 @@ import * as L10N from "../i18n/index.js";
 import { createPickups } from "./pickups.js";
 import { createRunHud } from "./runhud.js";
 import { createWheel } from "./wheel.js";
+import { createRange } from "./range.js";
 import { createLoadout, ARMS, AMMO, AMMO_TYPES, MAX_LEVEL } from "./loadout.js";
 import {
   stageAt as stageOf,
@@ -50,6 +51,8 @@ export function createRun(G, hooks) {
   const pickups = createPickups(G);
   pickups.setGain((RUN.places[G.stage] || {}).glow || 1);
   const hud = createRunHud(G);
+  // the firing range (/?range=1): this same run with the timeline off and a panel instead
+  let range = null;
   const sites = (G.level && G.level.supplySites) || [];
   const tmp = new V3();
   const UP = new V3(0, 1, 0);
@@ -155,6 +158,7 @@ export function createRun(G, hooks) {
     profile.docksClears > 0;
   // fold a finished run into the profile; returns the weapons it put on the menu
   function bank(cleared) {
+    if (S.range) return []; // the firing range keeps no record and unlocks nothing
     profile.kills += S.kills;
     profile.runs++;
     if (S.bossSeen) profile.bossSeen++;
@@ -239,6 +243,15 @@ export function createRun(G, hooks) {
     applyStats();
     hud.setSpices(spiceList());
   }
+  // a seasoning straight to a level (0 takes it off): the firing range's switches
+  function setSpice(id, level) {
+    if (!RUN.spices.some((x) => x.id === id)) return;
+    const lv = Math.max(0, Math.min(RUN.spiceMax, level | 0));
+    if (lv) S.spice[id] = lv;
+    else delete S.spice[id];
+    applyStats();
+    hud.setSpices(spiceList());
+  }
   // For trying in a real run what was set up in the weapon lab, the game takes the lab's own
   // address parameters: ?w=flamer&b=a&lv=5 opens the run with that weapon in that form in
   // hand instead of the first ticket, ?spice=chili:2,fire:3 with those seasonings already on.
@@ -308,6 +321,35 @@ export function createRun(G, hooks) {
       ...opts,
     });
   }
+  // What makes one of the dead a bloater, an elite or the boss: the timeline below and the
+  // firing range both spawn them through these, so there is one recipe for each.
+  function bloaterOpts() {
+    const B = RUN.bloater;
+    return {
+      rank: "bloater",
+      runner: true,
+      hpMul: B.hp,
+      scale: B.scale,
+      glow: B.glow,
+    };
+  }
+  // n: how many elites came before this one (each is tougher than the last)
+  function eliteOpts(n) {
+    const E = RUN.elite;
+    return { rank: "elite", ...eliteStats(n), scale: E.scale, glow: E.glow };
+  }
+  function bossOpts() {
+    const B = RUN.boss;
+    const tune = (G.enemies.TUNE && G.enemies.TUNE.brute) || { hp: 320 };
+    return {
+      rank: "boss",
+      hpMul: (diff().bossHp * (place().bossHp || 1)) / tune.hp,
+      scale: B.scale,
+      dmgMul: B.damage * (diff().bossHit || 1),
+      speedMul: B.speed * (diff().bossSpeed || 1),
+      glow: B.glow,
+    };
+  }
   function spawnTick(dt) {
     S.spawnT -= dt;
     if (S.spawnT > 0) return;
@@ -325,16 +367,8 @@ export function createRun(G, hooks) {
     const kind = spawnKind(st, rng(), brutesAlive());
     let z;
     if (kind === "brute") z = spawnOne("brute");
-    else if (kind === "bloater") {
-      const B = RUN.bloater;
-      z = spawnOne("walker", {
-        rank: "bloater",
-        runner: true,
-        hpMul: B.hp,
-        scale: B.scale,
-        glow: B.glow,
-      });
-    } else if (st.quiet && !S.cook)
+    else if (kind === "bloater") z = spawnOne("walker", bloaterOpts());
+    else if (st.quiet && !S.cook)
       // a quiet course: it rises somewhere out of the way and wanders
       z = hooks.spawn("walker", hooks.pickSpawn("walker", { minDist: 20 }), {
         state: "patrol",
@@ -345,17 +379,7 @@ export function createRun(G, hooks) {
     S.spawnT = z ? spawnGap(every, rng()) : 0.4;
   }
   function spawnElite() {
-    const E = RUN.elite;
-    const z = spawnOne(
-      "brute",
-      {
-        rank: "elite",
-        ...eliteStats(S.eliteN),
-        scale: E.scale,
-        glow: E.glow,
-      },
-      { minDist: 20 },
-    );
+    const z = spawnOne("brute", eliteOpts(S.eliteN), { minDist: 20 });
     if (!z) return null;
     S.eliteN++;
     S.elites.push(z);
@@ -441,19 +465,7 @@ export function createRun(G, hooks) {
       S.bossRetry -= dt;
       if (S.bossRetry > 0) return;
       const B = RUN.boss;
-      const tune = (G.enemies.TUNE && G.enemies.TUNE.brute) || { hp: 320 };
-      const z = spawnOne(
-        "brute",
-        {
-          rank: "boss",
-          hpMul: (diff().bossHp * (place().bossHp || 1)) / tune.hp,
-          scale: B.scale,
-          dmgMul: B.damage * (diff().bossHit || 1),
-          speedMul: B.speed * (diff().bossSpeed || 1),
-          glow: B.glow,
-        },
-        { minDist: 22 },
-      );
+      const z = spawnOne("brute", bossOpts(), { minDist: 22 });
       if (!z) {
         S.bossRetry = 1;
         return;
@@ -491,6 +503,7 @@ export function createRun(G, hooks) {
 
   // ---------- experience and the tickets
   function addXp(n) {
+    if (S.range && !range.tickets) return; // the range levels nothing up unless asked to
     S.pending += gainXp(S, n);
   }
   const pickN = (list, n) => {
@@ -1225,6 +1238,10 @@ export function createRun(G, hooks) {
     get extractOpen() {
       return S.extractOpen;
     },
+    // the firing range's panel is worked with the mouse: letting it go there is not a pause
+    get mouseFree() {
+      return !!range;
+    },
     // difficulty just rewrote the player's tuning: remember the clean values, reapply ours
     onTuning() {
       const t = G.player && G.player.tuning;
@@ -1242,6 +1259,7 @@ export function createRun(G, hooks) {
       const pre = preset();
       Object.assign(S, {
         active: true,
+        range: !!range,
         t: 0,
         level: 0,
         xp: 0,
@@ -1263,7 +1281,7 @@ export function createRun(G, hooks) {
         bonusCap: 0, // from the stock special
         extractOpen: false,
         pending: 0,
-        queue: pre.weapon ? [] : [{ kind: "start" }],
+        queue: pre.weapon || range ? [] : [{ kind: "start" }],
         picking: null,
         pickHold: 0,
         pickGap: 0.4,
@@ -1282,7 +1300,8 @@ export function createRun(G, hooks) {
       applyStats();
       chooseCaches();
       placeCases();
-      scatterWanderers(RUN.opening);
+      // (the firing range starts empty: its panel puts the dead where they are wanted)
+      if (!range) scatterWanderers(RUN.opening);
       hud.show(true);
       hud.setRunLayout(true);
       hud.setSpices(spiceList());
@@ -1290,10 +1309,12 @@ export function createRun(G, hooks) {
       hud.setClock(RUN.bossAt, "starter", 0);
       if (pre.weapon)
         api.debug.set(pre.weapon.id, pre.weapon.level, pre.weapon.branch);
+      if (range) range.begin();
     },
     // back to the title or into the other mode: undo everything we changed
     stop() {
       wheel.hide();
+      if (range) range.end();
       hud.setRunLayout(false);
       hud.setNoMag(false);
       if (!S.active && S.scale === 1) {
@@ -1364,14 +1385,19 @@ export function createRun(G, hooks) {
       if (Math.abs(S.scale - target) < 0.01) S.scale = target;
       G.time.scale = S.scale;
 
-      S.t += dt;
       // (the docks have no updaters of their own: their stoves burn on this clock)
       const stoves = G.level && G.level.stoves;
       if (stoves) for (const st of stoves) st.update(dt);
-      cookTick(dt);
-      spawnTick(dt);
-      eliteTick();
-      bossTick(dt);
+      if (range) {
+        // no timeline on the firing range: the panel decides who is on the street
+        range.update(dt, real);
+      } else {
+        S.t += dt;
+        cookTick(dt);
+        spawnTick(dt);
+        eliteTick();
+        bossTick(dt);
+      }
       burstTick(dt);
       pickups.update(dt);
       pickupTick(dt);
@@ -1380,8 +1406,8 @@ export function createRun(G, hooks) {
 
       const st = stageAt(S.t);
       hud.setClock(
-        S.bossSeen ? -1 : RUN.bossAt - S.t,
-        S.bossSeen ? "" : st.id,
+        S.bossSeen || range ? -1 : RUN.bossAt - S.t,
+        S.bossSeen || (range && !range.course) ? "" : st.id,
         0,
       );
       hud.setXp(S.xp / RUN.xp.need(S.level), S.level + 1);
@@ -1417,7 +1443,8 @@ export function createRun(G, hooks) {
     },
     // a stove was lit (the game's objective code calls this): the dish goes on
     onStove(relay) {
-      if (!S.active || !relay || !relay.o) return;
+      // (nothing cooks on the firing range: it has no timeline for a dish to run on)
+      if (!S.active || range || !relay || !relay.o) return;
       S.cook = {
         o: relay.o,
         pos: relay.o.pos,
@@ -1545,6 +1572,28 @@ export function createRun(G, hooks) {
       unlocked,
     },
   };
+  if (G.params && G.params.range)
+    range = api.range = createRange(G, {
+      S,
+      hud,
+      loadout,
+      hooks,
+      spawnOne,
+      spawnTick,
+      bloaterOpts,
+      eliteOpts,
+      bossOpts,
+      set: api.debug.set,
+      setSpice,
+      // the shared numbers were edited: work the weapons' out again
+      retune(levels) {
+        applyStats();
+        const a = loadout.armory;
+        const it = loadout.item(loadout.cur);
+        if (levels && a && it && a.current === it.id)
+          a.regrade(it.level, it.branch);
+      },
+    });
   L10N.onLocale(() => {
     if (S.active) hooks.refreshMarkers();
   });

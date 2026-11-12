@@ -45,11 +45,11 @@ const t = (key) => ZH[key] || key;
 const pct = (v, d = 0) => (v * 100).toFixed(d) + "%";
 const num = (v, d = 0) => (v == null ? "—" : (+v).toFixed(d));
 const mmssOf = (s) =>
-  `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+  `${Math.floor(Math.round(s) / 60)}:${String(Math.round(s) % 60).padStart(2, "0")}`;
 const mmss = (s) =>
   s == null
     ? "—"
-    : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+    : `${Math.floor(Math.round(s) / 60)}:${String(Math.round(s) % 60).padStart(2, "0")}`;
 const table = (head, rows) =>
   [
     "| " + head.join(" | ") + " |",

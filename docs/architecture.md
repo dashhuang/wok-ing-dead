@@ -87,13 +87,14 @@
 | `backdrop.js` | 四个街口向外延伸的街区、填充街区、远处带亮窗的塔楼、关卡外的军车、堵在西口的车和巴士、盘旋的直升机 |
 | `lights.js` | 每个霓虹灯、路灯、橱窗、灯笼串都登记为一个发光体；固定数量的点光源（按画质 4–12 个）按相机距离和朝向分配给最相关的发光体并淡入淡出，着色器里的灯数因此不变。另有随相机移动的枪灯 |
 | `zombies.js` | 对象池（手机 30 个，其他画质 43 个）；Mixamo 骨骼动画（待机、走、跑、爬、攻击、嘶吼、倒地）；按视线、距离和枪声感知；网格寻路加直线捷径；攻击在动作的实际出手帧结算；头、躯干、四肢分别用球和胶囊做命中检测。`spawn` 的选项可以指定是否奔跑、血量和伤害倍率、体型和 `rank`（`elite` / `boss` / `bloater`，带自发光）。每只僵尸有 `ctl { pin, rate, fear, push, lift }`，武器的定身、减速、恐惧、击退、挑飞写这里，`updateZombie` 照办 |
-| `zombietune.js` | 僵尸的数值表（血量、速度、每下伤害、出手节奏、受击硬直、弱点大小、对象池），纯数据。`zombies.js` 以 `TUNE` 的名字用它，试验场靶场里的僵尸读的也是它 |
+| `zombietune.js` | 僵尸的数值表（血量、速度、每下伤害、出手节奏、受击硬直、弱点大小、对象池），纯数据。`zombies.js` 以 `TUNE` 的名字用它，试验场测试台里的僵尸读的也是它 |
 | `run.js` | 套餐关卡的导演：时间线刷怪、镬气与小票、调料效果、弹药掉落与补给箱、武器箱、红包与岔路、精英（一只比一只血厚）、关底、警报「爆单」、分店差异、解锁进度。通过 `pT` 传入的一组函数刷怪、刷新目标和标记 |
 | `runflow.js` | 套餐里只需要数字的规则：`stageAt`（某一秒是哪道菜、各项数值滑到哪）、`spawnPace` / `spawnKind` / `spawnGap`（刷多快、刷什么）、`killXp` / `gainXp`（击杀给多少镬气、升几级）、`packWeights`（掉哪种弹药）、`eliteStats`。`run.js` 按它玩，`scripts/balance/` 的模拟器按它模拟，两边不会是两套规则。数值怎么调见 [balance.md](balance.md) |
 | `runtune.js` | 套餐的全部数值 `RUN`，纯数据；另有三个纯函数：`spiceValue`（调料几层是多少）、`weaponMods`（调料对武器的伤害、射速、换弹倍率）、`infusionsOf`（附魔调料每几次命中触发）。`run.js` 和试验场都读它 |
 | `loadout.js` | 一局里的武器和弹药。武器不限数量；`AMMO` 是四种弹药池（上限、一包多少、开局多少），`ARMS` 是每把武器吃哪种、一发吃多少（这两张表试验场也读）。数字键 1–9 是捡到的顺序（`slot(n)`，1 是手枪），滚轮和手柄十字键左右是 `step(±1)`。步枪和手枪是游戏自己的枪（`own`），其余十二把交给 `armory.js`。它实现游戏武器系统的 `weapon.ext` 接口：手上是军械库武器时由它驱动每帧、提供 HUD 数字。子弹池就是步枪槽的备弹 |
 | `armory.js` | 把 `arsenal/` 接进游戏。动态导入试验场的模块，给它一个「舞台」适配层（相机、场景、射线、借用游戏灯池里的灯），武器和双手挂在相机下、画在武器图层，按两边视场角的比例缩放；武器上的挂点换算成世界相机下的同屏位置，特效才从枪口出发。换弹从弹药池扣是通过 `lab.supply` 接到 `loadout.js` 的。试验场是按亮巷子调的，夜街曝光暗得多，所以所有特效着色器乘 `fxGain`，码头再乘 `stageGain` |
 | `armtargets.js` | 试验场的战斗逻辑要的「靶子」接口，背后是游戏的僵尸：射线查询、把伤害转成 `z.damage` 并发出游戏原有的命中事件、把定身、恐惧和击退交给僵尸的 `ctl`。每只僵尸配一个 `mark` 对象。它不含任何规则：伤害结算、四种状态和反应都在 `arsenal/src/combat/status.js` |
+| `range.js` | 靶场（`/?range=1`）。不是另一个模式，是 `run.js` 的同一局：`reset()` 时不排开局小票、不放开场的行尸，`update()` 里时间线（`spawnTick` / `eliteTick` / `bossTick`）换成 `range.update()`，战绩不入账。面板是一块 DOM（系统字体，只有中文，不进语言包），状态写进地址。僵尸：站桩是 `passive` 的僵尸摆在玩家面前、死了补；逼近是远处刷行尸走过来；尸潮直接用 `spawnTick`，把时间钉在所选那道菜的中点。精英、关底、胀尸和时间线用同一套配方（`eliteOpts` / `bossOpts` / `bloaterOpts`）。「数值」直接改内存里的共用数值表，再调 `retune()` 重算；`game.js` 里只有两处接线：`range` 参数等于自动开局，松开鼠标不算暂停（`RUN.mouseFree`） |
 | `runhud.js` | 关卡界面的 DOM：倒计时与菜名、镬气条、调料、关底血条、提示、小票（三张，岔路时两张）、武器栏、弹药池。紧跟在原版 HUD 节点之后，随它显示和隐藏。武器栏按捡到的顺序排，桌面上标出数字键；触屏下没有弹药池那一排，每把武器前写它那种弹药的余量 |
 | `wheel.js` | 武器轮盘的 DOM 和选择：带着的武器排成一圈，`push(dx, dy)` 把鼠标或右摇杆的转视角输入当成指针，按方向选中一把。按键和计时在 `run.js`：切枪键（Q、手柄 Y、触屏切枪）轻按回到上一把（触屏是下一把），按住 0.22 秒（触屏 0.32 秒）打开轮盘，街上降到 0.15 倍；松开、单击或数字键换上，触屏点一把或点空白处取消。轮盘开着时可以走，不能开火、不转视角；确认用的那次单击不会接着开枪 |
 | `pickups.js` | 弹药包（四色）、红包、武器箱、补给箱指示灯。每种是几个 `InstancedMesh`，启动时一次建好（赶在着色器预编译之前），不新增光源。颜色是按夜街曝光写的不受光颜色，码头用 `setGain` 整体提亮 |
@@ -180,28 +181,33 @@
 
 ## 试验场和本体共用的规则
 
-武器在试验场的靶场和本体里跑的是同一份代码、读的是同一张表。改一处，两边一起变；不要在任何一边再写一份。
+武器在本体和试验场里跑的是同一份代码、读的是同一张表。改一处，两边一起变；不要在任何一边再写一份。
 
 | 内容 | 唯一的出处 | 谁在用 |
 | --- | --- | --- |
 | 武器的模型、握法、换弹动作、特效、声音 | `arsenal/src/weapons/`、`kit/`、`fx/`、`audio/` | 两边 |
 | 每种形态开火做什么，伤害、弹匣、射速、换弹时间 | `arsenal/src/combat/behaviours.js` | 两边 |
 | 输入、后坐、换弹、近战、投掷、范围伤害；调料倍率怎么作用（`setMods`）；换弹从哪里拿子弹（`lab.supply`） | `arsenal/src/combat/combat.js` | 两边用同一个控制器 |
-| 伤害结算、四种状态、四种反应、精英和关底的抗性、附魔调料怎么触发 | `arsenal/src/combat/status.js`，数字在 `arsenal/src/data/status.js` | 靶场的 `targets.js` 和本体的 `armtargets.js` 都只是它的宿主 |
+| 伤害结算、四种状态、四种反应、精英和关底的抗性、附魔调料怎么触发 | `arsenal/src/combat/status.js`，数字在 `arsenal/src/data/status.js` | 本体的 `armtargets.js` 和测试台的 `targets.js` 都只是它的宿主 |
 | 每级的伤害倍率 | `arsenal/src/data/levels.js` | 两边 |
-| 调料的层数和数值 | `src/chinatown/runtune.js` | `run.js`；靶场的 `combat/meal.js` |
-| 四种弹药的上限、每把武器每发吃多少 | `src/chinatown/loadout.js` 的 `AMMO`、`ARMS`、`ammoPer` | `loadout.js`；靶场的 `combat/meal.js` |
-| 僵尸的血量、速度、伤害、出手节奏、受击硬直、弱点大小 | `src/chinatown/zombietune.js` | `zombies.js`；靶场的 `targets.js` |
+| 调料的层数和数值 | `src/chinatown/runtune.js` | `run.js`；测试台的 `combat/meal.js` |
+| 四种弹药的上限、每把武器每发吃多少 | `src/chinatown/loadout.js` 的 `AMMO`、`ARMS`、`ammoPer` | `loadout.js`；测试台的 `combat/meal.js` |
+| 僵尸的血量、速度、伤害、出手节奏、受击硬直、弱点大小 | `src/chinatown/zombietune.js` | `zombies.js`；测试台的 `targets.js` |
 | 调料和弹药的名字 | `src/i18n/locales/zh-CN.js` | 两边 |
 
 宿主（`status.js` 的 `createStatus(host)`）只需要提供：场上的僵尸列表、`hurt(z, dmg, o, direct)`（扣血、出血、死亡，返回是否击杀），
 死亡时回调 `rules.died(z)`。僵尸对象上要有 `alive / type / rank / maxHp / radius / pos / chest / headPos / feet / vel / stagger`，
 其余状态字段由 `clearStatus(z)` 建立。
 
-两边仍然不同、也不打算统一的：靶场没有走位、拾取、精英、关底和胀尸；靶场僵尸的命中体积是圆柱加头，本体按骨骼；
-靶场按亮巷子打光，本体把军械库的特效整体压暗（`ARMORY_TUNE`）；步枪和手枪是 `game.js` 里的枪，不在试验场里。
-`arsenal/src/data/weapons.js` 里给卡片和文档看的基础数值与 `behaviours.js` 的实际数值还是两份，由 `arsenal/scripts/check-data.mjs`
-核对（`npm run check` 的一部分）。
+**靶场就是游戏**：`/?range=1` 是同一个套餐，关掉时间线、加一块调试面板（`src/chinatown/range.js`），所以走位、拾取、精英、关底、胀尸、
+LK-9 和 LK-4、命中体积、夜街的曝光和特效亮度都是真的，没有第二份。试验场的「靶场」按钮打开的就是它。
+
+试验场里还留着一条巷子，叫「测试台」（`?mode=fp`）：给自动测试和测量脚本用，可以逐帧步进、几秒钟打完六十种形态。它的规则和数值与本体是同一份，
+但僵尸只会直线走、命中体积是圆柱加头、光照是亮巷子——不要拿它调手感和特效亮度。
+
+卡片和设计文档上的数值：基础形态的伤害、弹丸数、射程、溅射、弱点倍率、挥砍范围写在 `arsenal/src/data/weapons.js` 的 `fire` 里，`behaviours.js`
+直接读它（`F.<武器>`）；射速、弹匣、换弹时间以 `behaviours.js` 的 `spec()` 为准，卡片读它，`arsenal/scripts/check-data.mjs` 再核对一遍数据里的那份
+（`npm run check` 的一部分）。还是手写的只有岔路说明文字里的数字（「单发 150 伤害」这类），改岔路的数值时要一起改。
 
 ## 玩法与状态
 
@@ -259,6 +265,7 @@
   `envelope()` / `pack(种类)` 在身边放一个红包或弹药包、`give(id)` 给一把武器、`set(id, 等级, "a"|"b")` 直接把指定等级和
   形态的武器拿在手上；`__G.run.state` 是当前局的全部状态，`__G.run.loadout` 是武器和弹药，`__G.run.armory.debug.warmLog`
   是预热画过的武器。`/?unlock=all` 解锁全部武器和分店。
+- `/?range=1`：靶场，见上文「试验场和本体共用的规则」和「唐人街模块」里的 `range.js`。调武器、调料、状态、僵尸数值都在这里做。
 - `/?w=flamer&b=a&lv=5&spice=chili:2,fire:3`：和试验场同一组地址参数，带着这把武器的这个形态和这些调料开局（跳过开局的三选一）。
 - `__G.physics.nav._grid()`：导航网格，改动布局后用它检查目标点和撤离点是否连通。
 - 实际游玩还需验证瞄准、射击、换弹、暂停、目标推进与声音；构建成功不能替代这些检查。

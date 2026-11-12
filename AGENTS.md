@@ -59,12 +59,17 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
 - **试验场和本体是同一份规则**（对照表在 docs/architecture.md「试验场和本体共用的规则」）。本体通过 `src/chinatown/armory.js`
   导入 `arsenal/` 的武器模型、特效、战斗控制器和双手；伤害、四种状态、反应和附魔调料的规则只有一份，在 `arsenal/src/combat/status.js`；
   试验场读本体的三张纯数据表：`src/chinatown/runtune.js`、`loadout.js`（`AMMO` / `ARMS`）、`zombietune.js`。
-  - **不要在任何一边再写一份规则或数字**。要让靶场多模拟一样东西，就把本体那部分抽成两边共用的代码，而不是在 `arsenal/` 里照抄。
+  - **靶场在游戏里**：`/?range=1`（`src/chinatown/range.js`），是关掉时间线的套餐加一块调试面板，街道、僵尸、画面都是真的。
+    调武器手感、调料、状态、僵尸数值、特效亮度都在这里做；面板状态记在地址里，开发服务器存盘刷新后回到同一个场面，
+    「数值」一栏可以边玩边改共用数值表，再用「复制改动」把结果写回文件。面板是调试工具：只有中文、用系统字体、不进语言包。
+    试验场（`arsenal/`）只用来看模型和握法；它里面的「测试台」（`?mode=fp`）是给自动测试和测量脚本用的简化巷子，不要拿它调手感。
+  - **不要在任何一边再写一份规则或数字**。测试台缺什么，就把本体那部分抽成两边共用的代码，而不是在 `arsenal/` 里照抄。
   - 这三张表所在的文件不能导入游戏对象或 DOM（试验场和 node 脚本都要能直接导入）。试验场不引用 `src/game.js`。
   - 改 `arsenal/src/combat/`、`arsenal/src/data/` 或这三张表的结构，`npm run arsenal:test` 和 `npm run test:e2e` 都要跑（走 PR 的话加 `e2e` 标签）；
     只调表里的数字不用。改接口（`createCombat(lab)`、`lab` 舞台对象、`createStatus(host)`、`kit/hands.js`、`data/weapons.js` 的字段）同理。
-  - `arsenal/src/data/weapons.js` 里的基础数值（射速、弹匣、换弹时间）要和 `behaviours.js` 一致，`npm run check` 会核对；
-    伤害、射程和岔路的说明文字是手写的，改数值时一起改。
+  - 武器基础形态的伤害、弹丸数、射程、溅射、弱点倍率、挥砍范围只写在 `arsenal/src/data/weapons.js` 的 `fire` 里，`behaviours.js` 读它（`F.<武器>`），
+    不要在 `behaviours.js` 里再写一遍。射速、弹匣、换弹时间写在 `behaviours.js` 的 `spec()` 里，数据里的那份由 `npm run check` 核对。
+    岔路说明文字里的数字是手写的，改岔路的数值时一起改。
   - `docs/weapons-roguelike.md` 由 `node arsenal/scripts/design-doc.mjs` 生成，改数据不改文档；改了武器数据或这几张表之后重新生成。
 - **套餐的数值**只改 `src/chinatown/runtune.js` 的 `RUN` 和 `loadout.js` 的 `AMMO` / `ARMS`；僵尸的数值改 `zombietune.js`；
   每级伤害倍率改 `arsenal/src/data/levels.js`；状态和反应的数字改 `arsenal/src/data/status.js`。用户定下的四条不要动：
