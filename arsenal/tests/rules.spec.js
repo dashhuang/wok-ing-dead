@@ -2,7 +2,7 @@
 // and a seasoning do to a weapon what they do in a run, and a magazine costs what it costs
 // there. These read the game's own tables, so a change to a number is not a failure here;
 // what fails is the range no longer following the table.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures.js";
 import { ZOMBIES } from "../../src/chinatown/zombietune.js";
 import { RUN, weaponMods } from "../../src/chinatown/runtune.js";
 import { AMMO, ARMS } from "../../src/chinatown/loadout.js";
