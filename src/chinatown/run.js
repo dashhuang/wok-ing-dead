@@ -19,6 +19,17 @@ import { createRunHud } from "./runhud.js";
 import { createWheel } from "./wheel.js";
 import { createLoadout, ARMS, AMMO, AMMO_TYPES, MAX_LEVEL } from "./loadout.js";
 import {
+  stageAt as stageOf,
+  crowdOf,
+  spawnPace,
+  spawnKind,
+  spawnGap,
+  killXp,
+  gainXp,
+  packWeights,
+  eliteStats,
+} from "./runflow.js";
+import {
   RUN,
   spiceValue,
   spiceVars,
@@ -28,8 +39,6 @@ import {
 
 export { RUN };
 
-const lerp = (a, b, t) => a + (b - a) * t;
-const pair = (v, t) => (Array.isArray(v) ? lerp(v[0], v[1], t) : v);
 const PROFILE_KEY = "wokingdead.profile.v1";
 
 export function createRun(G, hooks) {
@@ -40,12 +49,11 @@ export function createRun(G, hooks) {
   const hud = createRunHud(G);
   const sites = (G.level && G.level.supplySites) || [];
   const tmp = new V3();
-  // The stage numbers are written for the phone-sized pool of 25 walkers; a larger pool
-  // (desktop) carries proportionally more of the dead at once.
+  // a larger pool of bodies (desktop) carries proportionally more of the dead at once
   const pool = (G.enemies && G.enemies.TUNE && G.enemies.TUNE.pool) || {};
-  const walkers = (pool.romero || 0) + (pool.girl || 0) + (pool.cop || 0) || 25;
-  const crowd = 1 + Math.max(0, walkers / 25 - 1) * 0.6;
-  const poolRoom = walkers + RUN.bruteCap - 1;
+  const { crowd, room: poolRoom } = crowdOf(
+    (pool.romero || 0) + (pool.girl || 0) + (pool.cop || 0),
+  );
 
   let baseTune = null;
   const baseHealth = (G.player && G.player.maxHealth) || 100;
@@ -237,24 +245,7 @@ export function createRun(G, hooks) {
   }
 
   // ---------- timeline
-  function stageAt(t) {
-    const st = RUN.stages;
-    let i = st.length - 1;
-    while (i > 0 && t < st[i].at) i--;
-    const a = st[i];
-    const end = i + 1 < st.length ? st[i + 1].at : a.at + 60;
-    const k = Math.max(0, Math.min(1, (t - a.at) / Math.max(1, end - a.at)));
-    const P = place();
-    const plus = (v, add) => (v > 0 ? v + (add || 0) : v);
-    return {
-      id: a.id,
-      alive: pair(a.alive, k) * (P.alive || 1),
-      every: pair(a.every, k) * (P.every || 1),
-      runner: Math.min(0.9, plus(pair(a.runner, k), P.runner)),
-      brute: plus(pair(a.brute, k), P.brute),
-      bloater: plus(pair(a.bloater || 0, k), P.bloater),
-    };
-  }
+  const stageAt = (t) => stageOf(t, place());
   function brutesAlive() {
     let n = 0;
     for (const z of G.enemies.list)
@@ -273,22 +264,19 @@ export function createRun(G, hooks) {
     S.spawnT -= dt;
     if (S.spawnT > 0) return;
     const st = stageAt(S.t);
-    const d = diff();
-    let every = st.every * d.every;
-    let cap = Math.round(st.alive * d.alive * crowd);
-    if (S.surgeT > 0) {
-      every *= RUN.surge.every;
-      cap += RUN.surge.alive;
-    }
-    cap = Math.min(cap, poolRoom);
+    const { every, cap } = spawnPace(st, diff(), {
+      surge: S.surgeT > 0,
+      crowd,
+      room: poolRoom,
+    });
     if (hooks.alive() >= cap) {
       S.spawnT = 0.25;
       return;
     }
-    const roll = rng();
+    const kind = spawnKind(st, rng(), brutesAlive());
     let z;
-    if (roll < st.brute && brutesAlive() < RUN.bruteCap) z = spawnOne("brute");
-    else if (roll < st.brute + st.bloater) {
+    if (kind === "brute") z = spawnOne("brute");
+    else if (kind === "bloater") {
       const B = RUN.bloater;
       z = spawnOne("walker", {
         rank: "bloater",
@@ -298,7 +286,7 @@ export function createRun(G, hooks) {
         glow: B.glow,
       });
     } else z = spawnOne("walker", { runner: rng() < st.runner });
-    S.spawnT = z ? every * (0.75 + rng() * 0.5) : 0.4;
+    S.spawnT = z ? spawnGap(every, rng()) : 0.4;
   }
   function eliteTick() {
     if (S.bossSeen || S.t < S.eliteAt || S.t > RUN.bossAt - 20) return;
@@ -307,10 +295,8 @@ export function createRun(G, hooks) {
       "brute",
       {
         rank: "elite",
-        hpMul: E.hp + E.hpGrow * S.eliteN,
+        ...eliteStats(S.eliteN),
         scale: E.scale,
-        dmgMul: E.damage + (E.dmgGrow || 0) * S.eliteN,
-        speedMul: E.speed || 1,
         glow: E.glow,
       },
       { minDist: 20 },
@@ -383,12 +369,7 @@ export function createRun(G, hooks) {
 
   // ---------- experience and the tickets
   function addXp(n) {
-    S.xp += n;
-    while (S.xp >= RUN.xp.need(S.level)) {
-      S.xp -= RUN.xp.need(S.level);
-      S.level++;
-      S.pending++;
-    }
+    S.pending += gainXp(S, n);
   }
   const pickN = (list, n) => {
     const bag = list.slice();
@@ -720,10 +701,10 @@ export function createRun(G, hooks) {
   function rollKind() {
     const A = RUN.ammo;
     const need = loadout.curAmmo;
-    const w = AMMO_TYPES.map((t) =>
-      t === need && loadout.have(t) < loadout.cap(t) * A.lowAt
-        ? A.needBoost
-        : 1,
+    const w = packWeights(
+      AMMO_TYPES,
+      need,
+      !!need && loadout.have(need) < loadout.cap(need) * A.lowAt,
     );
     let roll = rng() * w.reduce((a, b) => a + b, 0);
     let k = 0;
@@ -982,19 +963,7 @@ export function createRun(G, hooks) {
     if (!S.active || !e) return;
     S.kills++;
     const rank = e.rank || "";
-    const X = RUN.xp;
-    let xp =
-      rank === "boss"
-        ? 0
-        : rank === "elite"
-          ? X.elite
-          : rank === "bloater"
-            ? X.bloater
-            : e.type === "brute"
-              ? X.brute
-              : X.walker;
-    if (S.surgeT > 0) xp *= RUN.surge.xp;
-    addXp(xp);
+    addXp(killXp(rank, e.type, S.surgeT > 0));
     const pos = e.pos || (e.enemy && e.enemy.pos);
     if (!pos) return;
     const A = RUN.ammo;
