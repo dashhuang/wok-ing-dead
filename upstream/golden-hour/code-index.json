@@ -1,0 +1,86 @@
+[
+  {
+    "category": "渲染、灯光与后处理",
+    "file": "readable/game.js",
+    "line": 38634,
+    "anchor": "BM = class {"
+  },
+  {
+    "category": "材质生成入口",
+    "file": "readable/game.js",
+    "line": 48007,
+    "anchor": "function lD({"
+  },
+  {
+    "category": "家具与道具库入口",
+    "file": "readable/game.js",
+    "line": 63148,
+    "anchor": "function PD(o) {"
+  },
+  {
+    "category": "玻璃破碎",
+    "file": "readable/game.js",
+    "line": 63860,
+    "anchor": "var Ew = class {"
+  },
+  {
+    "category": "酒店建筑生成入口",
+    "file": "readable/game.js",
+    "line": 65430,
+    "anchor": "function FD(o) {"
+  },
+  {
+    "category": "酒店家具布置",
+    "file": "readable/game.js",
+    "line": 66250,
+    "anchor": "function ND(o, t) {"
+  },
+  {
+    "category": "场景细节布置",
+    "file": "readable/game.js",
+    "line": 88343,
+    "anchor": "function qD(o, t) {"
+  },
+  {
+    "category": "音频初始化",
+    "file": "readable/game.js",
+    "line": 95707,
+    "anchor": "let Q = globalThis.AudioContext || globalThis.webkitAudioContext;"
+  },
+  {
+    "category": "KR-7 步枪数据",
+    "file": "readable/game.js",
+    "line": 96824,
+    "anchor": "name: \"KR-7 CARBINE\","
+  },
+  {
+    "category": "VESPER 冲锋枪数据",
+    "file": "readable/game.js",
+    "line": 96857,
+    "anchor": "name: \"VESPER 9\","
+  },
+  {
+    "category": "M12 霰弹枪数据",
+    "file": "readable/game.js",
+    "line": 96890,
+    "anchor": "name: \"M12 BREACHER\","
+  },
+  {
+    "category": "STRIX 手枪数据",
+    "file": "readable/game.js",
+    "line": 96917,
+    "anchor": "name: \"STRIX 9\","
+  },
+  {
+    "category": "菜单、枪匠与界面",
+    "file": "readable/game.js",
+    "line": 162105,
+    "anchor": "U7 = class {"
+  },
+  {
+    "category": "游戏装配与资源生成顺序",
+    "file": "readable/game.js",
+    "line": 165549,
+    "anchor": "async function As0() {"
+  }
+]

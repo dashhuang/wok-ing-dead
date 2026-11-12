@@ -1,0 +1,50 @@
+{
+  "source": "https://github.com/wquguru/fable52-fps-repro",
+  "revision": "a7e1df3ce32eb2bb05e23ae457fe5fe2bffab961",
+  "retrieved": "2026-11-12",
+  "license": "MIT; retain original LICENSE",
+  "files": [
+    {
+      "path": "original/demos/03-models/index.html",
+      "url": "https://github.com/wquguru/fable52-fps-repro/blob/a7e1df3ce32eb2bb05e23ae457fe5fe2bffab961/demos/03-models/index.html",
+      "sha256": "ec903d4e0f4bd9cf5c0f545e5054ee0eedd4d59a4c420dd4282deb208ab26992",
+      "bytes": 68963
+    },
+    {
+      "path": "original/demos/04-fps/index.html",
+      "url": "https://github.com/wquguru/fable52-fps-repro/blob/a7e1df3ce32eb2bb05e23ae457fe5fe2bffab961/demos/04-fps/index.html",
+      "sha256": "155918cef3cfb1860c441725b35d90893822d1e20c75cd4c79f06f3251b8f0de",
+      "bytes": 130777
+    },
+    {
+      "path": "original/LICENSE",
+      "url": "https://github.com/wquguru/fable52-fps-repro/blob/a7e1df3ce32eb2bb05e23ae457fe5fe2bffab961/LICENSE",
+      "sha256": "9dbd0363c585a2d1ed344835eee7879d4356addf7ae9016c7970f568d5e4f296",
+      "bytes": 1064
+    },
+    {
+      "path": "original/demos/02-materials/index.html",
+      "url": "https://github.com/wquguru/fable52-fps-repro/blob/a7e1df3ce32eb2bb05e23ae457fe5fe2bffab961/demos/02-materials/index.html",
+      "sha256": "b4e99f82d7816b7786ba1e91ac2e7b9df3a98ec65e870db4163648a8a0753a20",
+      "bytes": 55388
+    },
+    {
+      "path": "original/README.md",
+      "url": "https://github.com/wquguru/fable52-fps-repro/blob/a7e1df3ce32eb2bb05e23ae457fe5fe2bffab961/README.md",
+      "sha256": "913759363e0d90d86ea0e32cce29870d6e21caa24540ca2a7c36f244184988e1",
+      "bytes": 13330
+    },
+    {
+      "path": "original/demos/01-audio/index.html",
+      "url": "https://github.com/wquguru/fable52-fps-repro/blob/a7e1df3ce32eb2bb05e23ae457fe5fe2bffab961/demos/01-audio/index.html",
+      "sha256": "4e5bd0dbf33ee6f1fb06c6ef180732677c9b71dfd438ea5d870441b96573990e",
+      "bytes": 56347
+    },
+    {
+      "path": "original/demos/01-audio-1h/index.html",
+      "url": "https://github.com/wquguru/fable52-fps-repro/blob/a7e1df3ce32eb2bb05e23ae457fe5fe2bffab961/demos/01-audio-1h/index.html",
+      "sha256": "0c97e506afa42ab2c3c49425491c6f454e966d7ac8a6be00e63dff5af0cc1f06",
+      "bytes": 65771
+    }
+  ]
+}

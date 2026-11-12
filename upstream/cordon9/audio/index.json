@@ -1,0 +1,1058 @@
+{
+ "rifle": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/rifle_01.wav",
+    "seconds": 0.42
+   },
+   {
+    "file": "weapons/rifle_02.wav",
+    "seconds": 0.42
+   },
+   {
+    "file": "weapons/rifle_03.wav",
+    "seconds": 0.42
+   },
+   {
+    "file": "weapons/rifle_04.wav",
+    "seconds": 0.42
+   },
+   {
+    "file": "weapons/rifle_05.wav",
+    "seconds": 0.42
+   },
+   {
+    "file": "weapons/rifle_06.wav",
+    "seconds": 0.42
+   }
+  ],
+  "channels": 1
+ },
+ "pistol": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/pistol_01.wav",
+    "seconds": 0.3
+   },
+   {
+    "file": "weapons/pistol_02.wav",
+    "seconds": 0.3
+   },
+   {
+    "file": "weapons/pistol_03.wav",
+    "seconds": 0.3
+   },
+   {
+    "file": "weapons/pistol_04.wav",
+    "seconds": 0.3
+   }
+  ],
+  "channels": 1
+ },
+ "dry": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/dry_01.wav",
+    "seconds": 0.15
+   },
+   {
+    "file": "weapons/dry_02.wav",
+    "seconds": 0.15
+   }
+  ],
+  "channels": 1
+ },
+ "pDry": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/pDry_01.wav",
+    "seconds": 0.17
+   },
+   {
+    "file": "weapons/pDry_02.wav",
+    "seconds": 0.17
+   }
+  ],
+  "channels": 1
+ },
+ "lowMag": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/lowMag_01.wav",
+    "seconds": 0.13
+   },
+   {
+    "file": "weapons/lowMag_02.wav",
+    "seconds": 0.13
+   }
+  ],
+  "channels": 1
+ },
+ "rlStart": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/rlStart_01.wav",
+    "seconds": 0.36
+   },
+   {
+    "file": "weapons/rlStart_02.wav",
+    "seconds": 0.36
+   }
+  ],
+  "channels": 1
+ },
+ "magOut": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/magOut_01.wav",
+    "seconds": 0.36
+   },
+   {
+    "file": "weapons/magOut_02.wav",
+    "seconds": 0.36
+   }
+  ],
+  "channels": 1
+ },
+ "magDrop": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/magDrop_01.wav",
+    "seconds": 0.75
+   },
+   {
+    "file": "weapons/magDrop_02.wav",
+    "seconds": 0.75
+   },
+   {
+    "file": "weapons/magDrop_03.wav",
+    "seconds": 0.75
+   }
+  ],
+  "channels": 1
+ },
+ "magGrab": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/magGrab_01.wav",
+    "seconds": 0.32
+   },
+   {
+    "file": "weapons/magGrab_02.wav",
+    "seconds": 0.32
+   }
+  ],
+  "channels": 1
+ },
+ "magIn": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/magIn_01.wav",
+    "seconds": 0.44
+   },
+   {
+    "file": "weapons/magIn_02.wav",
+    "seconds": 0.44
+   }
+  ],
+  "channels": 1
+ },
+ "boltBack": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/boltBack_01.wav",
+    "seconds": 0.28
+   },
+   {
+    "file": "weapons/boltBack_02.wav",
+    "seconds": 0.28
+   }
+  ],
+  "channels": 1
+ },
+ "boltFwd": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/boltFwd_01.wav",
+    "seconds": 0.42
+   },
+   {
+    "file": "weapons/boltFwd_02.wav",
+    "seconds": 0.42
+   }
+  ],
+  "channels": 1
+ },
+ "pMagOut": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/pMagOut.wav",
+    "seconds": 0.24
+   }
+  ],
+  "channels": 1
+ },
+ "pMagDrop": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/pMagDrop_01.wav",
+    "seconds": 0.55
+   },
+   {
+    "file": "weapons/pMagDrop_02.wav",
+    "seconds": 0.55
+   }
+  ],
+  "channels": 1
+ },
+ "pMagIn": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/pMagIn.wav",
+    "seconds": 0.3
+   }
+  ],
+  "channels": 1
+ },
+ "slide": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/slide_01.wav",
+    "seconds": 0.32
+   },
+   {
+    "file": "weapons/slide_02.wav",
+    "seconds": 0.32
+   }
+  ],
+  "channels": 1
+ },
+ "stepWet": {
+  "category": "player",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "player/stepWet_01.wav",
+    "seconds": 0.3
+   },
+   {
+    "file": "player/stepWet_02.wav",
+    "seconds": 0.3
+   },
+   {
+    "file": "player/stepWet_03.wav",
+    "seconds": 0.3
+   },
+   {
+    "file": "player/stepWet_04.wav",
+    "seconds": 0.3
+   }
+  ],
+  "channels": 1
+ },
+ "skid": {
+  "category": "player",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "player/skid_01.wav",
+    "seconds": 0.95
+   },
+   {
+    "file": "player/skid_02.wav",
+    "seconds": 0.95
+   }
+  ],
+  "channels": 1
+ },
+ "cloth": {
+  "category": "player",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "player/cloth_01.wav",
+    "seconds": 0.22
+   },
+   {
+    "file": "player/cloth_02.wav",
+    "seconds": 0.22
+   }
+  ],
+  "channels": 1
+ },
+ "casing": {
+  "category": "weapons",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/casing_01.wav",
+    "seconds": 0.4
+   },
+   {
+    "file": "weapons/casing_02.wav",
+    "seconds": 0.4
+   },
+   {
+    "file": "weapons/casing_03.wav",
+    "seconds": 0.4
+   },
+   {
+    "file": "weapons/casing_04.wav",
+    "seconds": 0.4
+   }
+  ],
+  "channels": 1
+ },
+ "hitConcrete": {
+  "category": "impacts",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "impacts/hitConcrete_01.wav",
+    "seconds": 0.35
+   },
+   {
+    "file": "impacts/hitConcrete_02.wav",
+    "seconds": 0.35
+   },
+   {
+    "file": "impacts/hitConcrete_03.wav",
+    "seconds": 0.35
+   }
+  ],
+  "channels": 1
+ },
+ "hitMetal": {
+  "category": "impacts",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "impacts/hitMetal_01.wav",
+    "seconds": 0.5
+   },
+   {
+    "file": "impacts/hitMetal_02.wav",
+    "seconds": 0.5
+   },
+   {
+    "file": "impacts/hitMetal_03.wav",
+    "seconds": 0.5
+   }
+  ],
+  "channels": 1
+ },
+ "hitWood": {
+  "category": "impacts",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "impacts/hitWood_01.wav",
+    "seconds": 0.25
+   },
+   {
+    "file": "impacts/hitWood_02.wav",
+    "seconds": 0.25
+   }
+  ],
+  "channels": 1
+ },
+ "hitGlass": {
+  "category": "impacts",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "impacts/hitGlass_01.wav",
+    "seconds": 0.8
+   },
+   {
+    "file": "impacts/hitGlass_02.wav",
+    "seconds": 0.8
+   }
+  ],
+  "channels": 1
+ },
+ "hitFlesh": {
+  "category": "impacts",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "impacts/hitFlesh_01.wav",
+    "seconds": 0.3
+   },
+   {
+    "file": "impacts/hitFlesh_02.wav",
+    "seconds": 0.3
+   },
+   {
+    "file": "impacts/hitFlesh_03.wav",
+    "seconds": 0.3
+   }
+  ],
+  "channels": 1
+ },
+ "headshot": {
+  "category": "impacts",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "impacts/headshot.wav",
+    "seconds": 0.4
+   }
+  ],
+  "channels": 1
+ },
+ "ricochet": {
+  "category": "impacts",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "impacts/ricochet_01.wav",
+    "seconds": 0.45
+   },
+   {
+    "file": "impacts/ricochet_02.wav",
+    "seconds": 0.45
+   }
+  ],
+  "channels": 1
+ },
+ "step": {
+  "category": "player",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "player/step_01.wav",
+    "seconds": 0.22
+   },
+   {
+    "file": "player/step_02.wav",
+    "seconds": 0.22
+   },
+   {
+    "file": "player/step_03.wav",
+    "seconds": 0.22
+   },
+   {
+    "file": "player/step_04.wav",
+    "seconds": 0.22
+   }
+  ],
+  "channels": 1
+ },
+ "zstep": {
+  "category": "zombies",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "zombies/zstep_01.wav",
+    "seconds": 0.3
+   },
+   {
+    "file": "zombies/zstep_02.wav",
+    "seconds": 0.3
+   },
+   {
+    "file": "zombies/zstep_03.wav",
+    "seconds": 0.3
+   }
+  ],
+  "channels": 1
+ },
+ "pickAmmo": {
+  "category": "ui",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "ui/pickAmmo.wav",
+    "seconds": 0.35
+   }
+  ],
+  "channels": 1
+ },
+ "pickMed": {
+  "category": "ui",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "ui/pickMed.wav",
+    "seconds": 0.6
+   }
+  ],
+  "channels": 1
+ },
+ "uiTick": {
+  "category": "ui",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "ui/uiTick.wav",
+    "seconds": 0.04
+   }
+  ],
+  "channels": 1
+ },
+ "uiStep": {
+  "category": "ui",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "ui/uiStep.wav",
+    "seconds": 0.03
+   }
+  ],
+  "channels": 1
+ },
+ "uiOk": {
+  "category": "ui",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "ui/uiOk.wav",
+    "seconds": 0.2
+   }
+  ],
+  "channels": 1
+ },
+ "uiBack": {
+  "category": "ui",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "ui/uiBack.wav",
+    "seconds": 0.16
+   }
+  ],
+  "channels": 1
+ },
+ "uavPing": {
+  "category": "ui",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "ui/uavPing.wav",
+    "seconds": 0.3
+   }
+  ],
+  "channels": 1
+ },
+ "uavCall": {
+  "category": "ui",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "ui/uavCall.wav",
+    "seconds": 0.7
+   }
+  ],
+  "channels": 1
+ },
+ "uavRelease": {
+  "category": "ui",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "ui/uavRelease.wav",
+    "seconds": 0.3
+   }
+  ],
+  "channels": 1
+ },
+ "hitmark": {
+  "category": "ui",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "ui/hitmark.wav",
+    "seconds": 0.06
+   }
+  ],
+  "channels": 1
+ },
+ "killmark": {
+  "category": "ui",
+  "sampleRate": 44100,
+  "loop": false,
+  "files": [
+   {
+    "file": "ui/killmark.wav",
+    "seconds": 0.16
+   }
+  ],
+  "channels": 1
+ },
+ "rifleTail": {
+  "category": "weapons",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/rifleTail_01.wav",
+    "seconds": 1.9
+   },
+   {
+    "file": "weapons/rifleTail_02.wav",
+    "seconds": 1.9
+   },
+   {
+    "file": "weapons/rifleTail_03.wav",
+    "seconds": 1.9
+   }
+  ],
+  "channels": 2
+ },
+ "pistolTail": {
+  "category": "weapons",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "weapons/pistolTail_01.wav",
+    "seconds": 1.25
+   },
+   {
+    "file": "weapons/pistolTail_02.wav",
+    "seconds": 1.25
+   }
+  ],
+  "channels": 2
+ },
+ "groan": {
+  "category": "zombies",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "zombies/groan_01.wav",
+    "seconds": 2.199
+   },
+   {
+    "file": "zombies/groan_02.wav",
+    "seconds": 1.715
+   },
+   {
+    "file": "zombies/groan_03.wav",
+    "seconds": 1.284
+   },
+   {
+    "file": "zombies/groan_04.wav",
+    "seconds": 1.836
+   },
+   {
+    "file": "zombies/groan_05.wav",
+    "seconds": 1.805
+   }
+  ],
+  "channels": 1
+ },
+ "snarl": {
+  "category": "zombies",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "zombies/snarl_01.wav",
+    "seconds": 0.602
+   },
+   {
+    "file": "zombies/snarl_02.wav",
+    "seconds": 0.796
+   },
+   {
+    "file": "zombies/snarl_03.wav",
+    "seconds": 0.671
+   }
+  ],
+  "channels": 1
+ },
+ "hurt": {
+  "category": "zombies",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "zombies/hurt_01.wav",
+    "seconds": 0.37
+   },
+   {
+    "file": "zombies/hurt_02.wav",
+    "seconds": 0.385
+   },
+   {
+    "file": "zombies/hurt_03.wav",
+    "seconds": 0.379
+   }
+  ],
+  "channels": 1
+ },
+ "death": {
+  "category": "zombies",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "zombies/death_01.wav",
+    "seconds": 1.619
+   },
+   {
+    "file": "zombies/death_02.wav",
+    "seconds": 1.446
+   },
+   {
+    "file": "zombies/death_03.wav",
+    "seconds": 1.618
+   }
+  ],
+  "channels": 1
+ },
+ "bodyfall": {
+  "category": "zombies",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "zombies/bodyfall_01.wav",
+    "seconds": 0.5
+   },
+   {
+    "file": "zombies/bodyfall_02.wav",
+    "seconds": 0.5
+   }
+  ],
+  "channels": 1
+ },
+ "playerHurt": {
+  "category": "player",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "player/playerHurt_01.wav",
+    "seconds": 0.4
+   },
+   {
+    "file": "player/playerHurt_02.wav",
+    "seconds": 0.4
+   }
+  ],
+  "channels": 1
+ },
+ "heart": {
+  "category": "player",
+  "sampleRate": 32000,
+  "loop": true,
+  "files": [
+   {
+    "file": "player/heart.wav",
+    "seconds": 0.9
+   }
+  ],
+  "channels": 1
+ },
+ "waveStart": {
+  "category": "music",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "music/waveStart.wav",
+    "seconds": 2.6
+   }
+  ],
+  "channels": 1
+ },
+ "waveClear": {
+  "category": "music",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "music/waveClear.wav",
+    "seconds": 2.4
+   }
+  ],
+  "channels": 1
+ },
+ "dead": {
+  "category": "music",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "music/dead.wav",
+    "seconds": 3.2
+   }
+  ],
+  "channels": 1
+ },
+ "rainLoop": {
+  "category": "ambience",
+  "sampleRate": 32000,
+  "loop": true,
+  "files": [
+   {
+    "file": "ambience/rainLoop.wav",
+    "seconds": 6.5
+   }
+  ],
+  "channels": 1
+ },
+ "siren": {
+  "category": "ambience",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "ambience/siren.wav",
+    "seconds": 9
+   }
+  ],
+  "channels": 1
+ },
+ "thunder": {
+  "category": "ambience",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "ambience/thunder_01.wav",
+    "seconds": 5.5
+   },
+   {
+    "file": "ambience/thunder_02.wav",
+    "seconds": 5.5
+   }
+  ],
+  "channels": 1
+ },
+ "pulse": {
+  "category": "music",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "music/pulse_01.wav",
+    "seconds": 0.5
+   },
+   {
+    "file": "music/pulse_02.wav",
+    "seconds": 0.5
+   }
+  ],
+  "channels": 1
+ },
+ "tick": {
+  "category": "music",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "music/tick_01.wav",
+    "seconds": 0.05
+   },
+   {
+    "file": "music/tick_02.wav",
+    "seconds": 0.09
+   }
+  ],
+  "channels": 1
+ },
+ "bell": {
+  "category": "music",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "music/bell_01.wav",
+    "seconds": 2.2
+   },
+   {
+    "file": "music/bell_02.wav",
+    "seconds": 2.2
+   },
+   {
+    "file": "music/bell_03.wav",
+    "seconds": 2.2
+   },
+   {
+    "file": "music/bell_04.wav",
+    "seconds": 2.2
+   },
+   {
+    "file": "music/bell_05.wav",
+    "seconds": 2.2
+   },
+   {
+    "file": "music/bell_06.wav",
+    "seconds": 2.2
+   }
+  ],
+  "channels": 1
+ },
+ "stab": {
+  "category": "music",
+  "sampleRate": 32000,
+  "loop": false,
+  "files": [
+   {
+    "file": "music/stab.wav",
+    "seconds": 2
+   }
+  ],
+  "channels": 1
+ },
+ "cityLoop": {
+  "category": "ambience",
+  "sampleRate": 22050,
+  "loop": true,
+  "files": [
+   {
+    "file": "ambience/cityLoop.wav",
+    "seconds": 8
+   }
+  ],
+  "channels": 1
+ },
+ "genLoop": {
+  "category": "ambience",
+  "sampleRate": 22050,
+  "loop": true,
+  "files": [
+   {
+    "file": "ambience/genLoop.wav",
+    "seconds": 2
+   }
+  ],
+  "channels": 1
+ },
+ "fireLoop": {
+  "category": "ambience",
+  "sampleRate": 22050,
+  "loop": true,
+  "files": [
+   {
+    "file": "ambience/fireLoop.wav",
+    "seconds": 3.6
+   }
+  ],
+  "channels": 1
+ },
+ "buzzLoop": {
+  "category": "ambience",
+  "sampleRate": 22050,
+  "loop": true,
+  "files": [
+   {
+    "file": "ambience/buzzLoop.wav",
+    "seconds": 1
+   }
+  ],
+  "channels": 1
+ },
+ "droneLoop": {
+  "category": "ambience",
+  "sampleRate": 22050,
+  "loop": true,
+  "files": [
+   {
+    "file": "ambience/droneLoop.wav",
+    "seconds": 4
+   }
+  ],
+  "channels": 1
+ },
+ "pads": {
+  "category": "music",
+  "sampleRate": 22050,
+  "loop": false,
+  "files": [
+   {
+    "file": "music/pads_01.wav",
+    "seconds": 9
+   },
+   {
+    "file": "music/pads_02.wav",
+    "seconds": 9
+   },
+   {
+    "file": "music/pads_03.wav",
+    "seconds": 9
+   },
+   {
+    "file": "music/pads_04.wav",
+    "seconds": 9
+   }
+  ],
+  "channels": 1
+ }
+}

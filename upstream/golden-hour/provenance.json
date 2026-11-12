@@ -1,0 +1,36 @@
+{
+  "title": "GOLDEN HOUR — Solstice Hotel",
+  "source": "https://claude.ai/artifact/6N9gzgYJDa925a1tVxps2f",
+  "frame": "https://2b71aae7-f567-45cd-9392-4374412a0670.frame.claudeusercontent.com/_f/1794413451-9695/",
+  "observed_manifest": "manifest.d7fc1ed70d427533.json",
+  "retrieved": "2026-11-12",
+  "license": "No game reuse license established; internal reference archive. Bundled library licenses do not grant rights to game assets.",
+  "files": [
+    {
+      "path": "original/index.html",
+      "url": "https://2b71aae7-f567-45cd-9392-4374412a0670.frame.claudeusercontent.com/_f/1794413451-9695/",
+      "bytes": 131592,
+      "sha256": "48b8d6c31a8053c204884ac8a879a8a01b6d26a0b1c76748435c1a1060cc8846"
+    },
+    {
+      "path": "original/dist/game.js",
+      "url": "https://2b71aae7-f567-45cd-9392-4374412a0670.frame.claudeusercontent.com/_f/1794413451-9695/dist/game.js",
+      "bytes": 2804090,
+      "sha256": "d0c07719d57a1abd72d24de675fbc600ab3816611e8f8dd8f53b236f74812a07"
+    }
+  ],
+  "coverage": "Published HTML and game bundle. Local boot and DEPLOY verified; runtime resource timing observed only game.js and favicon.ico. Art and audio generators retained in bundle; no independent GLB/texture/audio exports claimed.",
+  "derivatives": {
+    "play.html": "Hosting runtime removed; script path adjusted. Game bundle unchanged.",
+    "readable/game.js": "Prettier formatted copy; minified identifiers retained, not original author modules.",
+    "previews/lobby.jpg": "Canvas render from local game after DEPLOY; transition fade set to zero for reference capture. HUD excluded.",
+    "previews/gameplay.jpg": "Canvas during match countdown, includes transition darkening; HUD excluded."
+  },
+  "validation": {
+    "ready": true,
+    "deploy_state": "playing",
+    "match": "countdown",
+    "breakable_panes": 124,
+    "physics_props": 101
+  }
+}

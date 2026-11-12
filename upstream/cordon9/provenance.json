@@ -1,0 +1,12 @@
+{
+  "title": "CORDON 9",
+  "source": "https://cordon9.pplx.app/",
+  "retrieved": "2026-11-12",
+  "file": "cordon9.html",
+  "bytes": 3156591,
+  "sha256": "3eb0f27bf6bdc1481fbf8034c240c92af53e9936bae9b3044f54067a344b703d",
+  "bundler": "esbuild (unminified, module path comments kept)",
+  "vendor": "three.js r180 (MIT) + three/examples BufferGeometryUtils, embedded in cordon9.html, not split out",
+  "license": "None stated on the site. Author not identified. Treat as reference material, not licensed for redistribution.",
+  "note": "Single self-contained HTML page; the server serves nothing else (other paths return 404). The game ships no asset files: geometry, textures, audio and music are generated in code at load time. src/ is split from the bundle; audio/ and previews/ are rendered from it by tools/."
+}

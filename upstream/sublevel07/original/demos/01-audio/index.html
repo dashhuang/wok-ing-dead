@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SALTLINE · 音效台</title>
+<style>
+:root{
+  --bg:#090c0f;--panel:#10151a;--panel2:#141b21;--line:#222c35;--line2:#2e3b46;
+  --txt:#dbe4ea;--dim:#7d8b96;--mute:#4d5963;
+  --amber:#ffb454;--cyan:#62d6e8;--red:#ff6b5a;--green:#8fe38f;--violet:#b79cff;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+body{min-height:100vh;background:
+  radial-gradient(1200px 500px at 15% -10%,rgba(98,214,232,.07),transparent 60%),
+  radial-gradient(900px 500px at 95% 0%,rgba(255,180,84,.06),transparent 60%),var(--bg)}
+.wrap{max-width:1320px;margin:0 auto;padding:22px 22px 40px}
+header{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:16px}
+.brand{display:flex;align-items:baseline;gap:14px;flex:1;min-width:260px}
+.brand h1{margin:0;font:700 22px/1 var(--mono);letter-spacing:.22em}
+.brand h1 b{color:var(--amber);font-weight:700}
+.brand span{font:12px/1.4 var(--mono);color:var(--dim);letter-spacing:.06em}
+.ctl{display:flex;align-items:center;gap:14px;font:12px var(--mono);color:var(--dim)}
+.ctl input[type=range]{width:120px;accent-color:var(--amber)}
+.btn{font:600 12px var(--mono);letter-spacing:.08em;color:var(--bg);background:var(--amber);border:0;border-radius:4px;padding:9px 14px;cursor:pointer}
+.btn:hover{filter:brightness(1.1)}.btn.on{background:var(--red);color:#fff}
+.btn kbd{font:inherit;opacity:.6;margin-left:6px}
+
+.scope{display:grid;grid-template-columns:1.65fr 1fr;gap:12px;margin-bottom:18px}
+.pane{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.pane canvas{display:block;width:100%}
+.tag{position:absolute;left:10px;top:8px;font:10px var(--mono);letter-spacing:.14em;color:var(--dim);pointer-events:none;text-shadow:0 0 6px #000,0 0 6px #000}
+.tag.r{left:auto;right:10px}
+#cWave{height:150px;border-bottom:1px solid var(--line)}
+#cGram{height:190px}
+#cSpec{height:262px}
+.read{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);height:78px}
+.read div{padding:12px 12px;border-right:1px solid var(--line);min-width:0}
+.read div:last-child{border:0}
+.read i{display:block;font:normal 10px var(--mono);letter-spacing:.12em;color:var(--mute);margin-bottom:8px}
+.read b{display:block;font:600 16px var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rPeak{color:var(--amber)}#rNow{color:var(--cyan);font-size:13px;padding-top:3px}
+
+.group{display:grid;grid-template-columns:86px 1fr;gap:12px;margin-bottom:10px;align-items:stretch}
+.glabel{font:600 11px var(--mono);letter-spacing:.2em;color:var(--c);border-left:2px solid var(--c);padding:10px 0 0 10px}
+.glabel small{display:block;color:var(--mute);font-weight:400;letter-spacing:.06em;margin-top:6px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:10px}
+.card{position:relative;text-align:left;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:6px;padding:11px 12px 9px;color:var(--txt);cursor:pointer;font-family:var(--sans);transition:border-color .25s,transform .06s;user-select:none;-webkit-user-select:none;touch-action:manipulation;overflow:hidden}
+.card:hover{border-color:var(--line2)}
+.card:active{transform:translateY(1px)}
+.card:focus-visible{outline:1px solid var(--c)}
+.card::before{content:"";position:absolute;inset:0;background:var(--c);opacity:0;pointer-events:none}
+.card.hit{border-color:var(--c)}
+.card.hit::before{animation:flash .28s ease-out}
+.card.on{border-color:var(--c);box-shadow:0 0 0 1px var(--c) inset,0 0 22px -8px var(--c)}
+@keyframes flash{from{opacity:.22}to{opacity:0}}
+.card .top{display:flex;align-items:center;gap:8px}
+.card .key{font:600 11px var(--mono);color:var(--c);border:1px solid var(--c);border-radius:3px;min-width:20px;text-align:center;padding:1px 4px;opacity:.9}
+.card .name{font-weight:600;font-size:14px;letter-spacing:.02em}
+.card .mode{margin-left:auto;font:10px var(--mono);color:var(--mute);letter-spacing:.08em}
+.card.on .mode{color:var(--c)}
+.card .desc{font-size:11px;color:var(--dim);margin:6px 0 7px;line-height:1.45;min-height:32px}
+.card canvas{display:block;width:100%;height:34px;background:rgba(0,0,0,.28);border-radius:3px}
+.card .stat{font:10px var(--mono);color:var(--mute);margin-top:6px;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .stat b{color:var(--c);font-weight:600}
+footer{margin-top:18px;font:11px/1.7 var(--mono);color:var(--mute)}
+footer b{color:var(--dim);font-weight:400}
+@media(max-width:860px){.scope{grid-template-columns:1fr}.group{grid-template-columns:1fr}.glabel{padding:0 0 0 10px}.glabel small{display:inline;margin-left:8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><h1>SALT<b>LINE</b></h1><span>FPS 音效台 · 纯 WebAudio 实时合成 · 0 采样 · 0 依赖</span></div>
+    <div class="ctl">
+      <label>音量 <input id="vol" type="range" min="0" max="1" step="0.01" value="0.8"></label>
+      <button class="btn" id="demo">▶ 交火演示<kbd>空格</kbd></button>
+    </div>
+  </header>
+
+  <section class="scope">
+    <div class="pane">
+      <span class="tag">WAVEFORM · 输出波形</span><span class="tag r" id="tFreeze"></span>
+      <canvas id="cWave"></canvas>
+      <canvas id="cGram"></canvas>
+      <span class="tag" style="top:160px">SPECTROGRAM · 30 Hz – 20 kHz 对数</span>
+    </div>
+    <div class="pane">
+      <span class="tag">SPECTRUM · 实时频谱</span>
+      <canvas id="cSpec"></canvas>
+      <div class="read">
+        <div><i>PEAK</i><b id="rPeak">−∞ dB</b></div>
+        <div><i>RMS</i><b id="rRms">−∞ dB</b></div>
+        <div><i>VOICES</i><b id="rVoices">0</b></div>
+        <div><i>LAST</i><b id="rNow">点任意按钮</b></div>
+      </div>
+    </div>
+  </section>
+
+  <main id="board"></main>
+
+  <footer>
+    <b>按键</b> 卡片左上角字母数字 · <b>R</b> 连贯换弹 · <b>空格</b> 交火演示 · 步枪和脚步可<b>按住连发</b>。
+    每次触发用新的随机种子重新合成，卡片里的小波形是同一颗种子的离线渲染结果。
+  </footer>
+</div>
+
+<script>
+'use strict';
+/* ============================================================
+   基础：随机数、噪声、脉冲响应（全部由代码计算）
+   ============================================================ */
+const SR = 48000;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function RNG(seed){
+  const r=mulberry32(seed), f=()=>r();
+  f.range=(a,b)=>a+(b-a)*r();
+  f.exp=(a,b)=>a*Math.pow(b/a,r());
+  f.int=(a,b)=>Math.floor(a+(b-a+1)*r());
+  f.pick=a=>a[Math.floor(r()*a.length)];
+  f.chance=p=>r()<p;
+  f.sign=()=>r()<.5?-1:1;
+  return f;
+}
+
+const NOISE={};
+function noiseBuf(type){
+  if(NOISE[type])return NOISE[type];
+  const len=SR*(type==='white'?3:7), X=4800, tot=len+X;
+  const r=mulberry32(type==='white'?11:type==='pink'?23:37), raw=new Float32Array(tot);
+  if(type==='white'){for(let i=0;i<tot;i++)raw[i]=r()*2-1}
+  else if(type==='pink'){let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+    for(let i=0;i<tot;i++){const w=r()*2-1;b0=.99886*b0+w*.0555179;b1=.99332*b1+w*.0750759;b2=.969*b2+w*.153852;b3=.8665*b3+w*.3104856;b4=.55*b4+w*.5329522;b5=-.7616*b5-w*.016898;raw[i]=(b0+b1+b2+b3+b4+b5+b6+w*.5362)*.11;b6=w*.115926}}
+  else{let v=0,mx=0;for(let i=0;i<tot;i++){v=(v+.02*(r()*2-1))/1.0015;raw[i]=v;mx=Math.max(mx,Math.abs(v))}for(let i=0;i<tot;i++)raw[i]/=mx}
+  const b=new AudioBuffer({length:len,sampleRate:SR,numberOfChannels:1}),d=b.getChannelData(0);
+  d.set(raw.subarray(0,len));
+  for(let i=0;i<X;i++){const w=i/X;d[i]=raw[i]*w+raw[len+i]*(1-w)}   // 无缝循环
+  return NOISE[type]=b;
+}
+
+/* 噪声 → 指数衰减 → 时变低通，得到卷积混响的脉冲响应 */
+const IR_SPEC={
+  outdoor:{dur:3.4,rt:2.7,pre:.03,build:.11,lp0:5200,lp1:420,hp:110,echoes:[[.19,2.6,.035],[.33,2.0,.04],[.52,1.5,.05],[.81,1.0,.06],[1.2,.6,.08]],seed:3},
+  indoor:{dur:1.5,rt:1.15,pre:.003,lp0:12000,lp1:2200,hp:140,early:16,earlySpan:.07,earlyAmp:8,seed:5},
+  room:{dur:.55,rt:.38,pre:.002,lp0:9000,lp1:2600,hp:160,early:9,earlySpan:.03,earlyAmp:6,seed:7},
+  hall:{dur:4.2,rt:3.6,pre:.02,build:.04,lp0:7500,lp1:1100,hp:110,seed:9},
+  far:{dur:5.5,rt:4.8,pre:.05,build:.35,lp0:1300,lp1:180,hp:28,echoes:[[.9,1.2,.2],[1.9,.8,.3]],seed:13},
+};
+const IRS={};
+function irBuf(name){
+  if(IRS[name])return IRS[name];
+  const o=IR_SPEC[name],len=o.dur*SR|0,b=new AudioBuffer({length:len,sampleRate:SR,numberOfChannels:2});
+  for(let ch=0;ch<2;ch++){
+    const d=b.getChannelData(ch),r=mulberry32(o.seed*31+ch*7919),raw=new Float32Array(len);
+    const pre=o.pre*SR|0,n=len-pre,k=-6.91/(o.rt*SR),bl=(o.build||0)*SR;
+    for(let i=pre;i<len;i++){const j=i-pre;raw[i]=(r()*2-1)*Math.exp(k*j)*(bl?Math.min(1,j/bl):1)}
+    for(let e=0;e<(o.early||0);e++){const off=(.002+r()*o.earlySpan)*SR|0;raw[pre+off]+=(r()<.5?-1:1)*o.earlyAmp*(1-.65*off/(o.earlySpan*SR))}
+    (o.echoes||[]).forEach(([tm,amp,sp],ei)=>{const p0=(tm+(ch?1:-1)*(ei%2?.006:-.006))*SR|0,L=sp*SR|0;for(let j=0;j<L&&p0+j<len;j++)raw[p0+j]+=(r()*2-1)*amp*Math.exp(-4*j/L)*Math.exp(k*p0)*3});
+    let y=0,y2=0,hx=0,hy=0,a=1;const hpA=Math.exp(-2*Math.PI*o.hp/SR),fadeN=len*.06;
+    for(let i=pre;i<len;i++){const j=i-pre;
+      if(!(j&63)){const fc=o.lp0*Math.pow(o.lp1/o.lp0,j/n);a=1-Math.exp(-2*Math.PI*fc/SR)}
+      y+=a*(raw[i]-y);y2+=a*(y-y2);hy=hpA*(hy+y2-hx);hx=y2;
+      d[i]=hy*Math.min(1,(len-i)/fadeN)}
+  }
+  return IRS[name]=b;
+}
+
+/* ============================================================
+   引擎：总线 → 压缩 → 软削波 → 音量（实时和离线共用同一条链）
+   ============================================================ */
+let CLIP_CURVE=null;
+function clipCurve(){
+  if(CLIP_CURVE)return CLIP_CURVE;
+  const N=4097,c=new Float32Array(N);
+  for(let i=0;i<N;i++){const x=(i/(N-1)*2-1)*2,a=Math.abs(x);c[i]=a<.7?x:Math.sign(x)*(.7+.28*Math.tanh((a-.7)/.28))}
+  return CLIP_CURVE=c;
+}
+function makeEngine(ctx,opt={}){
+  const bus=ctx.createGain(),vol=ctx.createGain();
+  if(opt.raw){bus.connect(vol)}
+  else{
+    const comp=ctx.createDynamicsCompressor();
+    comp.threshold.value=-6;comp.knee.value=6;comp.ratio.value=4;comp.attack.value=.003;comp.release.value=.12;
+    const trim=ctx.createGain();trim.gain.value=.5*.8;          // .5 = 削波曲线输入范围 ±2；.62 抵消压缩器自动补偿增益
+    const clip=ctx.createWaveShaper();clip.curve=clipCurve();clip.oversample='4x';
+    bus.connect(comp);comp.connect(trim);trim.connect(clip);clip.connect(vol);
+  }
+  const E={ctx,bus,vol,rev:{},voices:new Set()};
+  vol.connect(opt.dest||ctx.destination);
+  return E;
+}
+function getRev(E,name){
+  if(!E.rev[name]){const c=E.ctx.createConvolver();c.buffer=irBuf(name);c.connect(E.bus);E.rev[name]=c}
+  return E.rev[name];
+}
+function trigger(E,id,seed,t,opts={}){
+  const def=SOUNDS[id],ctx=E.ctx,out=ctx.createGain();
+  out.gain.value=def.gain;out.connect(E.bus);
+  const S={ctx,E,R:RNG(seed),out,srcs:[],sends:[],loop:!!opts.loop,
+    send(name,amt){const g=ctx.createGain();g.gain.value=amt*def.gain;g.connect(getRev(E,name));S.sends.push(g);return g}};
+  const len=def.build(S,t)||def.len;
+  const v={id,seed,len,dead:false,
+    kill(){if(v.dead)return;v.dead=true;S.srcs.forEach(s=>{try{s.stop()}catch(e){}});out.disconnect();S.sends.forEach(g=>g.disconnect());E.voices.delete(v)},
+    stop(f=.25){const now=ctx.currentTime;[out,...S.sends].forEach(g=>{g.gain.cancelScheduledValues(now);g.gain.setValueAtTime(g.gain.value,now);g.gain.linearRampToValueAtTime(0,now+f)});setTimeout(v.kill,(f+.15)*1000)}};
+  E.voices.add(v);
+  return v;
+}
+
+/* ============================================================
+   合成积木
+   ============================================================ */
+function G(S,v=1){const g=S.ctx.createGain();g.gain.value=v;return g}
+function F(S,type,f,q=.707,gain=0){const b=S.ctx.createBiquadFilter();b.type=type;b.frequency.value=f;b.Q.value=q;b.gain.value=gain;return b}
+function PAN(S,p=0){const n=S.ctx.createStereoPanner();n.pan.value=Math.max(-1,Math.min(1,p));return n}
+function DLY(S,d,max=2){const n=S.ctx.createDelay(max);n.delayTime.value=d;return n}
+function link(...n){for(let i=0;i<n.length-1;i++)n[i].connect(n[i+1]);return n[n.length-1]}
+function osc(S,type,f,t,dur){const o=S.ctx.createOscillator();o.type=type;o.frequency.value=f;o.start(t);if(isFinite(dur))o.stop(t+dur);S.srcs.push(o);return o}
+function nz(S,type,t,dur,rate=1){const n=S.ctx.createBufferSource();n.buffer=noiseBuf(type);n.loop=true;n.playbackRate.value=rate;n.start(t,S.R()*(n.buffer.duration-.5));if(isFinite(dur))n.stop(t+dur+.02);S.srcs.push(n);return n}
+function bufSrc(S,buf,t,dur){const n=S.ctx.createBufferSource();n.buffer=buf;n.loop=true;n.start(t,0);if(isFinite(dur))n.stop(t+dur);S.srcs.push(n);return n}
+function perc(p,t,peak,a,tau){p.setValueAtTime(0,t);p.linearRampToValueAtTime(peak,t+a);p.setTargetAtTime(0,t+a,tau)}
+const SHAPES={};
+function shaper(S,drive){const w=S.ctx.createWaveShaper();if(!SHAPES[drive]){const c=new Float32Array(2049),k=Math.tanh(drive);for(let i=0;i<2049;i++)c[i]=Math.tanh((i/1024-1)*drive)/k;SHAPES[drive]=c}w.curve=SHAPES[drive];w.oversample='2x';return w}
+function bpComp(f,q){return Math.max(1,Math.min(5,Math.sqrt(24000/(f/q))*.45))}
+
+function click(S,dst,t,o){
+  const {f=3000,q=1.2,tau=.004,g=.5,type='bandpass',a=.0004,src='white'}=o;
+  const n=nz(S,src,t,a+tau*9),fl=F(S,type,f,q),e=G(S,0);
+  perc(e.gain,t,g*(type==='bandpass'?bpComp(f,q):1),a,tau);link(n,fl,e,dst);
+}
+function metal(S,dst,t,o){
+  const {freqs,tau=.03,g=.1,jit=.004,a=.0003,tilt=.35}=o,R=S.R;
+  freqs.forEach((f,i)=>{if(f>18000)return;
+    const tt=tau/(1+i*tilt)*R.range(.8,1.2),os=osc(S,'sine',f*(1+(R()*2-1)*jit),t,a+tt*9),e=G(S,0);
+    perc(e.gain,t,g*R.range(.55,1)/Math.pow(i+1,.35),a,tt);link(os,e,dst)});
+}
+function thump(S,dst,t,o){
+  const {f0=150,f1=50,sw=.06,tau=.06,g=.8,a=.001}=o;
+  const os=osc(S,'sine',f0,t,a+tau*9),e=G(S,0);
+  os.frequency.setValueAtTime(f0,t);os.frequency.exponentialRampToValueAtTime(f1,t+sw);
+  perc(e.gain,t,g,a,tau);link(os,e,dst);
+}
+function scrape(S,dst,t,o){
+  const {dur,f0,f1,q=1.5,g=.2,am=0,src='white'}=o;
+  const n=nz(S,src,t,dur+.03),fl=F(S,'bandpass',f0,q),e=G(S,0),pk=g*bpComp((f0+f1)/2,q);
+  fl.frequency.setValueAtTime(f0,t);fl.frequency.exponentialRampToValueAtTime(f1,t+dur);
+  e.gain.setValueAtTime(0,t);e.gain.linearRampToValueAtTime(pk,t+dur*.3);e.gain.linearRampToValueAtTime(pk*.7,t+dur*.85);e.gain.linearRampToValueAtTime(0,t+dur+.012);
+  let last=link(n,fl,e);
+  if(am){const m=G(S,.5),l=osc(S,'square',am,t,dur+.03),d=G(S,.5);l.connect(d);d.connect(m.gain);last=link(e,m)}
+  last.connect(dst);
+}
+function randCurve(R,n,lo,hi,sm){const c=new Float32Array(n);let v=R.range(lo,hi);for(let i=0;i<n;i++){v+=(R.range(lo,hi)-v)*sm;c[i]=v}return c}
+
+/* ============================================================
+   武器
+   ============================================================ */
+function rifle(S,t,indoor){
+  const R=S.R,p=R.range(.93,1.07);
+  const pre=G(S,.42),sat=shaper(S,5),tone=F(S,'peaking',R.range(850,1500),.9,R.range(2,5)),low=F(S,'lowshelf',170,0,3),post=G(S,.8);
+  link(pre,sat,tone,low,post);post.connect(S.out);
+  // 1 超音速爆裂：高通白噪声，约 10 ms
+  {const n=nz(S,'white',t,.15),h=F(S,'highpass',R.range(2400,3400)*p,.7),e=G(S,0);perc(e.gain,t,R.range(1.6,2.1),.0003,R.range(.009,.014));link(n,h,e,pre)}
+  // 2 膛口爆震：低通从 8 kHz 扫到 450 Hz
+  {const n=nz(S,'white',t,.5),l=F(S,'lowpass',7000,.6),e=G(S,0);l.frequency.setValueAtTime(R.range(6000,9000),t);l.frequency.exponentialRampToValueAtTime(R.range(350,600),t+R.range(.1,.16));perc(e.gain,t,R.range(1.5,2),.0008,R.range(.038,.055));link(n,l,e,pre)}
+  // 3 中频拳头感
+  {const n=nz(S,'pink',t,.7),b=F(S,'bandpass',R.range(300,460)*p,1.1),e=G(S,0);perc(e.gain,t,R.range(2.4,3.2),.002,R.range(.06,.085));link(n,b,e,pre)}
+  // 4 低频冲击：正弦快速下滑
+  thump(S,pre,t,{f0:R.range(140,175)*p,f1:R.range(42,52),sw:.09,tau:R.range(.05,.07),g:1.6});
+  thump(S,post,t,{f0:95*p,f1:38,sw:.12,tau:.09,g:.45});
+  // 5 燃气余响
+  {const n=nz(S,'pink',t,1.3),l=F(S,'lowpass',2200,.5),e=G(S,0);l.frequency.setValueAtTime(R.range(1800,2600),t);l.frequency.exponentialRampToValueAtTime(260,t+.6);perc(e.gain,t,R.range(.5,.8),.012,R.range(.09,.14));link(n,l,e,pre)}
+  // 6 枪机往复的金属声
+  const mech=G(S,indoor?.55:.45),tm=t+R.range(.05,.068);mech.connect(S.out);
+  click(S,mech,tm,{f:R.range(3200,4400),tau:.003,g:.3});metal(S,mech,tm,{freqs:[2100*p,3370*p,5230*p],tau:.012,g:.07});
+  const tm2=tm+R.range(.028,.04);click(S,mech,tm2,{f:R.range(2200,3000),tau:.004,g:.28});metal(S,mech,tm2,{freqs:[1480*p,2650*p,4100*p],tau:.016,g:.06});
+  if(!indoor){
+    post.connect(S.send('outdoor',R.range(.5,.65)));
+    const side=R.sign();
+    [[R.range(.13,.22),.2,1700],[R.range(.3,.48),.13,950],[R.range(.6,.9),.075,620]].forEach(([d,g,lp],i)=>{
+      link(post,DLY(S,d),F(S,'lowpass',lp,.5),G(S,g),PAN(S,(i%2?1:-1)*side*R.range(.3,.85)),S.out)});
+    return 3.6;
+  }
+  const wet=S.send('indoor',R.range(.75,.95));post.connect(wet);
+  // 房间驻波
+  const f0=R.range(105,150);
+  [[f0,.3,.13],[f0*R.range(1.45,1.62),.16,.09],[f0*R.range(2.1,2.4),.08,.06]].forEach(([f,g,tau])=>{const o=osc(S,'sine',f,t,tau*9),e=G(S,0);perc(e.gain,t+.004,g,.012,tau);link(o,e,S.out);e.connect(wet)});
+  // 硬墙之间的颤动回声
+  {const d=DLY(S,R.range(.014,.027)),fb=G(S,R.range(.42,.55)),bp=F(S,'bandpass',R.range(1300,2600),.6),g=G(S,.3),pn=PAN(S,R.range(-.5,.5));
+   post.connect(d);link(d,bp,fb,d);link(bp,g,pn,S.out)}
+  return 2.0;
+}
+
+/* ============================================================
+   换弹
+   ============================================================ */
+function magOut(S,t){
+  const R=S.R,o=PAN(S,R.range(-.15,.15)),p=R.range(.92,1.08);o.connect(S.out);o.connect(S.send('room',.22));
+  click(S,o,t,{f:R.range(3800,4800),tau:.003,g:.42});
+  metal(S,o,t,{freqs:[1850*p,3120*p,4670*p],tau:.016,g:.1});
+  const d=R.range(.1,.16),t1=t+R.range(.025,.04);
+  scrape(S,o,t1,{dur:d,f0:R.range(1700,2100),f1:R.range(950,1250),q:1.2,g:.13,am:R.range(55,85)});
+  const t2=t1+d;
+  thump(S,o,t2,{f0:R.range(200,240),f1:R.range(105,130),sw:.03,tau:.028,g:.32});
+  click(S,o,t2,{f:R.range(800,1050),q:2,tau:.012,g:.28});
+  metal(S,o,t2,{freqs:[640*p,1270*p,2050*p,3300*p],tau:.035,g:.08});
+  for(let i=R.int(2,3),tt=t2;i--;){tt+=R.range(.03,.07);click(S,o,tt,{f:R.range(2500,5200),q:3,tau:.003,g:R.range(.04,.09)})}
+  return 1.0;
+}
+function magIn(S,t){
+  const R=S.R,o=PAN(S,R.range(-.15,.15)),p=R.range(.92,1.08);o.connect(S.out);o.connect(S.send('room',.25));
+  click(S,o,t,{f:R.range(2200,2900),tau:.004,g:.22});
+  const d=R.range(.07,.11);
+  scrape(S,o,t+.008,{dur:d,f0:R.range(1100,1400),f1:R.range(2000,2500),q:1.3,g:.12});
+  const t1=t+.008+d;
+  click(S,o,t1,{f:R.range(2900,3600),q:1,tau:.005,g:.6});
+  click(S,o,t1,{f:R.range(1000,1250),q:1.2,tau:.012,g:.42});
+  thump(S,o,t1,{f0:R.range(170,200),f1:R.range(80,100),sw:.035,tau:.035,g:.5});
+  metal(S,o,t1,{freqs:[1420*p,2380*p,3550*p,5100*p],tau:.032,g:.14});
+  const t2=t1+R.range(.016,.028);
+  click(S,o,t2,{f:R.range(4400,5400),q:2,tau:.0025,g:.26});
+  metal(S,o,t2,{freqs:[2900*p,4800*p],tau:.012,g:.05});
+  return 1.0;
+}
+function bolt(S,t){
+  const R=S.R,o=PAN(S,R.range(-.15,.15)),p=R.range(.93,1.07);o.connect(S.out);o.connect(S.send('room',.28));
+  click(S,o,t,{f:R.range(3300,4000),tau:.003,g:.25});
+  const d=R.range(.085,.125);
+  scrape(S,o,t+.006,{dur:d,f0:R.range(2000,2400),f1:R.range(3200,3800),q:1.4,g:.16,am:R.range(95,140)});
+  {const sp=osc(S,'sine',R.range(640,760),t,d+.3),e=G(S,0);sp.frequency.exponentialRampToValueAtTime(R.range(980,1150),t+d);e.gain.setValueAtTime(0,t);e.gain.linearRampToValueAtTime(.022,t+d);e.gain.setTargetAtTime(0,t+d,.03);link(sp,e,o)}
+  const t1=t+.006+d;
+  click(S,o,t1,{f:R.range(2400,2900),tau:.005,g:.45});
+  thump(S,o,t1,{f0:200,f1:110,sw:.03,tau:.025,g:.28});
+  metal(S,o,t1,{freqs:[1650*p,2900*p,4400*p],tau:.022,g:.09});
+  const t2=t1+R.range(.07,.12);
+  scrape(S,o,t2,{dur:.035,f0:3400,f1:R.range(1800,2200),q:1.2,g:.16});
+  const t3=t2+.04;
+  click(S,o,t3,{f:R.range(3500,4200),q:.8,tau:.006,g:.75});
+  click(S,o,t3,{f:R.range(1250,1550),q:1.1,tau:.014,g:.55});
+  thump(S,o,t3,{f0:R.range(160,185),f1:R.range(68,82),sw:.04,tau:.045,g:.65});
+  metal(S,o,t3,{freqs:[1210*p,2040*p,3180*p,4720*p,6300*p],tau:.05,g:.17});
+  metal(S,o,t3,{freqs:[870*p,1745*p],tau:.11,g:.022,tilt:.1});
+  return 1.1;
+}
+
+/* ============================================================
+   弹壳
+   ============================================================ */
+function shell(S,t){
+  const R=S.R,base=R.range(2500,3500),alt=R.range(1.12,1.27);
+  const A=[1,1.58,2.47,3.31,4.62],B=A.map(m=>m*alt);
+  let tt=t,gap=R.range(.13,.21),amp=1,pan=R.range(-.5,.5);const drift=R.range(-.12,.12);
+  const hit=(tm,modes,a,tau)=>{const pn=PAN(S,pan);pn.connect(S.out);pn.connect(S.send('room',.3));pn.connect(S.send('outdoor',.05));
+    metal(S,pn,tm,{freqs:modes.map(m=>m*base),tau,g:.2*a,jit:.012});
+    click(S,pn,tm,{f:R.range(5200,7500),q:1,tau:.002,g:.16*a});
+    click(S,pn,tm,{f:R.range(1100,1700),q:1.2,tau:.005,g:.12*a});pan+=drift};
+  for(let i=0,nb=R.int(3,5);i<nb;i++){hit(tt,i%2?B:A,amp,R.range(.05,.1)*Math.pow(amp,.25));tt+=gap;gap*=R.range(.5,.68);amp*=R.range(.5,.72)}
+  for(let i=0,nr=R.int(4,7),g2=R.range(.02,.03);i<nr;i++){hit(tt,(i%2?B:A).slice(1,4),amp,.014);tt+=g2;g2*=.78;amp*=.72}   // 最后滚动几下
+  return 1.8;
+}
+
+/* ============================================================
+   脚步
+   ============================================================ */
+function stepConcrete(S,t){
+  const R=S.R,o=PAN(S,R.range(-.2,.2));o.connect(S.out);o.connect(S.send('room',.14));o.connect(S.send('outdoor',.04));
+  const foot=(tm,a,bright)=>{
+    {const n=nz(S,'pink',tm,.3),l=F(S,'lowpass',R.range(170,250)*bright,.8),e=G(S,0);perc(e.gain,tm,3.2*a,.003,R.range(.018,.026));link(n,l,e,o)}
+    thump(S,o,tm,{f0:R.range(90,110),f1:58,sw:.04,tau:.03,g:.4*a});
+    click(S,o,tm,{f:R.range(450,720)*bright,q:1.4,tau:.009,g:.22*a,src:'pink'});
+    // 砂砾：随机颗粒包络
+    {const d=R.range(.05,.08),n=nz(S,'white',tm,d+.02),b=F(S,'bandpass',R.range(2600,4600),.7),e=G(S,0),c=new Float32Array(14);
+     for(let i=0;i<14;i++)c[i]=R()*R()*(1-i/14)*.1*a;c[13]=0;e.gain.setValueCurveAtTime(c,tm+.002,d);link(n,b,e,o)}
+  };
+  foot(t,1,1);foot(t+R.range(.07,.11),R.range(.45,.6),1.5);
+  return .8;
+}
+function stepMetal(S,t){
+  const R=S.R,o=PAN(S,R.range(-.2,.2)),f0=R.range(165,235);o.connect(S.out);o.connect(S.send('indoor',.28));
+  const modes=[1,2.32,3.91,5.63,8.1,11.3,15.2].map(m=>m*f0*R.range(.97,1.03));
+  const foot=(tm,a)=>{
+    thump(S,o,tm,{f0:R.range(115,135),f1:68,sw:.03,tau:.028,g:.42*a});
+    click(S,o,tm,{f:R.range(800,1100),q:1.2,tau:.007,g:.3*a});
+    click(S,o,tm,{f:R.range(3800,5200),q:1,tau:.003,g:.12*a});
+    metal(S,o,tm,{freqs:modes,tau:R.range(.12,.24),g:.13*a,jit:.006,tilt:.3,a:.001});
+  };
+  foot(t,1);
+  const tr=t+R.range(.028,.05);            // 钢板松动的二次颤响
+  metal(S,o,tr,{freqs:[modes[4]*1.07,modes[5]*1.03,modes[6]],tau:.04,g:.04});click(S,o,tr,{f:4600,q:2,tau:.002,g:.05});
+  foot(t+R.range(.08,.12),R.range(.4,.55));
+  return 1.3;
+}
+function stepWater(S,t){
+  const R=S.R,o=PAN(S,R.range(-.2,.2));o.connect(S.out);o.connect(S.send('room',.12));o.connect(S.send('outdoor',.06));
+  const slap=(tm,a)=>{
+    {const n=nz(S,'white',tm,.3),b=F(S,'bandpass',900,.9),e=G(S,0);b.frequency.setValueAtTime(R.range(800,1200),tm);b.frequency.exponentialRampToValueAtTime(R.range(2400,3400),tm+.05);perc(e.gain,tm,1.5*a,.004,R.range(.025,.035));link(n,b,e,o)}
+    {const n=nz(S,'white',tm,.8),h=F(S,'highpass',R.range(2200,3000),.6),l=F(S,'lowpass',9000,.5),e=G(S,0);perc(e.gain,tm,.2*a,.022,R.range(.07,.11));link(n,h,l,e,o)}
+    {const n=nz(S,'pink',tm,.3),l=F(S,'lowpass',320,.7),e=G(S,0);perc(e.gain,tm,1.6*a,.004,.03);link(n,l,e,o)}
+    thump(S,o,tm,{f0:105,f1:60,sw:.04,tau:.03,g:.3*a});
+  };
+  slap(t,1);slap(t+R.range(.08,.12),R.range(.35,.5));
+  for(let i=R.int(5,9);i--;){                       // 溅起的水滴：上滑的短正弦
+    const tm=t+R.range(.04,.42),f=R.exp(650,2800),os=osc(S,'sine',f,tm,.12),e=G(S,0),pn=PAN(S,R.range(-.6,.6));
+    os.frequency.setValueAtTime(f,tm);os.frequency.exponentialRampToValueAtTime(f*R.range(1.3,1.9),tm+.03);
+    perc(e.gain,tm,R.range(.03,.09),.002,R.range(.008,.016));link(os,e,pn,o)}
+  return 1.1;
+}
+
+/* ============================================================
+   弹道
+   ============================================================ */
+function whiz(S,t){
+  const R=S.R,dir=R.sign(),dur=R.range(.2,.38),f0=R.range(3800,6200),k=R.range(.24,.34),tp=t+dur*.38;
+  const pn=PAN(S,0);pn.pan.setValueAtTime(-dir*.95,t);pn.pan.linearRampToValueAtTime(dir*.95,t+dur);
+  pn.connect(S.out);pn.connect(S.send('outdoor',.22));
+  const bell=(g,pk)=>{g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(pk,tp);g.gain.exponentialRampToValueAtTime(pk*.004,t+dur);g.gain.linearRampToValueAtTime(0,t+dur+.02)};
+  {const n=nz(S,'white',t,dur+.05),b=F(S,'bandpass',f0,R.range(4,8)),e=G(S,0);b.frequency.setValueAtTime(f0,t);b.frequency.exponentialRampToValueAtTime(f0*k,t+dur);bell(e,3);link(n,b,e,pn)}
+  {const o=osc(S,'sawtooth',1,t,dur+.05),b=F(S,'bandpass',f0*.5,3),e=G(S,0),fz=R.range(1700,2700);o.frequency.setValueAtTime(fz,t);o.frequency.exponentialRampToValueAtTime(fz*k,t+dur);b.frequency.setValueAtTime(fz*1.5,t);b.frequency.exponentialRampToValueAtTime(fz*1.5*k,t+dur);bell(e,.15);link(o,b,e,pn)}
+  {const n=nz(S,'pink',t,dur+.05),l=F(S,'lowpass',R.range(600,900),.6),e=G(S,0);bell(e,1.4);link(n,l,e,pn)}
+  if(R.chance(.75)){                                   // 超音速弹的短促爆裂
+    const cp=PAN(S,-dir*.15);cp.connect(S.out);cp.connect(S.send('outdoor',.3));
+    click(S,cp,tp-.01,{f:R.range(3200,4200),type:'highpass',q:.7,tau:R.range(.002,.0035),g:.55});
+    click(S,cp,tp-.01,{f:R.range(1500,2100),q:1,tau:.005,g:.22})}
+  return 1.9;
+}
+function ricochet(S,t){
+  const R=S.R,p0=R.range(-.5,.5),o=PAN(S,p0);o.connect(S.out);o.connect(S.send('outdoor',.3));
+  click(S,o,t,{f:R.range(4200,5600),type:'highpass',q:.7,tau:.003,g:.6});
+  click(S,o,t,{f:R.range(1300,1900),q:1,tau:.009,g:.4});
+  {const n=nz(S,'white',t,.4),b=F(S,'bandpass',R.range(2400,3600),.8),e=G(S,0);perc(e.gain,t,.5,.002,R.range(.03,.05));link(n,b,e,o)}
+  const pb=R.range(1700,3200);metal(S,o,t,{freqs:[1,1.47,2.09,2.9].map(m=>m*pb),tau:R.range(.05,.1),g:.12});
+  thump(S,o,t,{f0:180,f1:80,sw:.03,tau:.02,g:.3});
+  // 翻滚弹头的啸叫：下滑音高 + 逐渐变慢的颤动
+  const ts=t+.012,dur=R.range(.5,1.05),fA=R.range(2600,5200),fB=fA*R.range(.24,.5),shape=R.int(0,2);
+  const pn=PAN(S,p0);pn.pan.setValueAtTime(p0,ts);pn.pan.linearRampToValueAtTime(p0+R.sign()*R.range(.5,1.2),ts+dur);
+  const env=G(S,0);env.gain.setValueAtTime(0,ts);env.gain.linearRampToValueAtTime(1,ts+.012);env.gain.exponentialRampToValueAtTime(.002,ts+dur);env.gain.linearRampToValueAtTime(0,ts+dur+.03);
+  link(env,pn,S.out);pn.connect(S.send('outdoor',.55));
+  const sweep=prm=>{prm.setValueAtTime(fA,ts);
+    if(shape===1){prm.exponentialRampToValueAtTime(fA*R.range(1.12,1.3),ts+dur*.18)}
+    else if(shape===2){prm.exponentialRampToValueAtTime(fA*.97,ts+dur*.25)}
+    prm.exponentialRampToValueAtTime(fB,ts+dur)};
+  const lfo=osc(S,'sine',R.range(30,62),ts,dur+.05);lfo.frequency.exponentialRampToValueAtTime(R.range(12,22),ts+dur);
+  const trem=G(S,.62),td=G(S,.38);lfo.connect(td);td.connect(trem.gain);trem.connect(env);
+  const o1=osc(S,'triangle',fA,ts,dur+.05),o2=osc(S,'sine',fA,ts,dur+.05),g1=G(S,.3),g2=G(S,.09),vd=G(S,fA*.03);
+  sweep(o1.frequency);sweep(o2.frequency);o2.detune.value=1207;lfo.connect(vd);vd.connect(o1.frequency);vd.connect(o2.frequency);
+  link(o1,g1,trem);link(o2,g2,trem);
+  {const n=nz(S,'white',ts,dur+.05),b=F(S,'bandpass',fA,R.range(9,16)),g=G(S,1.2);sweep(b.frequency);link(n,b,g,trem)}
+  return 3.2;
+}
+
+/* ============================================================
+   环境
+   ============================================================ */
+function velvet(R,dur,density,burst){
+  const len=dur*SR|0,b=new AudioBuffer({length:len,sampleRate:SR,numberOfChannels:2});
+  for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);
+    for(let k=dur*density|0;k--;){const i=R()*len|0,a=R.sign()*Math.pow(R(),2.2),L=burst?1+(R()*burst|0):1;
+      for(let j=0;j<L&&i+j<len;j++)d[i+j]+=L>1?a*(R()*2-1)*Math.exp(-3*j/L):a}}
+  return b;
+}
+function dripBuf(R,dur,count){
+  const len=dur*SR|0,b=new AudioBuffer({length:len,sampleRate:SR,numberOfChannels:2}),L=b.getChannelData(0),Rr=b.getChannelData(1);
+  for(let k=count;k--;){const i0=R()*(len-4000)|0,f=R.exp(900,3000),up=R.range(.5,1),n=R.int(1200,2600),a=R.range(.08,.3),pan=R(),tau=SR*R.range(.005,.011);let ph=0;
+    for(let j=0;j<n;j++){ph+=2*Math.PI*f*(1+up*j/n)/SR;const v=Math.sin(ph)*a*Math.min(1,j/40)*Math.exp(-j/tau);L[i0+j]+=v*Math.cos(pan*1.57);Rr[i0+j]+=v*Math.sin(pan*1.57)}}
+  return b;
+}
+function rain(S,t){
+  const R=S.R,dur=S.loop?Infinity:SOUNDS.rain.len,inten=R.range(.6,1.05);
+  const m=G(S,0);m.gain.setValueAtTime(0,t);m.gain.linearRampToValueAtTime(1,t+1.4);m.connect(S.out);
+  const gust=osc(S,'sine',R.range(.06,.13),t,dur),gust2=osc(S,'sine',R.range(.19,.31),t,dur);
+  [-1,1].forEach(side=>{                              // 左右不相关的雨幕嘶声
+    const n=nz(S,'white',t,dur,R.range(.9,1.1)),hp=F(S,'highpass',R.range(1400,2200),.5),pk=F(S,'peaking',R.range(5200,7600),.8,R.range(2,5)),lp=F(S,'lowpass',R.range(9000,13000),.5),g=G(S,.034*inten);
+    const d1=G(S,.011*inten),d2=G(S,.005*inten);gust.connect(d1);d1.connect(g.gain);gust2.connect(d2);d2.connect(g.gain);
+    link(n,hp,pk,lp,g,PAN(S,side*.85),m)});
+  link(nz(S,'pink',t,dur),F(S,'bandpass',R.range(500,900),.4),G(S,.11*inten),m);       // 雨的中频体量
+  link(nz(S,'brown',t,dur),F(S,'lowpass',R.range(120,200),.7),G(S,.2),m);               // 屋顶和地面的低频
+  link(bufSrc(S,velvet(R,R.range(5,5.6),650*inten,0),t,dur),F(S,'highpass',R.range(2600,3600),.6),F(S,'lowpass',11000,.5),G(S,.75),m);   // 密集细雨点
+  link(bufSrc(S,velvet(R,R.range(6,6.7),38*inten,48),t,dur),F(S,'bandpass',R.range(1500,2600),1.1),G(S,.55),m);                         // 近处的大雨点
+  link(bufSrc(S,velvet(R,R.range(7,7.6),9*inten,90),t,dur),F(S,'bandpass',R.range(450,800),1.5),G(S,.8),m);                             // 打在硬物上的闷点
+  link(bufSrc(S,dripBuf(R,R.range(7.5,8.5),R.int(9,16)),t,dur),G(S,.3),m);                                                              // 积水滴答
+  return dur;
+}
+function thunder(S,t){
+  const R=S.R,mix=G(S,1),dist=F(S,'lowpass',R.range(700,1100),.5);
+  link(mix,dist,S.out);dist.connect(S.send('far',.7));
+  const n=R.int(4,8),main=R.int(0,2);let tt=t,last=t;
+  for(let i=0;i<n;i++){
+    if(i)tt+=R.range(.2,1.3);
+    const d=R.range(1.6,3.2),src=nz(S,'brown',tt,d*2.6,R.range(.7,1.4)),lp=F(S,'lowpass',400,.6),e=G(S,0),rm=G(S,1);
+    lp.frequency.setValueAtTime(R.range(240,560),tt);lp.frequency.exponentialRampToValueAtTime(R.range(65,110),tt+d);
+    perc(e.gain,tt,R.range(.9,1.8)*(i===main?1.7:1),R.range(.04,.22),R.range(.45,1.1));
+    rm.gain.setValueCurveAtTime(randCurve(R,Math.ceil(d*2.6*13),.3,1,.7),tt,d*2.6);      // 滚雷的起伏
+    link(src,lp,e,rm,PAN(S,R.range(-.6,.6)),mix);last=tt+d*2.6;
+    if(i===main||R.chance(.3)){                       // 被距离磨钝的炸裂声
+      const c=nz(S,'pink',tt,.9),b=F(S,'bandpass',R.range(380,850),.6),ce=G(S,0),cm=G(S,1);
+      perc(ce.gain,tt,R.range(.5,.9),.02,R.range(.1,.2));cm.gain.setValueCurveAtTime(randCurve(R,40,.1,1,.9),tt,.9);link(c,b,ce,cm,mix)}
+  }
+  {const L=last-t,o=osc(S,'sine',R.range(34,46),t,L),e=G(S,0),w=G(S,1);o.frequency.linearRampToValueAtTime(R.range(28,36),t+L);
+   e.gain.setValueAtTime(0,t);e.gain.linearRampToValueAtTime(.4,t+.4);e.gain.setTargetAtTime(0,t+L*.3,L*.2);
+   w.gain.setValueCurveAtTime(randCurve(R,Math.ceil(L*6),.3,1,.6),t,L);link(o,e,w,mix)}
+  return last-t+5.5;
+}
+
+/* ============================================================
+   紧张配乐（约 30 秒）
+   ============================================================ */
+function music(S,t0){
+  const R=S.R,bpm=R.pick([96,100,104,108]),beat=60/bpm,s=beat/4,bar=beat*4;
+  const bars=Math.round(27/bar),T=bars*bar,tEnd=t0+T;
+  const root=R.pick([36.71,34.65,38.89,41.2,32.7]),st=n=>Math.pow(2,n/12);
+  const m=G(S,1);m.connect(S.out);const hall=S.send('hall',1);
+  const wet=(node,amt)=>{const g=G(S,amt);node.connect(g);g.connect(hall)};
+  const bA=2,bB=Math.round(bars*.45),bC=bars-4;
+  const prog=R.pick([[0,0,-4,-2],[0,0,1,-2],[0,-2,-4,1],[0,3,1,0]]),chord=b=>b<bA?0:prog[(b-bA)%4];
+  const at=(b,k)=>t0+b*bar+k*s;
+
+  // 持续低音
+  {const lp=F(S,'lowpass',120,1.5),g=G(S,0);
+   [[2,-6,.5],[2,7,.5],[4,3,.16],[3,0,.2]].forEach(([mu,det,lv])=>{const o=osc(S,'sawtooth',root*mu,t0,T+.3);o.detune.value=det;link(o,G(S,lv),lp)});
+   link(osc(S,'sine',root*2,t0,T+.3),G(S,.55),g);link(osc(S,'sine',root,t0,T+.3),G(S,.45),g);
+   lp.frequency.setValueAtTime(110,t0);lp.frequency.exponentialRampToValueAtTime(1500,tEnd);
+   g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(.17,t0+bar*1.5);g.gain.linearRampToValueAtTime(.2,tEnd-.05);g.gain.linearRampToValueAtTime(0,tEnd+.15);
+   link(lp,g,m);wet(g,.3)}
+
+  // 十六分音符脉冲贝斯
+  {const pat=R.pick([[1,0,1,1,0,1,1,0,1,0,1,1,0,1,1,0],[1,1,0,1,1,0,1,1,0,1,1,0,1,0,1,0],[1,0,0,1,0,0,1,0,1,0,0,1,0,1,1,1],[1,1,1,0,1,1,1,0,1,1,1,0,1,1,0,1]]);
+   const up=R.pick([[12,12],[12,10],[7,12],[3,7]]),ts=at(bA,0),L=T-bA*bar+.1;
+   const o1=osc(S,'sawtooth',root*2,ts,L),o2=osc(S,'square',root*2,ts,L),lp=F(S,'lowpass',200,5),g=G(S,0),sh=shaper(S,3),lv=G(S,.2);
+   o2.detune.value=-9;link(o1,lp);link(o2,G(S,.45),lp);link(lp,g,sh,lv,m);wet(lv,.12);
+   for(let b=bA;b<bars;b++){const prg=(b-bA)/(bars-bA);
+     for(let k=0;k<16;k++){if(!pat[k])continue;
+       const tt=at(b,k),semi=chord(b)+((k===14&&b%2)?up[1]:(k===6&&b%4===3)?up[0]:0),f=root*2*st(semi),acc=k%4===0?1:.6+R()*.18;
+       o1.frequency.setValueAtTime(f,tt);o2.frequency.setValueAtTime(f,tt);
+       g.gain.setValueAtTime(.0001,tt);g.gain.linearRampToValueAtTime(acc,tt+.005);g.gain.exponentialRampToValueAtTime(.001,tt+s*.9);
+       lp.frequency.setValueAtTime((380+2600*prg*prg)*acc,tt);lp.frequency.exponentialRampToValueAtTime(150,tt+s*.85)}}}
+
+  // 心跳底鼓
+  const kick=(tt,g)=>{thump(S,m,tt,{f0:118,f1:40,sw:.07,tau:.11,g});click(S,m,tt,{f:1800,q:.7,tau:.003,g:g*.2})};
+  for(let b=1;b<bars;b++)(b<bA?[0]:b<bB?[0,3]:b<bC?[0,3,8,11]:[0,3,6,8,11,14]).forEach(k=>kick(at(b,k),k===0?.85:.55));
+
+  // 时钟滴答 + 镲
+  for(let b=0;b<bars;b++)for(let k=0;k<16;k++){
+    const on=b<1?k%4===0:(k%2===0||(b>=bB&&R.chance(.35)));if(!on)continue;
+    const tt=at(b,k),n=nz(S,'white',tt,.12),h=F(S,'highpass',7500,.7),e=G(S,0);
+    perc(e.gain,tt,(k%4===0?.075:.04)*(b>=bC?1.35:1)*R.range(.8,1.1),.0005,k%4===2?.02:.009);link(n,h,e,PAN(S,k%2?.35:-.3),m);
+    if(k%4===0)click(S,m,tt,{f:2400,q:7,tau:.006,g:.022})}
+
+  // 铜管式重击
+  const braam=(tt,g,semi,long)=>{const lp=F(S,'lowpass',200,1),e=G(S,0),sh=shaper(S,4);
+    [[1,-9,.3],[1,8,.3],[2,-4,.3],[2,5,.3],[.5,0,.22],[3,2,.16]].forEach(([mu,d,lv],i)=>{const o=osc(S,i%2?'sawtooth':'square',root*2*mu*st(semi),tt,long*4);o.detune.value=d;link(o,G(S,lv),lp)});
+    lp.frequency.setValueAtTime(180,tt);lp.frequency.exponentialRampToValueAtTime(1900,tt+.12);lp.frequency.exponentialRampToValueAtTime(220,tt+long*1.5);
+    e.gain.setValueAtTime(0,tt);e.gain.linearRampToValueAtTime(g,tt+.05);e.gain.setTargetAtTime(0,tt+.25,long*.55);
+    link(lp,sh,e,m);wet(e,.55);
+    thump(S,m,tt,{f0:82,f1:30,sw:.3,tau:.34,g:g*2.2});
+    const n=nz(S,'pink',tt,1.5),l=F(S,'lowpass',520,.6),ne=G(S,0);perc(ne.gain,tt,g*3,.003,.12);link(n,l,ne,m);wet(ne,.4)};
+  braam(t0,.2,0,1.5);braam(at(bA,0),.25,0,1.5);braam(at(bB,0),.27,chord(bB),1.6);braam(at(bC,0),.3,chord(bC),1.6);
+
+  // 颤弓弦乐（不协和二度 / 五度）
+  {const dy=R.pick([[7,8],[12,13],[3,7],[7,10]]),hp=F(S,'highpass',420,.6),lp=F(S,'lowpass',3400,.6),trem=G(S,.55),lv=G(S,0),ts=at(bB,0);
+   const lfo=osc(S,'triangle',1/s,ts,T-bB*bar+.2),ld=G(S,.42);lfo.connect(ld);ld.connect(trem.gain);
+   link(hp,lp,trem,lv,m);wet(lv,.6);
+   lv.gain.setValueAtTime(0,ts);lv.gain.linearRampToValueAtTime(.035,ts+bar);lv.gain.linearRampToValueAtTime(.085,tEnd-.1);lv.gain.linearRampToValueAtTime(0,tEnd+.08);
+   for(let b=bB;b<bars;b++){const sh=(b-bB)%4>=2?R.pick([1,-2]):0,notes=[dy[0],dy[1]+sh];if(b>=bC)notes.push(dy[1]+12+sh);
+     notes.forEach(sm=>{const f=root*8*st(sm+chord(b)*0),tb=at(b,0);
+       [-9,9].forEach(det=>{const o=osc(S,'sawtooth',f,tb,bar+.12),e=G(S,0);o.detune.value=det;
+         e.gain.setValueAtTime(0,tb);e.gain.linearRampToValueAtTime(.5,tb+.12);e.gain.setValueAtTime(.5,tb+bar-.02);e.gain.linearRampToValueAtTime(0,tb+bar+.1);link(o,e,hp)})})}}
+
+  // 声呐式动机
+  {const mo=R.pick([[0,3,1,0],[7,8,7,3],[0,1,0,-2],[12,8,7,1]]),bus=G(S,1),echo=DLY(S,beat*.75),fb=G(S,.38);
+   bus.connect(m);wet(bus,.75);link(bus,echo,fb,echo);link(echo,G(S,.5),m);wet(echo,.5);
+   const ping=(tt,semi,g)=>{const f=root*16*st(semi);[[1,1,.34],[2,.28,.2],[3.01,.1,.08]].forEach(([mu,lv,tau])=>{const o=osc(S,'sine',f*mu,tt,tau*9),e=G(S,0);perc(e.gain,tt,g*lv,.003,tau);link(o,e,bus)})};
+   for(let b=1;b<bars;b++){ping(at(b,b%2?6:10),mo[(b-1)%4],.075);if(b>=bC)ping(at(b,b%2?14:2),mo[b%4]+12,.045)}}
+
+  // 通鼓
+  {const tb=G(S,1);tb.connect(m);wet(tb,.25);
+   const tom=(tt,f,g)=>{thump(S,tb,tt,{f0:f*1.5,f1:f,sw:.05,tau:.09,g});click(S,tb,tt,{f:f*9,q:.8,tau:.012,g:g*.18,src:'pink'})};
+   for(let b=bB;b<bars;b++){
+     if(b===bars-1){for(let k=0;k<16;k++)tom(at(b,k),88+k*4,.14+.5*k/15)}
+     else{tom(at(b,4),92,.4);tom(at(b,12),92,.42);if(b%2)tom(at(b,10),122,.3);
+       if(b>=bC)for(let k=12;k<16;k++)tom(at(b,k)+(k===12?0:0),96+(k-12)*14,.22+.09*(k-12))}}}
+
+  // 上升噪声 + 滑音
+  {const ts=tEnd-2*bar,n=nz(S,'white',ts,2*bar+.1),b=F(S,'bandpass',300,2.2),e=G(S,0);
+   b.frequency.setValueAtTime(300,ts);b.frequency.exponentialRampToValueAtTime(7000,tEnd);
+   e.gain.setValueAtTime(0,ts);e.gain.linearRampToValueAtTime(.03,ts+bar);e.gain.exponentialRampToValueAtTime(.26,tEnd-.02);e.gain.linearRampToValueAtTime(0,tEnd+.03);link(n,b,e,m);wet(e,.3);
+   const o=osc(S,'sawtooth',root*4,ts,2*bar+.1),ol=F(S,'lowpass',2400,.7),oe=G(S,0);o.frequency.setValueAtTime(root*4,ts);o.frequency.exponentialRampToValueAtTime(root*8,tEnd);
+   oe.gain.setValueAtTime(0,ts);oe.gain.linearRampToValueAtTime(.05,tEnd-.02);oe.gain.linearRampToValueAtTime(0,tEnd+.03);link(o,ol,oe,m);wet(oe,.4)}
+
+  // 收束重击
+  braam(tEnd,.42,0,2.1);kick(tEnd,1);
+  {const n=nz(S,'white',tEnd,3),h=F(S,'highpass',3800,.6),e=G(S,0);perc(e.gain,tEnd,.2,.002,.55);link(n,h,e,m);wet(e,.6)}
+  return T+8;
+}
+
+/* ============================================================
+   音效表
+   ============================================================ */
+const GROUPS=[
+  {name:'武器',en:'WEAPON',c:'var(--amber)'},{name:'换弹',en:'RELOAD',c:'var(--green)'},{name:'脚步',en:'FOLEY',c:'var(--cyan)'},
+  {name:'弹道',en:'BALLISTIC',c:'var(--red)'},{name:'环境',en:'AMBIENCE',c:'#8fb3ff'},{name:'配乐',en:'SCORE',c:'var(--violet)'}];
+const SOUNDS={
+  rifle_out:{g:0,key:'1',name:'步枪单发 · 室外',desc:'爆裂 + 膛口爆震 + 低频冲击，开阔地长尾和远处回声',len:3.6,gain:.95,rep:105,build:(S,t)=>rifle(S,t,false)},
+  rifle_in:{g:0,key:'2',name:'步枪单发 · 室内',desc:'同一把枪，硬墙早期反射、驻波轰鸣和颤动回声',len:2.0,gain:.95,rep:105,build:(S,t)=>rifle(S,t,true)},
+  shell:{g:0,key:'3',name:'弹壳落地',desc:'黄铜管的非谐泛音，弹跳间隔逐次缩短，最后滚动',len:1.8,gain:1.5,build:shell},
+  mag_out:{g:1,key:'4',name:'退弹匣',desc:'卡榫咔哒 → 摩擦滑出 → 空腔闷响',len:1.0,gain:1.5,build:magOut},
+  mag_in:{g:1,key:'5',name:'上弹匣',desc:'对位 → 滑入 → 到位重击 + 卡榫复位',len:1.0,gain:1.1,build:magIn},
+  bolt:{g:1,key:'6',name:'拉枪栓',desc:'后拉棘齿摩擦 + 弹簧 → 松手复进撞击',len:1.1,gain:.8,build:bolt},
+  step_concrete:{g:2,key:'Q',name:'脚步 · 水泥',desc:'脚跟闷击 + 脚掌，砂砾颗粒摩擦',len:.8,gain:1.0,rep:460,build:stepConcrete},
+  step_metal:{g:2,key:'W',name:'脚步 · 金属',desc:'钢板模态共振 + 松动颤响',len:1.3,gain:1.4,rep:460,build:stepMetal},
+  step_water:{g:2,key:'E',name:'脚步 · 积水',desc:'拍水 + 水花喷溅 + 上滑音水滴',len:1.1,gain:.8,rep:460,build:stepWater},
+  whiz:{g:3,key:'A',name:'子弹掠耳',desc:'多普勒下滑的窄带噪声，左右横穿 + 超音速爆裂',len:1.9,gain:1.0,build:whiz},
+  ricochet:{g:3,key:'S',name:'跳弹',desc:'撞击碎屑 + 翻滚弹头的颤动啸叫远去',len:3.2,gain:1.5,build:ricochet},
+  rain:{g:4,key:'Z',name:'雨声',desc:'双声道雨幕 + 稀疏脉冲雨点 + 积水滴答，持续循环',len:8,gain:.7,toggle:true,build:rain},
+  thunder:{g:4,key:'X',name:'远雷',desc:'多段棕噪声滚雷，低通随距离衰减，超长尾',len:16,gain:.38,build:thunder},
+  music:{g:5,key:'M',name:'紧张配乐 · 30 秒',desc:'持续低音 + 脉冲贝斯 + 心跳鼓 + 颤弓弦乐 + 重击，调性速度动机随机',len:36,gain:.5,toggle:true,build:music},
+};
+
+/* ============================================================
+   离线渲染：小波形 + 自检
+   ============================================================ */
+async function render(id,seed,opt={}){
+  const def=SOUNDS[id],oc=new OfflineAudioContext(2,Math.ceil((opt.len||def.len)*SR),SR),E=makeEngine(oc,{raw:opt.raw});
+  trigger(E,id,seed,.01);
+  return oc.startRendering();
+}
+function analyze(buf){
+  const L=buf.getChannelData(0),Rr=buf.getChannelData(1),n=L.length;let peak=0,clip=0,sum=0,first=-1,last=0,bad=0;
+  for(let i=0;i<n;i++){const a=Math.max(Math.abs(L[i]),Math.abs(Rr[i]));if(!(a>=0))bad++;if(a>peak)peak=a;if(a>=.999)clip++;sum+=L[i]*L[i];if(a>.001){if(first<0)first=i;last=i}}
+  let gap=0,run=0;for(let i=Math.max(first,0);i<last;i++){if(Math.max(Math.abs(L[i]),Math.abs(Rr[i]))<.0003){run++;if(run>gap)gap=run}else run=0}
+  const db=x=>+(20*Math.log10(Math.max(x,1e-9))).toFixed(1);
+  return {peak:+peak.toFixed(3),peakDb:db(peak),rmsDb:db(Math.sqrt(sum/Math.max(1,last-Math.max(first,0)))),clip,nan:bad,start:+(first/SR).toFixed(3),end:+(last/SR).toFixed(2),maxGap:+(gap/SR).toFixed(3)};
+}
+async function selftest(ids,opt={}){
+  const out={};
+  for(const id of ids||Object.keys(SOUNDS)){
+    const bufs=[];for(const seed of [101,202,303])bufs.push(await render(id,seed,opt));
+    const st=bufs.map(analyze),a=bufs[0].getChannelData(0),b=bufs[1].getChannelData(0);let d=0,e=0;
+    for(let i=0;i<a.length;i++){d+=(a[i]-b[i])**2;e+=a[i]*a[i]+b[i]*b[i]}
+    out[id]={peakDb:st.map(s=>s.peakDb),rmsDb:st.map(s=>s.rmsDb),end:st.map(s=>s.end),clip:st.map(s=>s.clip),nan:st.map(s=>s.nan),maxGap:st.map(s=>s.maxGap),variantDiff:+Math.sqrt(d/e).toFixed(2)};
+  }
+  return out;
+}
+async function mixtest(){   // 最坏情况：雨 + 雷 + 连发 + 配乐叠加
+  const oc=new OfflineAudioContext(2,8*SR,SR),E=makeEngine(oc);
+  trigger(E,'rain',1,.01);trigger(E,'thunder',2,.3);trigger(E,'music',3,.01);
+  for(let i=0;i<12;i++){trigger(E,i%2?'rifle_in':'rifle_out',10+i,2+i*.105);trigger(E,'shell',40+i,2.3+i*.105)}
+  return analyze(await oc.startRendering());
+}
+window.SFX={SOUNDS,render,analyze,selftest,mixtest};
+
+/* ============================================================
+   实时播放
+   ============================================================ */
+let AC=null,ENG=null,AN=null;
+const live={};                                   // toggle 类的当前 voice
+function ensure(){
+  if(AC){if(AC.state==='suspended')AC.resume();return}
+  AC=new (window.AudioContext||window.webkitAudioContext)({sampleRate:SR,latencyHint:'interactive'});
+  AN=AC.createAnalyser();AN.fftSize=4096;AN.smoothingTimeConstant=.5;AN.minDecibels=-100;AN.maxDecibels=-14;
+  AN.connect(AC.destination);
+  ENG=makeEngine(AC,{dest:AN});ENG.vol.gain.value=+$('#vol').value;
+  requestAnimationFrame(frame);
+}
+const $=s=>document.querySelector(s),cards={};
+function newSeed(){return (Math.random()*0xffffffff)>>>0}
+function play(id,delay=0){
+  ensure();
+  const def=SOUNDS[id],card=cards[id];
+  if(def.toggle&&live[id]){live[id].stop(id==='rain'?1.2:.35);live[id]=null;card.el.classList.remove('on');card.mode.textContent='开 / 关';return null}
+  const seed=newSeed(),v=trigger(ENG,id,seed,AC.currentTime+.004+delay,{loop:id==='rain'});
+  const mark=()=>{card.el.classList.remove('hit');void card.el.offsetWidth;card.el.classList.add('hit');clearTimeout(card.ht);card.ht=setTimeout(()=>card.el.classList.remove('hit'),300);$('#rNow').textContent=def.name.split(' · ').slice(0,2).join('·')+' #'+hex(seed)};
+  delay?setTimeout(mark,delay*1000):mark();
+  if(def.toggle){live[id]=v;card.el.classList.add('on');card.mode.textContent='播放中 ■'}
+  if(isFinite(v.len))setTimeout(()=>{v.kill();if(live[id]===v){live[id]=null;card.el.classList.remove('on');card.mode.textContent='开 / 关'}},(v.len+delay+.4)*1000);
+  thumb(id,seed);
+  return v;
+}
+const hex=s=>(s>>>16).toString(16).toUpperCase().padStart(4,'0');
+
+/* 卡片小波形：同种子离线渲染，逐卡只保留最新一次请求 */
+const pending={};let busy=false;
+function thumb(id,seed){pending[id]=seed;pump()}
+async function pump(){
+  if(busy)return;busy=true;
+  for(;;){const id=Object.keys(pending)[0];if(!id)break;const seed=pending[id];delete pending[id];
+    try{const buf=await render(id,seed),st=analyze(buf);drawThumb(cards[id],buf,st);
+      cards[id].stat.innerHTML=`<b>#${hex(seed)}</b> · ${(st.end-st.start).toFixed(2)} s · 峰值 ${st.peakDb} dB`}catch(e){console.error(e)}}
+  busy=false;
+}
+function drawThumb(card,buf,st){
+  const cv=card.cv,dpr=Math.min(2,devicePixelRatio||1),W=cv.width=cv.clientWidth*dpr,H=cv.height=cv.clientHeight*dpr,g=cv.getContext('2d');
+  const d=buf.getChannelData(0),i0=Math.max(0,st.start*SR-200|0),i1=Math.min(d.length,st.end*SR|0),step=Math.max(1,(i1-i0)/W),sc=.92/Math.max(.05,st.peak);
+  g.clearRect(0,0,W,H);g.fillStyle=getComputedStyle(card.el).getPropertyValue('--c');g.globalAlpha=.85;
+  for(let x=0;x<W;x++){let mn=1,mx=-1;const a=i0+x*step|0,b=Math.min(i1,a+Math.ceil(step));for(let i=a;i<b;i+=1+(step>400?3:0)){const v=d[i];if(v<mn)mn=v;if(v>mx)mx=v}
+    if(mx<mn)continue;const y0=H/2-mx*sc*H/2,y1=H/2-mn*sc*H/2;g.fillRect(x,y0,1,Math.max(1,y1-y0))}
+}
+
+/* ============================================================
+   界面
+   ============================================================ */
+(function buildUI(){
+  const board=$('#board');
+  GROUPS.forEach((gr,gi)=>{
+    const sec=document.createElement('section');sec.className='group';sec.style.setProperty('--c',gr.c);
+    sec.innerHTML=`<div class="glabel">${gr.name}<small>${gr.en}</small></div><div class="cards"></div>`;
+    const box=sec.querySelector('.cards');
+    for(const [id,def] of Object.entries(SOUNDS)){if(def.g!==gi)continue;
+      const el=document.createElement('button');el.className='card';el.dataset.id=id;
+      el.innerHTML=`<div class="top"><span class="key">${def.key}</span><span class="name">${def.name}</span><span class="mode">${def.toggle?'开 / 关':def.rep?'按住连发':''}</span></div><div class="desc">${def.desc}</div><canvas></canvas><div class="stat">尚未触发</div>`;
+      box.appendChild(el);cards[id]={el,cv:el.querySelector('canvas'),stat:el.querySelector('.stat'),mode:el.querySelector('.mode')};
+      el.addEventListener('pointerdown',e=>{if(e.button)return;hold(id)});
+      ['pointerup','pointerleave','pointercancel'].forEach(ev=>el.addEventListener(ev,()=>release(id)));
+      el.addEventListener('click',e=>{if(e.detail===0)play(id)});            // 键盘回车触发
+      el.addEventListener('contextmenu',e=>e.preventDefault());
+    }
+    board.appendChild(sec);
+  });
+})();
+const holds={};
+function hold(id){play(id);const rep=SOUNDS[id].rep;if(rep&&!holds[id])holds[id]=setInterval(()=>{play(id);if(id.startsWith('rifle'))setTimeout(()=>play('shell'),300)},rep)}
+function release(id){if(holds[id]){clearInterval(holds[id]);holds[id]=null}}
+const KEYS={};for(const [id,d] of Object.entries(SOUNDS))KEYS[d.key.toLowerCase()]=id;
+function reloadSeq(d=0){[['mag_out',0],['mag_in',.62],['bolt',1.22]].forEach(([id,t])=>play(id,d+t))}
+addEventListener('keydown',e=>{
+  if(e.repeat||e.metaKey||e.ctrlKey||e.altKey)return;const k=e.key.toLowerCase();
+  if(k===' '){e.preventDefault();demo();return}
+  if(k==='r'){reloadSeq();return}
+  if(KEYS[k]){document.activeElement&&document.activeElement.blur();hold(KEYS[k])}
+});
+addEventListener('keyup',e=>{const id=KEYS[e.key.toLowerCase()];if(id)release(id)});
+addEventListener('blur',()=>Object.keys(holds).forEach(release));
+$('#vol').addEventListener('input',e=>{if(ENG)ENG.vol.gain.setTargetAtTime(+e.target.value,AC.currentTime,.02)});
+
+let demoTimer=null;
+function demo(){
+  const b=$('#demo');
+  if(demoTimer){clearTimeout(demoTimer);demoTimer=null;b.classList.remove('on');b.firstChild.textContent='▶ 交火演示';['rain','music'].forEach(id=>live[id]&&play(id));return}
+  ensure();if(!live.rain)play('rain');
+  const q=[];const add=(t,id)=>q.push([t,id]);
+  for(let i=0;i<4;i++)add(.6+i*.47,'step_concrete');
+  add(1.6,'thunder');
+  add(2.9,'whiz');add(3.25,'ricochet');add(3.6,'whiz');
+  for(let i=0;i<4;i++){add(4.2+i*.105,'rifle_out');add(4.5+i*.105,'shell')}
+  add(5.2,'ricochet');add(5.5,'whiz');
+  for(let i=0;i<5;i++){add(6+i*.105,'rifle_out');add(6.3+i*.105,'shell')}
+  for(let i=0;i<3;i++)add(7.2+i*.4,'step_metal');
+  for(let i=0;i<3;i++){add(8.6+i*.105,'rifle_in');add(8.9+i*.105,'shell')}
+  add(9.6,'mag_out');add(10.22,'mag_in');add(10.82,'bolt');
+  add(11.3,'whiz');for(let i=0;i<4;i++)add(11.8+i*.105,'rifle_in');
+  for(let i=0;i<4;i++)add(12.9+i*.42,'step_water');
+  add(13.6,'thunder');
+  q.forEach(([t,id])=>play(id,t));
+  b.classList.add('on');b.firstChild.textContent='■ 停止演示';
+  demoTimer=setTimeout(()=>{demoTimer=null;b.classList.remove('on');b.firstChild.textContent='▶ 交火演示'},15500);
+}
+$('#demo').addEventListener('click',e=>{e.currentTarget.blur();demo()});
+
+/* ============================================================
+   可视化：滚动波形 + 声谱图 + 对数频谱
+   ============================================================ */
+const cW=$('#cWave'),cG=$('#cGram'),cS=$('#cSpec'),gW=cW.getContext('2d'),gG=cG.getContext('2d',{willReadFrequently:false}),gS=cS.getContext('2d');
+const FMIN=30,FMAX=20000,NB=84,PPS=150;       // PPS：每秒滚动的 CSS 像素
+let DPR=1,gramBins=null,barBins=[],barV=new Float32Array(NB),barPk=new Float32Array(NB);
+const LUT=(()=>{const stops=[[0,[6,9,12]],[.22,[14,30,66]],[.48,[26,112,134]],[.7,[98,214,232]],[.86,[255,180,84]],[1,[255,246,220]]],l=new Uint8Array(256*3);
+  for(let i=0;i<256;i++){const x=i/255;let k=0;while(k<stops.length-2&&x>stops[k+1][0])k++;const [a,ca]=stops[k],[b,cb]=stops[k+1],u=Math.min(1,Math.max(0,(x-a)/(b-a)));for(let c=0;c<3;c++)l[i*3+c]=ca[c]+(cb[c]-ca[c])*u}return l})();
+function binOf(f){return f/(SR/2)*2048}
+function resize(){
+  DPR=Math.min(2,devicePixelRatio||1);
+  [cW,cG,cS].forEach(c=>{c.width=Math.round(c.clientWidth*DPR);c.height=Math.round(c.clientHeight*DPR)});
+  const H=cG.height;gramBins=new Float32Array(H*2);
+  for(let y=0;y<H;y++){const f0=FMIN*Math.pow(FMAX/FMIN,1-(y+1)/H),f1=FMIN*Math.pow(FMAX/FMIN,1-y/H);gramBins[y*2]=binOf(f0);gramBins[y*2+1]=binOf(f1)}
+  barBins=[];for(let i=0;i<NB;i++)barBins.push([binOf(FMIN*Math.pow(FMAX/FMIN,i/NB)),binOf(FMIN*Math.pow(FMAX/FMIN,(i+1)/NB))]);
+  gW.fillStyle='#0c1014';gW.fillRect(0,0,cW.width,cW.height);waveGrid(0,cW.width);
+  gG.fillStyle='rgb(6,9,12)';gG.fillRect(0,0,cG.width,cG.height);
+  drawSpec(null);
+}
+function waveGrid(x,w){const H=cW.height;gW.fillStyle='rgba(255,255,255,.07)';gW.fillRect(x,H/2|0,w,1);gW.fillStyle='rgba(255,255,255,.035)';gW.fillRect(x,H*.25|0,w,1);gW.fillRect(x,H*.75|0,w,1)}
+function sampleBand(fd,b0,b1){
+  if(b1-b0<1){const i=Math.floor((b0+b1)/2),u=(b0+b1)/2-i;return fd[i]*(1-u)+(fd[i+1]||0)*u}
+  let m=0;for(let i=Math.floor(b0);i<b1&&i<fd.length;i++)if(fd[i]>m)m=fd[i];return m;
+}
+function drawSpec(fd){
+  const W=cS.width,H=cS.height,g=gS,pt=26*DPR,pb=18*DPR,ph=H-pt-pb;
+  g.clearRect(0,0,W,H);g.font=`${10*DPR}px ui-monospace,Menlo,monospace`;g.textBaseline='top';
+  [[-80,'−80'],[-60,'−60'],[-40,'−40'],[-20,'−20']].forEach(([db,lb])=>{const y=pt+ph*(1-(db+100)/86);g.fillStyle='rgba(255,255,255,.05)';g.fillRect(0,y|0,W,1);g.fillStyle='#4d5963';g.fillText(lb,W-26*DPR,y+2*DPR)});
+  [[100,'100'],[1000,'1k'],[10000,'10k']].forEach(([f,lb])=>{const x=W*Math.log(f/FMIN)/Math.log(FMAX/FMIN);g.fillStyle='rgba(255,255,255,.05)';g.fillRect(x|0,pt,1,ph);g.fillStyle='#4d5963';g.fillText(lb,x+3*DPR,H-pb+4*DPR)});
+  const bw=W/NB,grad=g.createLinearGradient(0,pt+ph,0,pt);grad.addColorStop(0,'#17606f');grad.addColorStop(.6,'#62d6e8');grad.addColorStop(1,'#eafcff');
+  for(let i=0;i<NB;i++){
+    const v=fd?sampleBand(fd,barBins[i][0],barBins[i][1])/255:0;
+    barV[i]=v>barV[i]?v:barV[i]*.86+v*.14;barPk[i]=Math.max(barV[i],barPk[i]-.006);
+    const h=barV[i]*ph;g.fillStyle=grad;g.fillRect(i*bw+.5*DPR,pt+ph-h,Math.max(1,bw-1.5*DPR),h);
+    if(barPk[i]>.01){g.fillStyle='#ffb454';g.fillRect(i*bw+.5*DPR,pt+ph-barPk[i]*ph-1.5*DPR,Math.max(1,bw-1.5*DPR),1.5*DPR)}
+  }
+}
+const td=new Float32Array(4096),fdb=new Uint8Array(2048);
+let lastT=0,acc=0,lastAct=-1e9,pkHold=0,pkAt=0,secAcc=0,uiAt=0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  const dt=Math.min(.1,(ts-lastT)/1000||.016);lastT=ts;
+  AN.getFloatTimeDomainData(td);AN.getByteFrequencyData(fdb);
+  const nNew=Math.min(4096,Math.max(64,Math.round(dt*SR))),base=4096-nNew;
+  let pk=0,sq=0;for(let i=base;i<4096;i++){const a=Math.abs(td[i]);if(a>pk)pk=a;sq+=td[i]*td[i]}
+  if(pk>.0006)lastAct=ts;
+  const frozen=ts-lastAct>650;
+  $('#tFreeze').textContent=frozen&&lastAct>0?'静音 · 画面定格':'';
+  if(!frozen){
+    acc+=dt*PPS*DPR;const k=acc|0;acc-=k;
+    if(k>0){
+      const W=cW.width,H=cW.height,x0=W-k;
+      gW.globalCompositeOperation='copy';gW.drawImage(cW,-k,0);gW.globalCompositeOperation='source-over';
+      gW.fillStyle='#0c1014';gW.fillRect(x0,0,k,H);waveGrid(x0,k);
+      secAcc+=k;if(secAcc>=PPS*DPR){secAcc-=PPS*DPR;gW.fillStyle='rgba(255,255,255,.06)';gW.fillRect(W-1,0,1,H)}
+      for(let j=0;j<k;j++){let mn=1,mx=-1;const a=base+Math.floor(j*nNew/k),b=base+Math.floor((j+1)*nNew/k);
+        for(let i=a;i<b;i++){const v=td[i];if(v<mn)mn=v;if(v>mx)mx=v}
+        if(mx<mn)continue;const y0=H/2-mx*H*.48,y1=H/2-mn*H*.48,hot=Math.max(mx,-mn)>.9;
+        gW.fillStyle=hot?'#ff6b5a':'#ffb454';gW.fillRect(x0+j,y0,1,Math.max(1,y1-y0))}
+      const GH=cG.height,GW=cG.width,img=gG.createImageData(k,GH),px=img.data;
+      gG.globalCompositeOperation='copy';gG.drawImage(cG,-k,0);gG.globalCompositeOperation='source-over';
+      for(let y=0;y<GH;y++){const v=Math.min(255,sampleBand(fdb,gramBins[y*2],gramBins[y*2+1])*1.08)|0,r=LUT[v*3],gg=LUT[v*3+1],bb=LUT[v*3+2];
+        for(let x=0;x<k;x++){const o=(y*k+x)*4;px[o]=r;px[o+1]=gg;px[o+2]=bb;px[o+3]=255}}
+      gG.putImageData(img,GW-k,0);
+    }
+  }
+  drawSpec(fdb);
+  if(pk>=pkHold||ts-pkAt>1200){pkHold=pk;pkAt=ts}
+  if(ts-uiAt>90){uiAt=ts;const db=x=>x<1e-5?'−∞ dB':(20*Math.log10(x)).toFixed(1).replace('-','−')+' dB';
+    $('#rPeak').textContent=db(pkHold);$('#rRms').textContent=db(Math.sqrt(sq/nNew));$('#rVoices').textContent=ENG.voices.size}
+}
+addEventListener('resize',resize);resize();
+// 空闲时预先算好噪声和脉冲响应，第一枪不卡
+setTimeout(()=>{['white','pink','brown'].forEach(noiseBuf);Object.keys(IR_SPEC).forEach(irBuf)},60);
+</script>
+</body>
+</html>

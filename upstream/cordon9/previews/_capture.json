@@ -1,0 +1,506 @@
+[
+ {
+  "name": "title",
+  "query": "",
+  "ok": true,
+  "fatal": null,
+  "seconds": 21
+ },
+ {
+  "name": "map-halsey-v01",
+  "query": "show=arena&map=halsey&pose=v01",
+  "ok": true,
+  "fatal": null,
+  "seconds": 10
+ },
+ {
+  "name": "map-halsey-v02",
+  "query": "show=arena&map=halsey&pose=v02",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-v03",
+  "query": "show=arena&map=halsey&pose=v03",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-v04",
+  "query": "show=arena&map=halsey&pose=v04",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-v05",
+  "query": "show=arena&map=halsey&pose=v05",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-v06",
+  "query": "show=arena&map=halsey&pose=v06",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-v07",
+  "query": "show=arena&map=halsey&pose=v07",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-v08",
+  "query": "show=arena&map=halsey&pose=v08",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-v09",
+  "query": "show=arena&map=halsey&pose=v09",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-v10",
+  "query": "show=arena&map=halsey&pose=v10",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-v11",
+  "query": "show=arena&map=halsey&pose=v11",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-v12",
+  "query": "show=arena&map=halsey&pose=v12",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-over",
+  "query": "show=arena&map=halsey&pose=over",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-puddle",
+  "query": "show=arena&map=halsey&pose=puddle",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-east",
+  "query": "show=arena&map=halsey&pose=east",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-tent",
+  "query": "show=arena&map=halsey&pose=tent",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-pharm",
+  "query": "show=arena&map=halsey&pose=pharm",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-bags",
+  "query": "show=arena&map=halsey&pose=bags",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-bags2",
+  "query": "show=arena&map=halsey&pose=bags2",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-bags3",
+  "query": "show=arena&map=halsey&pose=bags3",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-door1",
+  "query": "show=arena&map=halsey&pose=door1",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-taxi",
+  "query": "show=arena&map=halsey&pose=taxi",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-halsey-taxi2",
+  "query": "show=arena&map=halsey&pose=taxi2",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "map-field-f01",
+  "query": "show=arena&map=field&pose=f01",
+  "ok": true,
+  "fatal": null,
+  "seconds": 13
+ },
+ {
+  "name": "map-field-f02",
+  "query": "show=arena&map=field&pose=f02",
+  "ok": true,
+  "fatal": null,
+  "seconds": 10
+ },
+ {
+  "name": "map-field-f03",
+  "query": "show=arena&map=field&pose=f03",
+  "ok": true,
+  "fatal": null,
+  "seconds": 10
+ },
+ {
+  "name": "map-field-f04",
+  "query": "show=arena&map=field&pose=f04",
+  "ok": true,
+  "fatal": null,
+  "seconds": 9
+ },
+ {
+  "name": "map-field-f05",
+  "query": "show=arena&map=field&pose=f05",
+  "ok": true,
+  "fatal": null,
+  "seconds": 9
+ },
+ {
+  "name": "map-field-f06",
+  "query": "show=arena&map=field&pose=f06",
+  "ok": true,
+  "fatal": null,
+  "seconds": 10
+ },
+ {
+  "name": "weapon-rifle",
+  "query": "show=weapon",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "weapon-pistol",
+  "query": "show=weapon&gun=pistol",
+  "ok": true,
+  "fatal": null,
+  "seconds": 5
+ },
+ {
+  "name": "weapon-viewmodel",
+  "query": "show=view",
+  "ok": true,
+  "fatal": null,
+  "seconds": 5
+ },
+ {
+  "name": "hands",
+  "query": "show=hand",
+  "ok": true,
+  "fatal": null,
+  "seconds": 5
+ },
+ {
+  "name": "zombie-walker",
+  "query": "show=zombie&ztype=walker",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "zombie-walker-seed2",
+  "query": "show=zombie&ztype=walker&zseed=2",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "zombie-runner",
+  "query": "show=zombie&ztype=runner",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "zombie-brute",
+  "query": "show=zombie&ztype=brute",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "zombie-lods",
+  "query": "show=zombie&lodrow=1&zpose=lod",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "kit",
+  "query": "show=kit",
+  "ok": true,
+  "fatal": null,
+  "seconds": 5
+ },
+ {
+  "name": "drone",
+  "query": "show=drone",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "props-barriers",
+  "query": "show=props&set=barriers",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "props-fence",
+  "query": "show=props&set=fence",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "props-booth",
+  "query": "show=props&set=booth",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "props-tower",
+  "query": "show=props&set=tower",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "props-tent",
+  "query": "show=props&set=tent",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "props-poles",
+  "query": "show=props&set=poles",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "props-cars",
+  "query": "show=props&set=cars",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "props-ambo",
+  "query": "show=props&set=ambo",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "props-bus",
+  "query": "show=props&set=bus",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "props-bld",
+  "query": "show=props&set=bld",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "props-clutter",
+  "query": "show=props&set=clutter",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "props-street",
+  "query": "show=props&set=street",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "props-traffic",
+  "query": "show=props&set=traffic",
+  "ok": true,
+  "fatal": null,
+  "seconds": 6
+ },
+ {
+  "name": "props-fstand",
+  "query": "show=props&set=fstand",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-fpress",
+  "query": "show=props&set=fpress",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-fmast",
+  "query": "show=props&set=fmast",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-fheli",
+  "query": "show=props&set=fheli",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-fhall",
+  "query": "show=props&set=fhall",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-fblock",
+  "query": "show=props&set=fblock",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-fbus",
+  "query": "show=props&set=fbus",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-ftruck",
+  "query": "show=props&set=ftruck",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-ftent",
+  "query": "show=props&set=ftent",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-fmed",
+  "query": "show=props&set=fmed",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-fsport",
+  "query": "show=props&set=fsport",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-fcamp",
+  "query": "show=props&set=fcamp",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-fserv",
+  "query": "show=props&set=fserv",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-fnature",
+  "query": "show=props&set=fnature",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-fback",
+  "query": "show=props&set=fback",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-fschool",
+  "query": "show=props&set=fschool",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-ffar",
+  "query": "show=props&set=ffar",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ },
+ {
+  "name": "props-ffence",
+  "query": "show=props&set=ffence",
+  "ok": true,
+  "fatal": null,
+  "seconds": 7
+ }
+]
