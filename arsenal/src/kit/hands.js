@@ -472,7 +472,7 @@ export function createArms(kit) {
       const dt = o.dt ?? 1 / 60;
       const where = o.mode === "fp" ? "fp" : "show";
       GH.WETNESS.value = WET[where];
-      GAIN.value = GAIN_FOR[where];
+      GAIN.value = o.gain ?? GAIN_FOR[where]; // (the game passes its own: its lighting differs)
       CUT.value = where === "show" ? 1 : 0;
       group.updateWorldMatrix(true, false);
       _inv.copy(group.matrixWorld).invert();
