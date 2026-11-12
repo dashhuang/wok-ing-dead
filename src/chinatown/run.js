@@ -3,7 +3,8 @@
 // - The dead keep coming on a timeline instead of in set waves; at nine minutes the boss
 //   arrives, and the checkpoint only opens once it is down.
 // - Kills fill the wok-hei bar. Every level offers three tickets: seasonings, or a new weapon.
-//   They are picked in slow motion, never a full stop, and the house picks if nobody does.
+//   They are picked in deep slow motion, never a full stop: the player stops to choose
+//   (no walking or firing), with the mouse let go to click one, and no time limit.
 // - Any number of weapons can be carried (loadout.js). Each draws on one of four pools of
 //   ammunition that has to be picked up from the street or fetched from the lit supply crates,
 //   so leaning on one weapon means hunting for its ammunition, and carrying one for every
@@ -15,6 +16,7 @@
 import * as L10N from "../i18n/index.js";
 import { createPickups } from "./pickups.js";
 import { createRunHud } from "./runhud.js";
+import { createWheel } from "./wheel.js";
 import { createLoadout, ARMS, AMMO, AMMO_TYPES, MAX_LEVEL } from "./loadout.js";
 import {
   RUN,
@@ -475,7 +477,7 @@ export function createRun(G, hooks) {
           level: 1,
           max: 1,
         });
-    // the house recommendation is what gets served if nobody chooses
+    // the house recommendation: a hint for players who do not know the dishes yet
     let rec = cards.findIndex((c) => c.kind === "spice" && S.spice[c.id] > 0);
     if (rec < 0) rec = cards.findIndex((c) => c.kind === "weapon");
     if (rec < 0) rec = 0;
@@ -515,8 +517,6 @@ export function createRun(G, hooks) {
     S.picking = {
       kind: req.kind,
       cards,
-      left: timing.seconds,
-      total: timing.seconds,
       slow: timing.slow,
       guard: P.guard,
     };
@@ -536,16 +536,14 @@ export function createRun(G, hooks) {
     if (wield) loadout.wield(id);
     return true;
   }
-  // auto: nobody chose and the time ran out
-  function choose(i, auto = false) {
+  function choose(i) {
     const pk = S.picking;
     if (!pk || pk.guard > 0 || !pk.cards[i]) return;
     const c = pk.cards[i];
     if (c.kind === "spice") addSpice(c.id);
     else if (c.kind === "heal") G.player.heal(999);
     else if (c.kind === "ammo") loadout.refill();
-    else if (c.kind === "weapon")
-      takeWeapon(c.id, pk.kind !== "start", !auto || pk.kind === "start");
+    else if (c.kind === "weapon") takeWeapon(c.id, pk.kind !== "start");
     else if (c.kind === "branch") {
       loadout.setBranch(c.id, c.branch);
       hud.toast(
@@ -558,6 +556,16 @@ export function createRun(G, hooks) {
     S.pickHold = RUN.pick.hold;
     S.pickGap = RUN.pick.gap;
     hud.closeCards(i);
+    // back to aiming: take the mouse again (a click or key press just now allows it)
+    const I = G.input;
+    if (
+      I &&
+      I.requestLock &&
+      I.mode === "lock" &&
+      !I.touch &&
+      I.device !== "pad"
+    )
+      I.requestLock();
     play("ui_click", { gain: 1 });
     G.events.emit("run:pick", { card: c });
   }
@@ -575,47 +583,124 @@ export function createRun(G, hooks) {
       return;
     }
     pk.guard -= real;
-    pk.left -= real;
-    hud.setCardTime(pk.left / pk.total);
     const I = G.input;
+    // let the mouse go so a ticket can be clicked (again after a pause hands it back)
+    if (I && I.locked && I.exitLock) I.exitLock();
     if (pk.guard <= 0 && I && I.pressed) {
       const pad = I.device === "pad";
       if (I.pressed("weapon1")) return choose(0);
       if (pad ? I.pressed("swap") : I.pressed("weapon2")) return choose(1);
       if (pad ? I.pressed("weapon2") : I.pressed("weapon3")) return choose(2);
     }
-    if (pk.left <= 0) {
-      pk.guard = 0;
-      choose(
-        Math.max(
-          0,
-          pk.cards.findIndex((c) => c.recommended),
-        ),
-        true,
-      );
-    }
   }
-  // weapon keys, when no ticket is up: number = the weapons on that ammunition, Q = the last one
-  function keysTick() {
+  // ---------- weapon keys and the wheel
+  // 1-9: the weapons in the order they were picked up; mouse wheel (pad: d-pad left / right):
+  // the previous or next one; the swap key (Q, pad Y, touch swap button): a tap goes back to
+  // the last weapon (touch: on to the next), holding it opens the wheel.
+  const wheel = createWheel({ root: hud.root, L10N });
+  // pending: a press of the swap key that is still a tap (not held long enough for the wheel)
+  const WK = { down: false, t: 0, pending: false, frame: -1, noFire: false };
+  const how = (I) => (I.touch ? "touch" : I.device === "pad" ? "pad" : "keys");
+  function wheelItems() {
+    const cur = loadout.cur;
+    return loadout.owned().map((id, i) => {
+      const ammo = ARMS[id].ammo;
+      return {
+        id,
+        n: i + 1,
+        name: wname(id),
+        short: L10N.t("weapon." + id + ".s"),
+        level: loadout.item(id).level,
+        ammo,
+        have: ammo ? Math.floor(loadout.have(ammo)) : 0,
+        ok: loadout.usable(id),
+        cur: id === cur,
+      };
+    });
+  }
+  // i: the weapon to take; -1 keeps the one in hand
+  function closeWheel(i = -1) {
+    if (!wheel.open) return;
+    const w = i >= 0 ? wheel.items[i] : null;
+    wheel.hide();
+    if (w && w.id !== loadout.cur) loadout.wield(w.id);
+  }
+  // a tap beside the ring (on the veil) puts it away
+  hud.root.addEventListener("click", (ev) => {
+    if (wheel.open && ev.target.classList.contains("rl-veil")) closeWheel();
+  });
+  function keysTick(real) {
     const I = G.input;
-    if (!I || !I.pressed || S.picking || S.pickHold > 0 || loadout.busy) return;
-    if (!G.player.alive) return;
-    if (I.device === "pad") {
-      if (I.pressed("swap")) loadout.swapLast();
-      else if (I.pressed("weapon1")) loadout.step(-1);
-      else if (I.pressed("weapon2")) loadout.step(1);
+    if (!I || !I.pressed) return;
+    const down = !!(I.down && I.down("swap"));
+    // a quick tap can start and end between two frames: the latched press still counts
+    // (the mouse wheel latches "swap" too, together with next / prev: that is not a tap)
+    const latched =
+      I.pressed("swap") && !I.pressed("next") && !I.pressed("prev");
+    const began = (down && !WK.down) || latched;
+    WK.down = down;
+    if (began) {
+      WK.t = 0;
+      WK.pending = true; // a tap until it is held long enough for the wheel
+    }
+    if (down) WK.t += real;
+    // tickets, death or a pause (the run's frames stopped) put the wheel away
+    const gap = G.time.frame - WK.frame > 1;
+    WK.frame = G.time.frame;
+    if (S.picking || S.pickHold > 0 || !G.player.alive) {
+      closeWheel();
+      WK.pending = false; // the press that was going on does not count as a tap
       return;
     }
-    if (I.pressed("swap")) {
+    if (wheel.open) {
+      if (gap) return closeWheel();
+      const pad = I.device === "pad";
+      // the mouse or right stick point at a weapon; the look input is spent on that
+      const L = I.look;
+      if (L && !I.touch) {
+        const k = 1 / (0.0021 * (I.sensitivity || 1));
+        wheel.push(L.dx * k, L.dy * k * (I.invertY ? -1 : 1));
+      }
+      if (I.pressed("next") || (pad && I.pressed("weapon2"))) wheel.step(1);
+      if (I.pressed("prev") || (pad && I.pressed("weapon1"))) wheel.step(-1);
+      if (!pad)
+        for (let n = 1; n <= 9; n++)
+          if (I.pressed("weapon" + n)) return closeWheel(n - 1);
+      const sel = wheel.chosen ? wheel.items.indexOf(wheel.chosen) : -1;
+      if (I.fire) {
+        WK.noFire = true; // the click that chose must not also fire
+        return closeWheel(sel);
+      }
+      // keys and pad: letting go takes what is pointed at (touch waits for a tap)
+      if (!I.touch && !down) closeWheel(sel);
+      return;
+    }
+    if (
+      down &&
+      WK.pending &&
+      WK.t >= (I.touch ? RUN.wheel.touchHold : RUN.wheel.hold)
+    ) {
+      WK.pending = false;
+      if (loadout.owned().length > 1)
+        wheel.show(wheelItems(), how(I), (i) => closeWheel(i));
+      return;
+    }
+    if (loadout.busy) return;
+    if (!down && WK.pending) {
+      WK.pending = false;
       if (I.touch) loadout.step(1);
       else loadout.swapLast();
       return;
     }
-    for (let n = 1; n <= 5; n++)
-      if (I.pressed("weapon" + n)) {
-        loadout.group(n);
-        return;
-      }
+    if (I.pressed("next")) return void loadout.step(1);
+    if (I.pressed("prev")) return void loadout.step(-1);
+    if (I.device === "pad") {
+      if (I.pressed("weapon1")) loadout.step(-1);
+      else if (I.pressed("weapon2")) loadout.step(1);
+      return;
+    }
+    for (let n = 1; n <= 9; n++)
+      if (I.pressed("weapon" + n)) return void loadout.slot(n);
   }
 
   // ---------- ammunition in the street
@@ -1060,6 +1145,8 @@ export function createRun(G, hooks) {
         unlocked: [],
       });
       G.time.scale = 1;
+      wheel.hide();
+      WK.noFire = false;
       pickups.reset();
       hud.reset();
       loadout.reset();
@@ -1081,6 +1168,7 @@ export function createRun(G, hooks) {
     },
     // back to the title or into the other mode: undo everything we changed
     stop() {
+      wheel.hide();
       hud.setRunLayout(false);
       hud.setNoMag(false);
       if (!S.active && S.scale === 1) {
@@ -1102,6 +1190,7 @@ export function createRun(G, hooks) {
     },
     // reached the truck: let the street run at full speed behind the receipt
     finish() {
+      closeWheel();
       if (S.picking) hud.closeCards(-1);
       S.picking = null;
       S.pending = 0;
@@ -1115,8 +1204,32 @@ export function createRun(G, hooks) {
       if (!S.active) return;
       hud.update(real);
       pickTick(real);
-      keysTick();
-      const target = S.picking ? S.picking.slow : 1;
+      keysTick(real);
+      // while tickets are up the player only chooses: no walking, firing, aiming or turning
+      // (the free mouse is for the tickets). The input is read before the player updates.
+      if (S.picking && G.input) {
+        const I = G.input;
+        if (I.move) I.move.x = I.move.y = 0;
+        if (I.look) I.look.dx = I.look.dy = 0;
+        I.fire = I.ads = I.sprint = I.crouch = false;
+      }
+      // the wheel: walking goes on (not on touch screens, where it covers the stick), but
+      // the mouse points at weapons instead of turning, and nothing fires
+      if (wheel.open && G.input) {
+        const I = G.input;
+        if (I.look) I.look.dx = I.look.dy = 0;
+        if (I.touch && I.move) I.move.x = I.move.y = 0;
+        I.fire = I.ads = false;
+      }
+      if (WK.noFire && G.input) {
+        if (G.input.fire) G.input.fire = false;
+        else WK.noFire = false;
+      }
+      const target = S.picking
+        ? S.picking.slow
+        : wheel.open
+          ? RUN.wheel.slow
+          : 1;
       S.scale += (target - S.scale) * Math.min(1, real * 14);
       if (Math.abs(S.scale - target) < 0.01) S.scale = target;
       G.time.scale = S.scale;
@@ -1146,18 +1259,13 @@ export function createRun(G, hooks) {
       const arm = loadout.armory;
       hud.setNoMag(!!arm && arm.held && !arm.mag);
       hud.setWeapons(
-        loadout
-          .owned()
-          .slice()
-          .sort((a, b) => ARMS[a].group - ARMS[b].group)
-          .map((id) => ({
-            id,
-            group: ARMS[id].group,
-            ammo: ARMS[id].ammo,
-            level: loadout.item(id).level,
-            cur: id === cur,
-            ok: loadout.usable(id),
-          })),
+        loadout.owned().map((id) => ({
+          id,
+          ammo: ARMS[id].ammo,
+          level: loadout.item(id).level,
+          cur: id === cur,
+          ok: loadout.usable(id),
+        })),
         (id) => loadout.wield(id),
       );
       hud.setPools(

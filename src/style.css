@@ -1243,14 +1243,10 @@ kbd {
   gap: 4px 12px;
   max-width: min(760px, calc(100vw - 2 * 230px));
 }
-.rl-wg {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-.rl-wg kbd {
-  min-width: 16px;
-  margin-right: 2px;
+/* the number key of each weapon (the order it was picked up) */
+.rl-w kbd {
+  min-width: 14px;
+  margin-right: 4px;
   padding: 2px 3px 1px;
   font-size: 9px;
   color: var(--paper-mute);
@@ -1383,16 +1379,59 @@ kbd {
   }
 }
 
-/* order tickets: three small receipts, chosen with 1 2 3 while the street runs slow */
+/* order tickets: three receipts in the middle of the screen, clicked (the mouse is let go)
+   or chosen with 1 2 3 while the street all but stops behind a dark veil and letterbox
+   bars, so it reads as ordering, not fighting. No time limit. */
+.rl-veil {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  background: radial-gradient(
+    ellipse 75% 70% at 50% 50%,
+    rgba(10, 7, 5, 0.42),
+    rgba(10, 7, 5, 0.86)
+  );
+}
+.rl-veil::before,
+.rl-veil::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 9vh;
+  background: #050403;
+  transition: transform 0.28s var(--ease-out);
+}
+.rl-veil::before {
+  top: 0;
+  transform: translateY(-100%);
+}
+.rl-veil::after {
+  bottom: 0;
+  transform: translateY(100%);
+}
+.rl.pick .rl-veil {
+  opacity: 1;
+}
+/* a click beside the tickets lands on the veil, not on the street (which would take the
+   mouse back and fire) */
+.hud.on ~ .rl.on.pick .rl-veil {
+  pointer-events: auto;
+}
+.rl.pick .rl-veil::before,
+.rl.pick .rl-veil::after {
+  transform: none;
+}
 .rl-cards {
   position: absolute;
   left: 50%;
-  bottom: calc(92px + var(--sab));
-  transform: translateX(-50%);
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: none;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   text-shadow: none;
 }
 .rl-cards.on {
@@ -1400,38 +1439,33 @@ kbd {
 }
 .rl-cards-h {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  font: 700 11px/1 var(--f-ui);
-  letter-spacing: var(--trk-l);
-  text-transform: var(--caps);
-  color: var(--brass);
+  align-items: baseline;
+  font: 800 26px/1 var(--f-display);
+  letter-spacing: 0.06em;
+  color: var(--paper);
   text-shadow: var(--shadow);
 }
-.rl-cards-bar {
-  width: 120px;
-  height: 3px;
-  background: var(--paper-faint);
-  overflow: hidden;
-}
-.rl-cards-bar i {
-  display: block;
-  height: 100%;
-  background: var(--brass);
-  transform-origin: 0 50%;
+.rl-cards-hint {
+  margin: 4px 0 0;
+  font: 600 13px/1.3 var(--f-ui);
+  letter-spacing: 0.04em;
+  color: var(--paper-2);
+  text-shadow: var(--shadow);
+  text-align: center;
 }
 .rl-cards-row {
   display: flex;
-  gap: 10px;
+  gap: 14px;
+  margin-top: 6px;
 }
 .rl-card {
   --rc-ink: #1d1813;
   --rc-dim: rgba(29, 24, 19, 0.66);
   position: relative;
-  width: min(196px, 29vw);
-  min-height: 96px;
+  width: min(236px, 29vw);
+  min-height: 132px;
   margin: 0;
-  padding: 12px 12px 18px;
+  padding: 14px 14px 20px;
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-areas: "key name" "pips pips" "desc desc";
@@ -1483,7 +1517,7 @@ kbd {
 }
 .rl-card b {
   grid-area: name;
-  font: 800 18px/1.1 var(--f-display);
+  font: 800 21px/1.1 var(--f-display);
   letter-spacing: 0.02em;
 }
 .rl-card kbd + b {
@@ -1519,7 +1553,7 @@ kbd {
 }
 .rl-card span {
   grid-area: desc;
-  font: 500 12px/1.35 var(--f-ui);
+  font: 500 13px/1.4 var(--f-ui);
   color: var(--rc-dim);
 }
 .rl-card u {
@@ -1534,6 +1568,10 @@ kbd {
   background: var(--cinnabar);
   border-radius: 0 0 3px 3px;
 }
+.rl-card:hover {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
 .rl-card.picked {
   outline: 2px solid var(--brass);
   transform: translateY(-6px);
@@ -1543,10 +1581,170 @@ kbd {
   opacity: 0;
   transition: opacity 0.25s;
 }
-/* the radio subtitle and the toasts would sit on top of the tickets */
+/* the radio subtitle and the toasts would sit on top of the tickets and the wheel */
 .rl:has(.rl-cards.on) ~ .comms,
-.rl:has(.rl-cards.on) .rl-toasts {
+.rl:has(.rl-cards.on) .rl-toasts,
+.rl.wheel ~ .comms,
+.rl.wheel .rl-toasts {
   opacity: 0;
+}
+/* the weapon wheel (wheel.js): every carried weapon on a ring round the middle of the
+   screen while the swap key is held; the street slows and dims behind it */
+.rl.wheel .rl-veil {
+  opacity: 0.75;
+}
+.hud.on ~ .rl.on.wheel .rl-veil {
+  pointer-events: auto;
+}
+.rl-wheel {
+  position: absolute;
+  inset: 0;
+  display: none;
+  text-shadow: none;
+}
+.rl-wheel.on {
+  display: block;
+}
+.rl-wheel-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+}
+.rl-wheel-ring::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--r));
+  top: calc(-1 * var(--r));
+  width: calc(2 * var(--r));
+  height: calc(2 * var(--r));
+  border: 1px solid var(--paper-faint);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(6, 5, 4, 0.62),
+    rgba(6, 5, 4, 0.38) 70%
+  );
+}
+.rl-wheel-w {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 0;
+  padding: 7px 9px 6px;
+  white-space: nowrap;
+  font: 600 13px/1 var(--f-ui);
+  color: var(--paper-2);
+  background: rgba(7, 8, 10, 0.78);
+  border: 0;
+  border-bottom: 2px solid color-mix(in srgb, var(--ammo) 55%, transparent);
+  border-radius: 3px 3px 0 0;
+  -webkit-appearance: none;
+  appearance: none;
+  transition:
+    background 0.08s,
+    color 0.08s;
+}
+.hud.on ~ .rl.on .rl-wheel.on .rl-wheel-w {
+  pointer-events: auto;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+.rl-wheel-w kbd {
+  font-size: 9px;
+  padding: 2px 3px 1px;
+  color: var(--paper-mute);
+  border-color: var(--line);
+}
+.rl-wheel-w sup {
+  font-size: 9px;
+  color: var(--brass);
+}
+.rl-wheel-w em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--ammo, var(--paper-dim));
+}
+.rl-wheel-w.cur {
+  color: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--paper-faint);
+}
+.rl-wheel-w.dry {
+  opacity: 0.45;
+}
+.rl-wheel-w.sel {
+  color: var(--ink, #1d1813);
+  background: #efe7d8;
+  border-bottom-color: var(--ammo, var(--brass));
+  box-shadow: 0 0 18px -4px var(--ammo, var(--brass));
+}
+.rl-wheel-w.sel kbd,
+.rl-wheel-w.sel em {
+  color: #1d1813;
+}
+.rl-wheel-mid {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 40vw;
+  text-align: center;
+  text-shadow: var(--shadow);
+}
+.rl-wheel-mid b {
+  font: 800 22px/1.1 var(--f-display);
+  color: var(--paper);
+}
+.rl-wheel-mid span {
+  font: 600 12px/1.2 var(--f-ui);
+  color: var(--paper-dim);
+}
+.rl-wheel.none .rl-wheel-mid {
+  opacity: 0.55;
+}
+.rl-wheel-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(14% + var(--sab));
+  margin: 0;
+  font: 600 13px/1.3 var(--f-ui);
+  letter-spacing: 0.04em;
+  color: var(--paper-2);
+  text-align: center;
+  text-shadow: var(--shadow);
+}
+.is-touch .rl-wheel-w {
+  padding: 10px 10px 8px;
+}
+.is-touch .rl-wheel-mid b {
+  font-size: 17px;
+}
+
+/* while choosing, put away what says "fight": the crosshair, the weapon and ammo bars,
+   and on touch screens the stick and the combat buttons (pause stays) */
+.hud:has(~ .rl.pick) .h-cross,
+.rl.pick .rl-weapons,
+.rl.pick .rl-pools,
+.rl.pick .rl-xp,
+.rl.pick .rl-spices,
+#ui:has(.rl.pick) .touch .t-stick,
+#ui:has(.rl.pick) .touch .t-btn:not(.t-pause),
+.hud:has(~ .rl.wheel) .h-cross,
+.rl.wheel .rl-weapons,
+.rl.wheel .rl-spices,
+#ui:has(.rl.wheel) .touch .t-stick,
+#ui:has(.rl.wheel) .touch .t-btn:not(.t-pause) {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* touch: keep the thumbs' corners clear */
@@ -1567,14 +1765,14 @@ kbd {
   padding: 9px 9px 7px;
   font-size: 12px;
 }
-/* no room for the row of pools between the thumbs: each group of the weapon bar is headed
-   by what is left of its ammunition instead (runhud.js) */
+/* no room for the row of pools between the thumbs: each weapon on the bar shows what is
+   left of its ammunition instead (runhud.js) */
 .is-touch .rl-pools {
   display: none;
 }
 .rl-wg-n {
-  min-width: 22px;
-  margin-right: 1px;
+  min-width: 18px;
+  margin-right: 4px;
   font: 700 11px/1 var(--f-num, var(--f-ui));
   font-style: normal;
   text-align: right;
@@ -1607,17 +1805,24 @@ kbd {
   align-items: center;
 }
 .is-touch .rl-cards {
-  bottom: auto;
-  top: calc(96px + var(--sat));
-  flex-direction: column-reverse;
-  gap: 5px;
+  gap: 6px;
 }
-.is-touch .rl-cards-h span {
-  display: none;
+.is-touch .rl-cards-h {
+  font-size: 18px;
+}
+.is-touch .rl-cards-row {
+  margin-top: 2px;
 }
 .is-touch .rl-card {
   min-height: 0;
-  padding: 9px 10px 14px;
+  padding: 10px 10px 15px;
+}
+.is-touch .rl-cards-hint {
+  font-size: 12px;
+}
+.is-touch .rl-veil::before,
+.is-touch .rl-veil::after {
+  height: calc(5vh + var(--sat));
 }
 .is-touch .rl-card b {
   font-size: 15px;
@@ -1625,10 +1830,14 @@ kbd {
 .is-touch .rl-card span {
   font-size: 11px;
 }
-/* portrait phones: below the objective, ammo and health blocks */
+/* portrait phones: the tickets stack, one per row */
 @media (max-width: 600px) {
-  .is-touch .rl-cards {
-    top: calc(200px + var(--sat));
+  .is-touch .rl-cards-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .is-touch .rl-card {
+    width: min(320px, 84vw);
   }
 }
 

@@ -60,13 +60,15 @@ export function createRunHud(G) {
   const cards = el(
     "div",
     "rl-cards",
-    '<div class="rl-cards-h"><span></span><div class="rl-cards-bar"><i></i></div></div><div class="rl-cards-row"></div>',
+    '<div class="rl-cards-h"><span></span></div><div class="rl-cards-row"></div><p class="rl-cards-hint"></p>',
   );
   const cardsTitle = cards.querySelector(".rl-cards-h span");
-  const cardsBar = cards.querySelector(".rl-cards-bar i");
   const cardsRow = cards.querySelector(".rl-cards-row");
+  const cardsHint = cards.querySelector(".rl-cards-hint");
+  // while tickets are up the street darkens behind them: this is ordering, not fighting
+  const veil = el("div", "rl-veil");
 
-  root.append(clock, boss, spices, toasts, weapons, pools, xp, cards);
+  root.append(clock, boss, spices, toasts, weapons, pools, xp, veil, cards);
   // directly after the game's HUD: it shows and hides with it (see .hud.on ~ .rl in the
   // stylesheet) and stays underneath the menus
   const hudRoot = G.hud && G.hud.root;
@@ -90,7 +92,6 @@ export function createRunHud(G) {
     boss: -1,
     bossOn: null,
     spices: "",
-    bar: -1,
     weapons: "",
     pools: "",
   };
@@ -128,6 +129,13 @@ export function createRunHud(G) {
   function drawCards() {
     if (!open) return;
     cardsTitle.textContent = L10N.t(title.key, fill(null, title.varKeys));
+    const how =
+      G.input && G.input.touch
+        ? "touch"
+        : G.input && G.input.device === "pad"
+          ? "pad"
+          : "keys";
+    cardsHint.textContent = L10N.t("run.cards.hint." + how);
     cardsRow.innerHTML = "";
     open.cards.forEach((c, i) => {
       const b = el(
@@ -160,26 +168,20 @@ export function createRunHud(G) {
     if (key === last.weapons) return;
     last.weapons = key;
     const touch = G.input && G.input.touch;
+    // in the order picked up, numbered for the keys 1-9; a phone has no keys, and no room
+    // for the row of pools either, so there each weapon shows what is left of its ammunition
     let html = "";
-    let group = -1;
-    for (const w of weaponList) {
-      if (w.group !== group) {
-        if (group >= 0) html += "</span>";
-        group = w.group;
-        // keys have numbers; a phone has no keys, and no room for the row of pools either,
-        // so there each group is headed by what is left of its ammunition
-        const pool = touch && w.ammo && poolList.find((p) => p.type === w.ammo);
-        html += `<span class="rl-wg">${
-          touch
-            ? pool
-              ? `<em class="rl-wg-n a-${w.ammo}${pool.have <= 0 ? " dry" : ""}" data-pool="${w.ammo}">${pool.have}</em>`
-              : ""
-            : `<kbd>${group}</kbd>`
-        }`;
-      }
-      html += `<button class="rl-w${w.cur ? " cur" : ""}${w.ok ? "" : " dry"} a-${w.ammo || "none"}" data-w="${w.id}"><b>${L10N.t("weapon." + w.id + ".s")}</b><sup>${w.level}</sup></button>`;
-    }
-    if (group >= 0) html += "</span>";
+    weaponList.forEach((w, i) => {
+      const pool = touch && w.ammo && poolList.find((p) => p.type === w.ammo);
+      const lead = touch
+        ? pool
+          ? `<em class="rl-wg-n a-${w.ammo}${pool.have <= 0 ? " dry" : ""}" data-pool="${w.ammo}">${pool.have}</em>`
+          : ""
+        : i < 9
+          ? `<kbd>${i + 1}</kbd>`
+          : "";
+      html += `<button class="rl-w${w.cur ? " cur" : ""}${w.ok ? "" : " dry"} a-${w.ammo || "none"}" data-w="${w.id}">${lead}<b>${L10N.t("weapon." + w.id + ".s")}</b><sup>${w.level}</sup></button>`;
+    });
     weapons.innerHTML = html;
   }
   weapons.addEventListener("click", (ev) => {
@@ -208,7 +210,7 @@ export function createRunHud(G) {
           `<span class="rl-pool a-${p.type}${p.cur ? " cur" : ""}${p.have <= 0 ? " dry" : ""}"><b>${L10N.t("run.ammo." + p.type + ".s")}</b><em>${p.have}</em><i style="--f:${Math.max(0, Math.min(1, p.have / Math.max(1, p.cap))).toFixed(3)}"></i></span>`,
       )
       .join("");
-    // (touch) the same numbers at the head of each group of the weapon bar
+    // (touch) the same numbers on the weapons of the weapon bar
     for (const el of weapons.querySelectorAll("[data-pool]")) {
       const p = poolList.find((q) => q.type === el.dataset.pool);
       if (!p) continue;
@@ -317,18 +319,11 @@ export function createRunHud(G) {
         key: o.titleKey || "run.cards.title",
         varKeys: o.titleVarKeys || null,
       };
-      last.bar = -1;
       drawCards();
       cards.classList.toggle("two", list.length === 2);
       cards.classList.remove("out");
       cards.classList.add("on");
-    },
-    setCardTime(frac) {
-      const f = Math.round(Math.max(0, Math.min(1, frac)) * 100) / 100;
-      if (f !== last.bar) {
-        last.bar = f;
-        cardsBar.style.transform = `scaleX(${f})`;
-      }
+      root.classList.add("pick");
     },
     closeCards(picked) {
       if (!open) return;
@@ -336,6 +331,7 @@ export function createRunHud(G) {
       if (btn) btn.classList.add("picked");
       open = null;
       cards.classList.add("out");
+      root.classList.remove("pick");
       setTimeout(() => {
         if (!open) cards.classList.remove("on");
         cards.classList.remove("out");
@@ -355,6 +351,7 @@ export function createRunHud(G) {
       live = [];
       open = null;
       cards.classList.remove("on", "out");
+      root.classList.remove("pick");
       api.setBoss(null);
       api.setSpices([]);
       api.setWeapons([]);

@@ -67793,11 +67793,19 @@ void main() {
       Digit3: "weapon3",
       Digit4: "weapon4",
       Digit5: "weapon5",
+      Digit6: "weapon6",
+      Digit7: "weapon7",
+      Digit8: "weapon8",
+      Digit9: "weapon9",
       Numpad1: "weapon1",
       Numpad2: "weapon2",
       Numpad3: "weapon3",
       Numpad4: "weapon4",
       Numpad5: "weapon5",
+      Numpad6: "weapon6",
+      Numpad7: "weapon7",
+      Numpad8: "weapon8",
+      Numpad9: "weapon9",
       Enter: "fire",
       NumpadEnter: "fire",
       ArrowLeft: "turnL",
@@ -67986,7 +67994,10 @@ void main() {
         if (!r) return;
         ne.preventDefault();
         let ye = performance.now();
-        ye - g < 280 || Math.abs(ne.deltaY) < 1 || ((g = ye), s.add("swap"));
+        // "swap" for the game's own pair; a run steps through its weapons with next / prev
+        ye - g < 150 ||
+          Math.abs(ne.deltaY) < 1 ||
+          ((g = ye), s.add("swap"), s.add(ne.deltaY > 0 ? "next" : "prev"));
       },
       { passive: !1 },
     ),
@@ -85035,6 +85046,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           return;
         }
         C.state === "playing" &&
+        !(runOn() && RUN.picking) &&
         (r.mode === "drag" ||
           (r.mode === "lock" &&
             !r.locked &&
@@ -85050,7 +85062,12 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           ((R = !0), ee(!1));
           return;
         }
-        ((C.state === "playing" || C.state === "intro") && R && le(), (R = !1));
+        // the run lets the mouse go while its tickets are up: that is not a pause
+        ((C.state === "playing" || C.state === "intro") &&
+          R &&
+          !(runOn() && RUN.picking) &&
+          le(),
+          (R = !1));
       }),
       document.addEventListener("visibilitychange", () => {
         document.hidden &&
@@ -85529,7 +85546,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
             !r.touch &&
             r.device !== "pad" &&
             !n.params.shot &&
-            !n.params.autostart
+            !n.params.autostart &&
+            !(runOn() && RUN.picking)
               ? ((I -= Y),
                 I <= 0 && ((I = 6), o.message(r.describeMode(), 2.6)))
               : (I = 1.5),

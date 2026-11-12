@@ -103,16 +103,19 @@ export const RUN = {
     elite: 20,
     need: (level) => 5 + 8 * level,
   },
-  // seconds a ticket stays up, and how slow the street runs meanwhile
+  // how slow the street runs while tickets are up: all but stopped, never a full stop.
+  // There is no time limit; the mouse is let go so a ticket can be clicked.
   pick: {
-    slow: 0.2,
-    seconds: 4.5,
+    slow: 0.05,
     guard: 0.35,
     hold: 0.25,
     gap: 0.5,
-    start: { seconds: 20, slow: 0.02 }, // choosing the first weapon
-    fork: { seconds: 7, slow: 0.12 }, // choosing a weapon's form
+    start: { slow: 0.02 }, // choosing the first weapon
+    fork: { slow: 0.04 }, // choosing a weapon's form
   },
+  // the weapon wheel: how slow the street runs while it is open, and how long the swap key
+  // (or the touch swap button) is held before it opens; a shorter press is a quick swap
+  wheel: { slow: 0.15, hold: 0.22, touchHold: 0.32 },
   // level-ups (counted from 1) whose three tickets are all weapons, and the chance that
   // one of the three is a weapon on any other level-up
   weaponPicks: [2, 5, 9, 13],
