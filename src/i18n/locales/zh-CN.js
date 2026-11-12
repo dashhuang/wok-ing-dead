@@ -296,6 +296,8 @@ export default {
   "run.card.ammo": "加料",
   "run.card.ammo.d": "弹药补满",
   "run.toast.ammo": "+{n} {a}",
+  "run.toast.food": "+{n} 生命",
+  "run.toast.reloadAll": "全部武器装满",
   "run.toast.cache": "补给箱　{a} +{n}",
   "run.toast.refill": "警报箱补给　弹药全满",
   "run.toast.weapon": "红包　{w} 升到 {n} 级",

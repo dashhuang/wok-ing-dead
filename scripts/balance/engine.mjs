@@ -43,6 +43,7 @@ export function createFight(opts) {
       regenRate: opts.regenRate,
     },
     weapon: null,
+    noise: false, // the weapon went off in the last step
     stats: { raw: 0, kills: 0, taken: 0, rounds: 0 },
     onKill: null,
     onHurt: null,
@@ -60,6 +61,7 @@ export function createFight(opts) {
       pin: 0,
       sleep: 0,
       seal: 0,
+      dull: false, // a wanderer that has noticed nobody yet
       venom: 0,
       hits: 0,
       ...z,
@@ -93,6 +95,7 @@ export function createFight(opts) {
     F.stats.raw += amount;
     z.hp -= amount;
     if (z.flinch) z.stun = Math.max(z.stun, z.flinch);
+    z.dull = false; // hurt: it knows now
     if (z.hp > 0) return false;
     z.alive = false;
     F.stats.kills++;
@@ -101,7 +104,7 @@ export function createFight(opts) {
   };
 
   /**
-   * Take a weapon in hand. w: { id, power, rounds, supply(units) }: power multiplies its
+   * Take a weapon in hand. w: { id, power, rounds, supply(units), reloaded() }: power multiplies its
    * damage (level, form, calibration); rounds is what is in the magazine (undefined = full);
    * supply(n) takes up to n rounds out of the pool and returns how many it gave (omitted:
    * the magazine refills from nowhere, as on the range).
@@ -210,6 +213,7 @@ export function createFight(opts) {
     const got = W.supply ? W.supply(want) : want;
     W.rounds += got;
     W.dry = W.rounds < 1;
+    if (W.reloaded) W.reloaded();
   }
 
   function fire(dt, ctx) {
@@ -235,6 +239,7 @@ export function createFight(opts) {
     if (m.kind === "stream") {
       if (W.rounds <= 0) return void (m.reload && reload(W, ctx));
       const ticks = rate * dt;
+      F.noise = true;
       W.rounds -= m.drain * dt;
       F.stats.rounds += m.drain * dt;
       const hitP = Math.min(1, ctx.skill.hit + 0.15); // a stream is swept, not aimed
@@ -256,6 +261,7 @@ export function createFight(opts) {
         W.rounds -= 1;
         F.stats.rounds += 1;
       }
+      F.noise = true;
       const t = nearest(m.reach);
       if (!t) break;
       shoot(t, ctx);
@@ -273,6 +279,7 @@ export function createFight(opts) {
    *   infusions, { fire, shock, venom: every n hits; seal: chance; burn: damage of a stack }
    *   fire,      false to hold fire
    *   tempo,     share of the weapon's rate the player keeps up (busy with something else)
+   *   wake,      { near, hear }: how close the player, or gunfire, wakes a wanderer
    * }
    */
   F.step = (dt, ctx) => {
@@ -281,6 +288,7 @@ export function createFight(opts) {
     const Z = F.zombies;
     // ---- the dead close in; only so many fit around one person
     Z.sort((a, b) => a.d - b.d);
+    const wake = ctx.wake || { near: 7, hear: 14 };
     let around = 0;
     for (const z of Z) {
       if (!z.alive) continue;
@@ -288,6 +296,15 @@ export function createFight(opts) {
         // not risen yet (the range's horde comes out a few at a time)
         z.sleep -= dt;
         continue;
+      }
+      if (z.dull) {
+        // a wanderer: it stays where it is until the player comes close or fires nearby
+        // (or hurts it, see damage); walking towards it closes the distance
+        if (z.d < wake.near || (F.noise && z.d < wake.hear)) z.dull = false;
+        else {
+          if (ctx.retreat < 0) z.d = Math.max(z.reach, z.d + ctx.retreat * dt);
+          continue;
+        }
       }
       if (z.pin > 0) {
         z.pin -= dt;
@@ -330,6 +347,7 @@ export function createFight(opts) {
     if (!P.alive) return;
     if (F.t - P.hurtAt > P.regenDelay && P.hp < P.maxHp)
       P.hp = Math.min(P.maxHp, P.hp + P.regenRate * dt);
+    F.noise = false;
     fire(dt, ctx);
     // clear the fallen away now and then
     if (Z.length > F.alive() + 8) F.zombies = Z.filter((z) => z.alive);

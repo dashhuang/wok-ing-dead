@@ -302,6 +302,8 @@ export default {
   "run.card.ammo": "おかわり",
   "run.card.ammo.d": "弾薬を満タンに",
   "run.toast.ammo": "+{n} {a}",
+  "run.toast.food": "+{n} 体力",
+  "run.toast.reloadAll": "全武器リロード",
   "run.toast.cache": "補給箱　{a} +{n}",
   "run.toast.refill": "サイレン箱の補給　弾薬満タン",
   "run.toast.weapon": "紅包　{w} がレベル {n} に",

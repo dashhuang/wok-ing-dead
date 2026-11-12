@@ -297,7 +297,11 @@ export function build() {
       ]),
     ),
     "",
-    `玩家：生命 ${PLAYER.health}，${PLAYER.regenDelay} 秒不受伤后每秒回 ${PLAYER.regenRate}；走 ${PLAYER.walk} 米/秒，跑 ${PLAYER.sprint} 米/秒。`,
+    `玩家：生命 ${PLAYER.health}，${
+      RUN.heal.regen > 0
+        ? `${PLAYER.regenDelay} 秒不受伤后每秒回 ${num(PLAYER.regenRate * RUN.heal.regen)}`
+        : `不自动回血（一盒外卖回 ${RUN.heal.food}：行尸 ${pct(RUN.heal.drop)}、重型 ${pct(RUN.heal.bruteDrop)} 掉一盒，血量低于 ${pct(RUN.heal.lowAt)} 时概率 ×${RUN.heal.hurtBoost}，精英必掉 ${RUN.heal.elite} 盒）`
+    }；走 ${PLAYER.walk} 米/秒，跑 ${PLAYER.sprint} 米/秒。`,
     "行尸和重型的血量、伤害全程不变；只有精英一只比一只强。",
   );
 
@@ -358,6 +362,7 @@ export function build() {
         "击杀",
         "主力缺弹",
         "每分钟受伤",
+        "吃掉的外卖",
         "武器数",
         "最高武器等级",
       ],
@@ -375,6 +380,7 @@ export function build() {
           num(r.kills),
           pct(r.dry),
           num(r.hurt),
+          num(r.eaten),
           num(r.weapons, 1),
           num(r.top, 1),
         ];

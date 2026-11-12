@@ -32,6 +32,7 @@ import {
   spawnPace,
   spawnKind,
   spawnGap,
+  foodChance,
   killXp,
   gainXp,
   packWeights,
@@ -49,7 +50,7 @@ import {
  *   collect  share of dropped packs picked up      crates   chance to go to a crate when short
  *   trip     seconds a trip to a crate takes       sirens   when the sirens are cut (seconds)
  *   cases    when a weapon case is opened          build    "focus", "spread" or "random"
- *   fleeAt   share of health below which the player breaks off and runs until it is back
+ *   fleeAt   share of health below which the player turns and runs to open the distance
  */
 export const PROFILES = {
   novice: {
@@ -192,7 +193,8 @@ export function simulateRun(o = {}) {
     rng,
     health: PLAYER.health,
     regenDelay: PLAYER.regenDelay,
-    regenRate: PLAYER.regenRate,
+    // wounds do not close by themselves in a run (RUN.heal.regen is the share kept)
+    regenRate: PLAYER.regenRate * RUN.heal.regen,
   });
   const R = {
     t: 0,
@@ -210,6 +212,8 @@ export function simulateRun(o = {}) {
     pools: Object.fromEntries(AMMO_TYPES.map((k) => [k, AMMO[k].start])),
     capMul: 1,
     packs: [],
+    food: [], // boxes on the ground: { at: when it is reached, until: when it is gone }
+    eaten: 0,
     envelopes: [],
     crates: AMMO_TYPES.flatMap((kind) =>
       Array.from({ length: RUN.ammo.caches }, () => ({
@@ -221,7 +225,9 @@ export function simulateRun(o = {}) {
     trip: null,
     asked: false, // already decided about a crate for this shortage
     busy: 0, // seconds spent on a siren's switch
-    flee: false, // running to get away and heal
+    flee: false, // running to get away
+    fleeT: 0,
+    fleeCool: 0,
     spawnT: 1.2,
     eliteAt: RUN.elite.first,
     eliteN: 0,
@@ -265,7 +271,7 @@ export function simulateRun(o = {}) {
     const hp = PLAYER.health + spiceValue("soup", R.spice.soup);
     if (hp > P.maxHp) P.hp += hp - P.maxHp;
     P.maxHp = hp;
-    P.regenRate = PLAYER.regenRate * (1 + 0.15 * (R.spice.soup || 0));
+    P.regenRate = PLAYER.regenRate * RUN.heal.regen;
   }
 
   // ---------- weapons
@@ -298,9 +304,28 @@ export function simulateRun(o = {}) {
             return got / per;
           }
         : undefined,
+      reloaded: () => reloadRest(id),
     });
     R.cur = id;
     if (!quick) R.hold = 0.6;
+  }
+  // one reload fills every magazine carried, each from its own pool (loadout.js, reloadRest)
+  function reloadRest(done) {
+    for (const id of R.order) {
+      if (id === done) continue;
+      const it = R.inv.get(id);
+      const m = model(id);
+      if (m.mag === Infinity || m.regen || m.kind === "melee") continue;
+      const kind = ARMS[id].ammo;
+      const per = perRound(it);
+      const rounds = it.rounds ?? m.mag;
+      const got = kind
+        ? Math.min(m.mag - rounds, R.pools[kind] / per)
+        : m.mag - rounds;
+      if (got <= 0) continue;
+      if (kind) R.pools[kind] -= got * per;
+      it.rounds = rounds + got;
+    }
   }
   // the form or level of the weapon in hand changed: same magazine, new numbers
   function regrade(id) {
@@ -486,6 +511,7 @@ export function simulateRun(o = {}) {
       z.hp *= RUN.bloater.hp;
     } else z.cop = rng() < COP_SHARE;
     if (opts.d) z.d = opts.d;
+    if (opts.dull) z.dull = true;
     return F.add(z);
   }
   function drop(kind, spread = false) {
@@ -541,6 +567,19 @@ export function simulateRun(o = {}) {
       const k = rollKind();
       if (k) drop(k);
     }
+    const P = F.player;
+    const boxes =
+      z.rank === "elite"
+        ? RUN.heal.elite
+        : z.rank !== "boss" &&
+            z.rank !== "bloater" &&
+            rng() < foodChance(z.type, P.hp / P.maxHp, boost)
+          ? 1
+          : 0;
+    for (let i = 0; i < boxes; i++)
+      // the hurt go out of their way for it
+      if (rng() < Math.max(prof.collect, P.hp < P.maxHp * 0.5 ? 0.9 : 0))
+        R.food.push({ at: R.t + rand(2, 6), until: R.t + RUN.heal.life });
     const lv = R.spice.burst || 0;
     if (lv && z.rank !== "boss" && !z.burst && rng() < spiceValue("burst", lv))
       for (const o of F.zombies)
@@ -554,7 +593,9 @@ export function simulateRun(o = {}) {
 
   // ---------- the run
   take("pistol");
-  for (let i = 0; i < RUN.opening; i++) rise("walker", { d: rand(11, 26) });
+  // the street as the run finds it: wanderers all over it
+  for (let i = 0; i < RUN.opening; i++)
+    rise("walker", { d: rand(14, 60), dull: true, runner: rng() < 0.2 });
   {
     // the first ticket: three weapons that draw on a pool
     const offers = weaponOffers(3, true);
@@ -583,7 +624,12 @@ export function simulateRun(o = {}) {
         for (const z of F.zombies)
           if (z.alive && z.type === "brute" && !z.rank) brutes++;
         const kind = spawnKind(st, rng(), brutes);
-        rise(kind, { runner: kind === "walker" && rng() < st.runner });
+        const quiet = st.quiet && R.surgeT <= 0 && kind === "walker";
+        rise(kind, {
+          runner: kind === "walker" && rng() < st.runner,
+          dull: quiet,
+          d: quiet ? rand(20, 50) : 0,
+        });
         R.spawnT = spawnGap(every, rng());
       }
     }
@@ -634,6 +680,17 @@ export function simulateRun(o = {}) {
         if (add(R.packs[i].kind, R.packs[i].amount) > 0) R.taken++;
         R.packs.splice(i, 1);
       }
+    for (let i = R.food.length - 1; i >= 0; i--) {
+      const f = R.food[i];
+      const P = F.player;
+      if (t > f.until) R.food.splice(i, 1);
+      else if (t >= f.at && P.hp < P.maxHp) {
+        // (a box is left lying while there is nothing to heal)
+        P.hp = Math.min(P.maxHp, P.hp + RUN.heal.food);
+        R.eaten++;
+        R.food.splice(i, 1);
+      }
+    }
     for (let i = R.envelopes.length - 1; i >= 0; i--)
       if (t >= R.envelopes[i]) {
         R.envelopes.splice(i, 1);
@@ -698,11 +755,28 @@ export function simulateRun(o = {}) {
     const blade = model(R.cur).kind === "melee";
     const speed = PLAYER.walk * (1 + spiceValue("runner", R.spice.runner));
     const away = R.trip ? 1 : prof.kite;
-    // badly hurt: break off, run until the wounds close, come back
+    // Badly hurt: turn and run to open the distance, then face them again. With wounds that
+    // close by themselves the player stays away until they have; without, a few seconds
+    // is all it buys (and a chance to reach a box of food).
     const hp = F.player.hp / F.player.maxHp;
-    if (hp < prof.fleeAt) R.flee = true;
-    else if (hp > 0.75) R.flee = false;
+    R.fleeT = Math.max(0, R.fleeT - dt);
+    R.fleeCool = Math.max(0, R.fleeCool - dt);
+    if (F.player.regenRate > 0) {
+      if (hp < prof.fleeAt) R.flee = true;
+      else if (hp > 0.75) R.flee = false;
+    } else {
+      if (hp < prof.fleeAt && R.fleeCool <= 0) {
+        R.fleeT = 5;
+        R.fleeCool = 14;
+      }
+      R.flee = R.fleeT > 0;
+    }
     const flee = R.flee && !blade;
+    // nothing is coming: walk up to the nearest wanderer that is out of reach
+    let awake = false;
+    for (const z of F.zombies) if (z.alive && !z.dull) awake = true;
+    const stroll =
+      !awake && near && near.dull && near.d > model(R.cur).reach * 0.8;
     const ctx = {
       skill: prof,
       mods: mods(),
@@ -714,9 +788,11 @@ export function simulateRun(o = {}) {
           ? near && near.d > model(R.cur).reach
             ? -2
             : 0
-          : near && near.d < 9
-            ? away * speed
-            : 0,
+          : stroll
+            ? -speed * 0.8
+            : near && !near.dull && near.d < 9
+              ? away * speed
+              : 0,
       flee,
       fire: R.hold <= 0,
       tempo: prof.tempo * (flee ? 0.2 : R.trip ? 0.35 : R.busy > 0 ? 0.3 : 1),
@@ -759,6 +835,8 @@ export function simulateRun(o = {}) {
     dry: R.dry,
     pistol: R.pistol,
     hurt: F.stats.taken,
+    eaten: R.eaten,
+    health: F.player.hp / F.player.maxHp,
     packs: { dropped: R.dropped, taken: R.taken, wasted: R.wasted },
     curve: {
       alive: C.alive.map((v, i) => v / C.n[i]),
@@ -830,6 +908,8 @@ export function simulateMany(o = {}, n = 200) {
     dry: mean(runs.map((r) => r.dry / r.time)),
     pistol: mean(runs.map((r) => r.pistol / r.time)),
     hurt: mean(runs.map((r) => (r.hurt * 60) / r.time)),
+    eaten: mean(runs.map((r) => r.eaten)),
+    healthAtEnd: mean(cleared.map((r) => r.health)),
     wasted: mean(
       runs.map(
         (r) => r.packs.wasted / Math.max(1, r.packs.wasted + r.packs.dropped),

@@ -309,6 +309,8 @@ export default {
   "run.card.ammo": "Extra Helping",
   "run.card.ammo.d": "Full ammo",
   "run.toast.ammo": "+{n} {a}",
+  "run.toast.food": "+{n} health",
+  "run.toast.reloadAll": "All weapons reloaded",
   "run.toast.cache": "Supply crate — {a} +{n}",
   "run.toast.refill": "Siren box — ammo full",
   "run.toast.weapon": "Red envelope — {w} to level {n}",

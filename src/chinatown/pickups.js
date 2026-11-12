@@ -1,5 +1,5 @@
 // Things lying in the street during a run: ammunition packs (four kinds, told apart by
-// colour), red envelopes, weapon cases, and the lamp on a stocked supply crate. Visuals only; run.js decides when they appear and who gets them.
+// colour), boxes of food, red envelopes, weapon cases, and the lamp on a stocked supply crate. Visuals only; run.js decides when they appear and who gets them.
 // Every kind is a handful of instanced meshes created up front, so nothing new is compiled
 // (and no light is added) once the level is ready.
 
@@ -141,6 +141,16 @@ export function createPickups(G) {
     freePacks[kind] = [];
     for (let i = PACK_MAX - 1; i >= 0; i--) freePacks[kind].push(i);
   }
+  // something to eat: a white takeaway box with a red label, the only pale thing among the
+  // olive tins (run.js keeps it with the packs, as the kind "food")
+  packSets.food = makeSet("pack-food", PACK_MAX, [
+    [box(0.22, 0.24, 0.2), lamp(0.5, 0.47, 0.4)],
+    [box(0.26, 0.03, 0.24, 0, 0.12, 0), lamp(0.62, 0.58, 0.5)],
+    [box(0.12, 0.1, 0.205, 0, -0.01, 0), lamp(0.62, 0.09, 0.05)],
+    [beam(0.3, 1.9, 0.09, 0.085, 0.07, 0.12), beamMat(), { order: 5 }],
+  ]);
+  freePacks.food = [];
+  for (let i = PACK_MAX - 1; i >= 0; i--) freePacks.food.push(i);
   // red envelope: lucky money with a gold seal
   const envSet = makeSet("envelope", ENVELOPE_MAX, [
     [box(0.3, 0.44, 0.03), lamp(0.54, 0.05, 0.026)],

@@ -11,10 +11,13 @@ export const RUN = {
   // Courses of the meal. Between one entry and the next the numbers slide from the first
   // value to the second: alive = how many may be up at once, every = seconds between spawns,
   // runner = share of walkers that sprint, brute = share of heavies, bloater = share that burst.
+  // quiet: what rises does not come for the player; it wanders the street (ZOMBIES.wander)
+  // until someone comes close, hurts it or fires nearby.
   stages: [
     {
       id: "starter",
       at: 0,
+      quiet: true,
       alive: [9, 13],
       every: [2.2, 1.6],
       runner: [0.2, 0.3],
@@ -95,7 +98,19 @@ export const RUN = {
     },
   },
   bruteCap: 3, // ordinary heavies up at once; the rest of the pool is kept for elites and the boss
-  opening: 6, // walkers already standing in the street when the run starts
+  opening: 16, // wanderers already about the street when the run starts
+  // Wounds do not close by themselves in a run: health comes from what is picked up and
+  // what is chosen.
+  heal: {
+    regen: 0, // share of the game's own regeneration that is kept
+    food: 25, // health in one dropped takeaway box
+    drop: 0.08, // chance a walker leaves one
+    bruteDrop: 0.5, // a heavy
+    elite: 3, // boxes an elite leaves, always
+    hurtBoost: 2.5, // below `lowAt` of full health a drop is this much more likely
+    lowAt: 0.5,
+    life: 45, // seconds a box lies there
+  },
   xp: {
     walker: 1,
     bloater: 2,
@@ -135,6 +150,7 @@ export const RUN = {
     cacheEvery: 60,
     cacheReach: 1.9,
     cacheSpot: 15, // seeing a stocked crate from this close puts it on the compass
+    cacheMark: 16, // a known crate is marked on screen only from this close
   },
   cases: { count: 5, reach: 1.7, spot: 12, apart: 14 },
   // The first one comes while every weapon is still at level one, so it is the weakest:

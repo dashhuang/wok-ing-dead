@@ -9,7 +9,7 @@ const pair = (v, t) => (Array.isArray(v) ? lerp(v[0], v[1], t) : v);
 
 /**
  * The course at second t of a run, with its sliding numbers worked out:
- * { id, alive, every, runner, brute, bloater }. place: an entry of RUN.places.
+ * { id, quiet, alive, every, runner, brute, bloater }. place: an entry of RUN.places.
  */
 export function stageAt(t, place = {}) {
   const st = RUN.stages;
@@ -21,6 +21,7 @@ export function stageAt(t, place = {}) {
   const plus = (v, add) => (v > 0 ? v + (add || 0) : v);
   return {
     id: a.id,
+    quiet: !!a.quiet,
     alive: pair(a.alive, k) * (place.alive || 1),
     every: pair(a.every, k) * (place.every || 1),
     runner: Math.min(0.9, plus(pair(a.runner, k), place.runner)),
@@ -120,4 +121,14 @@ export function eliteStats(n) {
     dmgMul: E.damage + (E.dmgGrow || 0) * n,
     speedMul: E.speed || 1,
   };
+}
+
+/**
+ * The chance a kill leaves a box of food. type: "walker" or "brute"; health: the player's,
+ * as a share of full; boost: the multiplier of the "takeout" seasoning.
+ */
+export function foodChance(type, health, boost = 1) {
+  const H = RUN.heal;
+  const base = type === "brute" ? H.bruteDrop : H.drop;
+  return base * boost * (health < H.lowAt ? H.hurtBoost : 1);
 }

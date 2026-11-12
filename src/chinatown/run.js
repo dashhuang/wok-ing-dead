@@ -28,6 +28,7 @@ import {
   gainXp,
   packWeights,
   eliteStats,
+  foodChance,
 } from "./runflow.js";
 import {
   RUN,
@@ -178,6 +179,10 @@ export function createRun(G, hooks) {
         "warn",
       );
     },
+    // one reload filled the weapons that were put away as well
+    reloaded() {
+      hud.toast(L10N.t("run.toast.reloadAll"));
+    },
   });
   loadout.load();
   const available = () =>
@@ -199,7 +204,8 @@ export function createRun(G, hooks) {
       const move = 1 + spiceValue("runner", sp.runner);
       for (const k of ["walk", "sprint", "crouch", "ads"])
         P.tuning[k] = baseTune[k] * move;
-      P.tuning.regenRate = baseTune.regenRate * (1 + 0.15 * (sp.soup || 0));
+      // wounds do not close by themselves in a run (RUN.heal)
+      P.tuning.regenRate = baseTune.regenRate * (S.active ? RUN.heal.regen : 1);
     }
     if (P) {
       const hp = baseHealth + spiceValue("soup", sp.soup);
@@ -246,6 +252,36 @@ export function createRun(G, hooks) {
 
   // ---------- timeline
   const stageAt = (t) => stageOf(t, place());
+  // The street as a run finds it: the dead standing and shuffling about all over it, none of
+  // them after anyone yet. Anywhere a person can walk to, but not on top of the player.
+  function scatterWanderers(n) {
+    const nav = G.physics && G.physics.nav;
+    const P = G.player.pos;
+    let g = null;
+    try {
+      g = nav._grid();
+    } catch {}
+    for (let i = 0; i < n; i++) {
+      let pos = null;
+      for (let k = 0; k < 40 && !pos && g; k++) {
+        tmp.set(
+          g.minX + rng() * g.w * g.cell,
+          0,
+          g.minZ + rng() * g.h * g.cell,
+        );
+        if (Math.hypot(tmp.x - P.x, tmp.z - P.z) < 14) continue;
+        try {
+          if (nav.isWalkable(tmp.x, tmp.z) && nav.findPath(P, tmp))
+            pos = tmp.clone();
+        } catch {}
+      }
+      hooks.spawn("walker", pos || hooks.pickSpawn("walker", { minDist: 12 }), {
+        state: "patrol",
+        dull: true,
+        runner: rng() < 0.2,
+      });
+    }
+  }
   function brutesAlive() {
     let n = 0;
     for (const z of G.enemies.list)
@@ -285,7 +321,14 @@ export function createRun(G, hooks) {
         scale: B.scale,
         glow: B.glow,
       });
-    } else z = spawnOne("walker", { runner: rng() < st.runner });
+    } else if (st.quiet && S.surgeT <= 0)
+      // a quiet course: it rises somewhere out of the way and wanders
+      z = hooks.spawn("walker", hooks.pickSpawn("walker", { minDist: 20 }), {
+        state: "patrol",
+        dull: true,
+        runner: rng() < st.runner,
+      });
+    else z = spawnOne("walker", { runner: rng() < st.runner });
     S.spawnT = z ? spawnGap(every, rng()) : 0.4;
   }
   function eliteTick() {
@@ -697,6 +740,16 @@ export function createRun(G, hooks) {
       life: RUN.ammo.packLife,
     });
   }
+  function dropFood(pos) {
+    tmp.copy(pos);
+    tmp.x += (rng() - 0.5) * 1.4;
+    tmp.z += (rng() - 0.5) * 1.4;
+    pickups.addPack(tmp, {
+      kind: "food",
+      amount: RUN.heal.food,
+      life: RUN.heal.life,
+    });
+  }
   // an even roll over the four kinds; a full pool means that roll comes to nothing
   function rollKind() {
     const A = RUN.ammo;
@@ -813,12 +866,22 @@ export function createRun(G, hooks) {
         pickups.removePack(p);
         continue;
       }
-      if (loadout.room(p.kind) < 1 || Math.abs(P.pos.y - p.pos.y) > 2.2)
+      const food = p.kind === "food";
+      if (
+        (food ? P.health >= P.maxHealth : loadout.room(p.kind) < 1) ||
+        Math.abs(P.pos.y - p.pos.y) > 2.2
+      )
         continue;
       const dx = P.pos.x - p.pos.x;
       const dz = P.pos.z - p.pos.z;
       const d = Math.hypot(dx, dz);
-      if (d < reach) {
+      if (d < reach && food) {
+        const got = Math.min(p.amount, P.maxHealth - P.health);
+        P.heal(p.amount);
+        pickups.removePack(p);
+        hud.toast(L10N.t("run.toast.food", { n: Math.round(got) }), "gold");
+        play("ui_click", { gain: 0.9, pitch: 0.8 });
+      } else if (d < reach) {
         const got = loadout.add(p.kind, p.amount);
         pickups.removePack(p);
         if (got > 0) {
@@ -877,6 +940,11 @@ export function createRun(G, hooks) {
         }
       }
       const d = Math.hypot(P.pos.x - c.site.pos.x, P.pos.z - c.site.pos.z);
+      // marked on screen only from close by: from further off its lamp shows the way
+      if (look && c.near !== d < A.cacheMark) {
+        c.near = d < A.cacheMark;
+        marks = marks || c.known;
+      }
       if (look && !c.known && d < A.cacheSpot) {
         tmp.copy(c.site.pos);
         tmp.y = c.site.top + 0.4;
@@ -1021,6 +1089,15 @@ export function createRun(G, hooks) {
       const k = rollKind();
       if (k) dropPack(pos, k);
     }
+    // something to eat: more often for the badly hurt, always from an elite
+    if (rank === "elite")
+      for (let i = 0; i < RUN.heal.elite; i++) dropFood(pos);
+    else if (
+      rank !== "boss" &&
+      rank !== "bloater" &&
+      rng() < foodChance(e.type, G.player.health / G.player.maxHealth, boost)
+    )
+      dropFood(pos);
     const lv = S.spice.burst || 0;
     const depth = S.burstDepth || 0;
     if (lv && rank !== "boss" && depth < 4 && rng() < spiceValue("burst", lv))
@@ -1122,11 +1199,7 @@ export function createRun(G, hooks) {
       applyStats();
       chooseCaches();
       placeCases();
-      for (let i = 0; i < RUN.opening; i++)
-        hooks.spawn("walker", hooks.pickSpawn("walker", { minDist: 11 }), {
-          state: "patrol",
-          runner: false,
-        });
+      scatterWanderers(RUN.opening);
       hud.show(true);
       hud.setRunLayout(true);
       hud.setSpices(spiceList());
@@ -1299,7 +1372,7 @@ export function createRun(G, hooks) {
           });
       });
       S.caches.forEach((c, i) => {
-        if (c.known)
+        if (c.known && c.near)
           out.push({
             id: "cache" + i,
             short: L10N.t("run.ammo." + c.kind + ".s"),
@@ -1359,6 +1432,9 @@ export function createRun(G, hooks) {
         dropPack(G.player.pos.clone().add(new V3(1.5, 0, -2.5)), kind);
       },
       give: (id) => takeWeapon(id),
+      food() {
+        dropFood(G.player.pos.clone().add(new V3(0, 0, -2.5)));
+      },
       // put a weapon at a given level and form straight into the hands
       async set(id, level = 1, branch = "a") {
         // (not taken in hand yet: it has to come up at the level and in the form set below)
