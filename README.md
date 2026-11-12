@@ -27,7 +27,8 @@ npm run dev
 Shift 冲刺，C 蹲下，Esc 暂停。手机上点屏幕下方的武器栏换武器，长按「切枪」打开武器轮盘。浏览器需要 WebGL 2；鼠标锁定和声音需要一次真实点击。
 
 ```sh
-npm run check    # JavaScript 语法和格式检查
+npm run check    # JavaScript 语法、格式和数值护栏检查
+npm run balance  # 改了数值后重新生成 docs/balance-report.md
 npm run build    # 生成 dist/，包含本地调试 source map
 npm run preview  # 预览构建产物
 npm run test:e2e # 真实点击冒烟测试（先 build；首次运行前 npx playwright install chromium）
@@ -48,7 +49,8 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
     九分钟时关底「招牌菜」上桌，放倒它出口才开，撤离即通关。
   - **武器不限数量**：开局「点主菜」三选一；之后升级小票里会出新武器，街上每局还有五个武器箱。手枪 LK-4 无限弹、最弱，保底用。
     共十四把：LK-9、LK-4 加上 `arsenal/` 里的十二把。开局只有六把可选，其余按累计战绩解锁（击杀数、见过关底、通关、
-    关掉全部警报、中辣以上通关），存在 `wokingdead.profile.v1`。
+    关掉全部警报、中辣以上通关），存在 `wokingdead.profile.v1`。目前只开放微辣：中辣和变态辣在菜单上锁着，
+    以后作为新关卡再开，所以「中辣以上通关」解锁的青龙关刀暂时拿不到。
   - **四种弹药，都要捡**：子弹、重弹、火货、五金，各有上限，同类武器共用；符箓和两把近战不吃弹药。来源是死者掉的弹药包
     （四种随机，手上那把缺的那种更容易出）、亮灯的补给箱（十二个位置里每局八个有货，每种两个，灯的颜色就是种类，
     取走后一分钟补一次，第一次要自己找）、制服尸、警报箱。打空了会自动换到还有弹的武器。
@@ -86,6 +88,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `src/chinatown/zombies.js` | 僵尸：骨骼动画、寻路、感知、近战、分部位命中；精英、关底、胀尸是带倍率和自发光的变体；受定身、减速、恐惧、击退的控制 |
 | `src/chinatown/run.js` | 套餐（肉鸽关卡）的全部规则：时间线刷怪、镬气与调料、弹药掉落与补给箱、武器箱、红包与岔路、精英、关底、分店差异、解锁 |
 | `src/chinatown/runtune.js` | 套餐的全部数值 `RUN`（纯数据，武器试验场也读它） |
+| `src/chinatown/runflow.js` | 套餐的纯规则：时间线、刷什么、击杀给多少镬气、掉什么弹药。游戏和数值模拟器（`scripts/balance/`）共用 |
 | `src/chinatown/zombietune.js` | 僵尸的数值表（纯数据，试验场靶场里的僵尸也读它） |
 | `src/chinatown/loadout.js` | 一局里带着的武器和四种弹药池：换武器（数字键按捡到的顺序）、等级与形态、打空自动换枪 |
 | `src/chinatown/wheel.js` | 武器轮盘：按住切枪键时把带着的武器排成一圈，鼠标或右摇杆指向、触屏点选 |
