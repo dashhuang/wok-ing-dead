@@ -82,3 +82,15 @@ python scripts/assets/build-ui-fonts.py <放有原始可变字体 TTF 的目录>
 天空、雨、地面水洼、武器模型、枪声与脚步等沿用原版的程序化实现；警报器、城市环境声、僵尸脚步和击中声也是运行时合成的；建筑、牌楼、庙宇、街市、灯笼、
 路灯、电线等几何体由 `src/chinatown/` 下的模块用基础形体搭建，没有使用外部建筑模型。街上和远景里的车辆（两辆盖着篷布的除外）、
 店铺内景和街市里的货品同样是代码生成的，没有使用外部模型或照片。
+
+## 外部游戏参考档案（未接入发布版本）
+
+以下是用户指定保留的内部研究材料，放在 `upstream/`，不被 Vite 入口或 `public/` 引用，不属于已经获准用于发布游戏的素材。新增档案不改变上述正式素材许可要求。
+
+| 档案 | 来源 | 收录内容 | 许可状态 |
+| --- | --- | --- | --- |
+| [CORDON 9](../upstream/cordon9/README.md) | https://cordon9.pplx.app/ | 原始 HTML、82 个拆分代码模块、模型/场景预览与合成音效 WAV | 未声明游戏复用许可证；仅作参考，不得将内嵌 Three.js 的 MIT 许可当成整个游戏授权 |
+| [SUBLEVEL 07](../upstream/sublevel07/README.md) | https://github.com/wquguru/fable52-fps-repro | 游戏原件、材质/模型/音效实验、预览 | MIT，已保留原始 LICENSE；实际接入前仍按项目素材政策单独审查 |
+| [GOLDEN HOUR](../upstream/golden-hour/README.md) | https://claude.ai/artifact/6N9gzgYJDa925a1tVxps2f | 发布包、本地运行入口、可读代码、分类索引与大堂预览 | 未确认游戏复用许可证，仅作参考 |
+
+各目录的 `provenance.json` 记录下载日期、来源、原件哈希以及派生内容说明。完整导航见 [参考档案目录](../upstream/README.md)。
