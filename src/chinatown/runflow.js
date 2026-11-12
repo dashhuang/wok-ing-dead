@@ -45,18 +45,20 @@ export function crowdOf(walkers) {
 
 /**
  * The pace of spawning at this moment: { every, cap }. stage: from stageAt; diff: an entry of
- * RUN.difficulty; surge: a siren's rush is on; crowd, room: from crowdOf.
+ * RUN.difficulty; cooking: a dish is on a stove; heat: how many stoves were lit before that
+ * one; crowd, room: from crowdOf.
  */
 export function spawnPace(
   stage,
   diff,
-  { surge = false, crowd = 1, room = Infinity } = {},
+  { cooking = false, heat = 0, crowd = 1, room = Infinity } = {},
 ) {
   let every = stage.every * diff.every;
   let cap = Math.round(stage.alive * diff.alive * crowd);
-  if (surge) {
-    every *= RUN.surge.every;
-    cap += RUN.surge.alive;
+  if (cooking) {
+    const S = RUN.stove;
+    every *= S.every * Math.pow(S.hotter.every, heat);
+    cap += S.alive + S.hotter.alive * heat;
   }
   return { every, cap: Math.min(cap, room) };
 }
@@ -74,8 +76,11 @@ export function spawnKind(stage, roll, brutesUp) {
 /** Seconds until the next spawn, given the pace and a random number in [0, 1). */
 export const spawnGap = (every, roll) => every * (0.75 + roll * 0.5);
 
-/** Wok hei a kill pays. rank: "", "elite", "boss" or "bloater"; type: "walker" or "brute". */
-export function killXp(rank, type, surge = false) {
+/**
+ * Wok hei a kill pays. rank: "", "elite", "boss" or "bloater"; type: "walker" or "brute";
+ * cooking: a dish is on a stove.
+ */
+export function killXp(rank, type, cooking = false) {
   const X = RUN.xp;
   const xp =
     rank === "boss"
@@ -87,7 +92,7 @@ export function killXp(rank, type, surge = false) {
           : type === "brute"
             ? X.brute
             : X.walker;
-  return surge ? xp * RUN.surge.xp : xp;
+  return cooking ? xp * RUN.stove.xp : xp;
 }
 
 /**
@@ -131,4 +136,38 @@ export function foodChance(type, health, boost = 1) {
   const H = RUN.heal;
   const base = type === "brute" ? H.bruteDrop : H.drop;
   return base * boost * (health < H.lowAt ? H.hurtBoost : 1);
+}
+
+/** Which course second t falls in, counted from 0 (the house special's own is the last). */
+export function courseAt(t) {
+  const st = RUN.stages;
+  let i = st.length - 1;
+  while (i > 0 && t < st[i].at) i--;
+  return i;
+}
+
+/**
+ * What a dish served from a stove gives. dish: one of RUN.dishes; course: the course it was
+ * started in. Returns { heal (share of full health), envelopes, health (added to the
+ * maximum), cap (added to the room in every pool, as a share), refill, full }.
+ */
+export function dishOf(dish, course) {
+  const S = RUN.stove;
+  const at = (list) => list[Math.min(course, list.length - 1)];
+  const out = {
+    heal: at(S.heal),
+    envelopes: S.envelopes,
+    health: 0,
+    cap: 0,
+    refill: false,
+    full: false,
+  };
+  if (dish === "soup") {
+    out.full = true;
+    out.health = at(S.soup.health);
+  } else if (dish === "stock") {
+    out.refill = true;
+    out.cap = at(S.stock.cap);
+  } else if (dish === "lucky") out.envelopes += at(S.lucky.envelopes);
+  return out;
 }

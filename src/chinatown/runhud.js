@@ -41,6 +41,13 @@ export function createRunHud(G) {
     "rl-boss",
     '<span class="rl-boss-n"></span><div class="rl-boss-bar"><i></i></div>',
   );
+  const cook = el(
+    "div",
+    "rl-cook",
+    '<span class="rl-cook-n"></span><div class="rl-cook-bar"><i></i></div>',
+  );
+  const cookName = cook.querySelector(".rl-cook-n");
+  const cookFill = cook.querySelector(".rl-cook-bar i");
   const bossName = boss.querySelector(".rl-boss-n");
   const bossFill = boss.querySelector(".rl-boss-bar i");
 
@@ -68,7 +75,18 @@ export function createRunHud(G) {
   // while tickets are up the street darkens behind them: this is ordering, not fighting
   const veil = el("div", "rl-veil");
 
-  root.append(clock, boss, spices, toasts, weapons, pools, xp, veil, cards);
+  root.append(
+    clock,
+    boss,
+    cook,
+    spices,
+    toasts,
+    weapons,
+    pools,
+    xp,
+    veil,
+    cards,
+  );
   // directly after the game's HUD: it shows and hides with it (see .hud.on ~ .rl in the
   // stylesheet) and stays underneath the menus
   const hudRoot = G.hud && G.hud.root;
@@ -91,6 +109,9 @@ export function createRunHud(G) {
     wlv: "",
     boss: -1,
     bossOn: null,
+    cook: -1,
+    cookOn: null,
+    cookKey: "",
     spices: "",
     weapons: "",
     pools: "",
@@ -294,6 +315,26 @@ export function createRunHud(G) {
       last.wlv = key;
       wlv.innerHTML = level > 0 ? PIPS(level, max) : "";
     },
+    // a dish on a stove: null, or { frac: how far along, away: the player has wandered off }
+    setCook(info) {
+      const on = !!info;
+      if (on !== last.cookOn) {
+        last.cookOn = on;
+        cook.classList.toggle("on", on);
+      }
+      if (!on) return;
+      const key = info.away ? "run.cook.away" : "run.cook.bar";
+      if (key !== last.cookKey) {
+        last.cookKey = key;
+        cookName.textContent = L10N.t(key);
+        cook.classList.toggle("away", !!info.away);
+      }
+      const f = Math.round(Math.max(0, Math.min(1, info.frac)) * 250) / 250;
+      if (f !== last.cook) {
+        last.cook = f;
+        cookFill.style.transform = `scaleX(${f})`;
+      }
+    },
     // info: null or { key, frac }
     setBoss(info) {
       const on = !!info;
@@ -353,6 +394,7 @@ export function createRunHud(G) {
       cards.classList.remove("on", "out");
       root.classList.remove("pick");
       api.setBoss(null);
+      api.setCook(null);
       api.setSpices([]);
       api.setWeapons([]);
       api.setPools([]);

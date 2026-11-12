@@ -1,7 +1,8 @@
 // The set pieces: paifang gate, wet market hall, temple compound, quarantine checkpoint,
-// the three evac sirens, plus the shared helpers for lanterns and the game's own props.
+// the three street stoves, plus the shared helpers for lanterns and the game's own props.
 import * as THREE from "three";
 import { buildMarket } from "./market.js";
+import { buildStove } from "./stove.js";
 
 const UV01 = [0, 0, 1, 1];
 
@@ -577,97 +578,39 @@ export function buildLandmarks(ctx, PLAN) {
   }
 
   // ================= SIRENS =================
-  function siren(x, y, z, o = {}) {
-    const h = o.h || 5.6;
-    const g = new THREE.Group();
-    const mesh = (geo, mat, px, py, pz) => {
-      const m = new THREE.Mesh(geo, mat);
-      m.position.set(px, py, pz);
-      m.castShadow = !mat.isMeshBasicMaterial;
-      m.receiveShadow = !mat.isMeshBasicMaterial;
-      g.add(m);
-      return m;
-    };
-    const steel = kit.game("steel_galv"),
-      dark = kit.game("steel_dark"),
-      yellow = kit.game("paint_yellow"),
-      // the open horns are seen from inside: their own double-sided copy, so the shared
-      // yellow paint everywhere else stays single-sided
-      yellowHorn = kit.game("paint_yellow", { doubleSide: true });
-    mesh(new THREE.CylinderGeometry(0.07, 0.09, h, 10), steel, 0, h / 2, 0);
-    mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.22, 10), dark, 0, 0.11, 0);
-    // twin horns
-    for (const s of [-1, 1]) {
-      const horn = mesh(
-        new THREE.CylinderGeometry(0.36, 0.09, 0.62, 14, 1, true),
-        yellowHorn,
-        s * 0.42,
-        h - 0.25,
-        0,
-      );
-      horn.rotation.z = (s * Math.PI) / 2;
-    }
-    mesh(new THREE.BoxGeometry(0.34, 0.3, 0.3), dark, 0, h - 0.25, 0);
-    // beacon
-    const lampOn = kit.glow(0xff2a10, 7),
-      lampOff = kit.flat(0x3a0a06, { rough: 0.3, key: "lampoff" });
-    const beacon = mesh(
-      new THREE.CylinderGeometry(0.11, 0.11, 0.2, 10),
-      lampOn,
-      0,
-      h + 0.18,
-      0,
+  // A street stove where a run can start a dish (stove.js). It stands where the evacuation
+  // siren used to: the game's objective code still finds it by position and sets its state.
+  function stove(x, y, z, o = {}) {
+    const st = buildStove(
+      THREE,
+      {
+        steel: kit.game("steel_galv"),
+        dark: kit.game("steel_dark"),
+        darkOpen: kit.game("steel_dark", { doubleSide: true }),
+        paint: kit.game("paint_yellow"),
+        flame: kit.glow(0xff6a14, 2.2),
+      },
+      rnd,
     );
-    // control box with a status lamp
-    mesh(new THREE.BoxGeometry(0.46, 0.62, 0.24), yellow, 0, 1.25, 0.16);
-    mesh(new THREE.BoxGeometry(0.5, 0.06, 0.28), dark, 0, 1.58, 0.16);
-    const lever = mesh(
-      new THREE.BoxGeometry(0.05, 0.26, 0.05),
-      dark,
-      0.12,
-      1.3,
-      0.3,
-    );
-    const ledOn = kit.glow(0x4dff6a, 5),
-      ledWarn = kit.glow(0xffb020, 6),
-      ledOff = kit.flat(0x101010, { rough: 0.5, key: "ledoff" });
-    const led = mesh(
-      new THREE.SphereGeometry(0.035, 8, 6),
-      ledOn,
-      -0.12,
-      1.42,
-      0.29,
-    );
+    const g = st.group;
     g.position.set(x, y, z);
     g.rotation.y = o.yaw || 0;
     live.add(g);
-    kit.solid(x - 0.28, y, z - 0.28, x + 0.28, y + 2.2, z + 0.28, "metal");
+    kit.solid(x - 0.6, y, z - 0.6, x + 0.6, y + 1.15, z + 0.6, "metal");
+    // the fire lights the street around it once it burns
     const light = {
-      pos: [x, y + h + 0.4, z],
-      color: 0xff2a10,
-      power: 2.6,
+      pos: [x, y + 1.7, z],
+      color: 0xff8a3a,
+      power: 3.4,
       range: 14,
       dynamic: true,
+      off: true,
     };
     ctx.emitters.push(light);
-    let state = "live",
-      t = rnd() * 6;
-    g.userData.setState = (s) => {
-      state = s;
-      beacon.material = s === "cut" ? lampOff : lampOn;
-      led.material = s === "cut" ? ledOff : s === "cutting" ? ledWarn : ledOn;
-      lever.rotation.x = s === "cut" ? 1.1 : s === "cutting" ? 0.5 : 0;
-      light.off = s === "cut";
-    };
     ctx.updaters.push((dt) => {
-      t += dt;
-      if (state === "cut") return;
-      // rotating beacon: the light sweeps, quicker and unsteady while the box is being cut
-      const w = state === "cutting" ? 11 : 4.2;
-      light.gain = 0.35 + 0.65 * Math.pow(0.5 + 0.5 * Math.sin(t * w), 3);
-      beacon.rotation.y = t * w;
-      if (state === "cutting") led.visible = Math.sin(t * 30) > 0;
-      else led.visible = true;
+      st.update(dt);
+      light.off = st.light.off;
+      light.gain = st.light.gain;
     });
     return { x, y, z, object: g };
   }
@@ -1872,10 +1815,11 @@ export function buildLandmarks(ctx, PLAN) {
   barricade(-2.9, 29.1, 6.9, 29.1, { inward: -1, flip: true });
   // nothing walks round the back of the buildings
   kit.solid(-42, 0, -33, 42, 4, -30.02, "concrete", { playerOnly: true });
+  // (still called sirens in the level's marks: they are the run's three stoves now)
   const sirens = [
-    siren(-4.7, K, 0.35, { yaw: Math.PI / 4 }),
-    siren(PLAN.market.x0 + 13.2, K, PLAN.market.z0 + 9.4, { h: 4.3 }),
-    siren(29.6, K, 17.2, { yaw: -Math.PI / 2 }),
+    stove(-4.7, K, 0.35, { yaw: Math.PI / 4 }),
+    stove(PLAN.market.x0 + 13.2, K, PLAN.market.z0 + 9.4),
+    stove(29.6, K, 17.2, { yaw: -Math.PI / 2 }),
   ];
 
   ctx.finalizeLanterns = finalizeLanterns;

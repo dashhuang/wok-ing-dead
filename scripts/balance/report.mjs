@@ -44,6 +44,8 @@ const diff = RUN.difficulty[DIFF];
 const t = (key) => ZH[key] || key;
 const pct = (v, d = 0) => (v * 100).toFixed(d) + "%";
 const num = (v, d = 0) => (v == null ? "—" : (+v).toFixed(d));
+const mmssOf = (s) =>
+  `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 const mmss = (s) =>
   s == null
     ? "—"
@@ -363,6 +365,7 @@ export function build() {
         "主力缺弹",
         "每分钟受伤",
         "吃掉的外卖",
+        "出餐",
         "武器数",
         "最高武器等级",
       ],
@@ -381,6 +384,7 @@ export function build() {
           pct(r.dry),
           num(r.hurt),
           num(r.eaten),
+          num(r.served, 1),
           num(r.weapons, 1),
           num(r.top, 1),
         ];
@@ -481,7 +485,7 @@ export function build() {
         "残血撤退",
         "捡到弹药包",
         "肯去补给箱",
-        "切警报",
+        "起灶的时间",
         "开武器箱",
         "配法",
       ],
@@ -497,7 +501,7 @@ export function build() {
           "低于 " + pct(p.fleeAt),
           pct(p.collect),
           pct(p.crates),
-          p.sirens.length + " 次",
+          p.stoves.length ? p.stoves.map((x) => mmssOf(x)).join("、") : "不起",
           p.cases.length + " 个",
           { focus: "专精", spread: "全用", random: "随手" }[p.build],
         ];
@@ -508,7 +512,7 @@ export function build() {
     "- 瞄准是一个命中率，不是手感；爆头是命中里的一个比例。",
     "- 岔路和 5 级的强度取自试验场的实测倍率，不逐条模拟每个岔路的机制；元素之间的反应（爆燃、引雷等）没有模拟。",
     "- 调料里的四种附魔按简化规则算：点燃折成一次性伤害，感电跳给最近两只，蚀骨只叠加伤害，贴符只算定身。",
-    "- 捡弹药包、去补给箱、切警报、开武器箱都按上表的概率和时间点发生，不模拟走路。",
+    "- 捡弹药包、去补给箱、起灶、开武器箱都按上表的概率和时间点发生，不模拟走路；起灶后默认一直守在灶边。",
     `- 玩家的生命、回血、移动速度抄自 \`src/game.js\`（微辣没有额外修正）；开局武器只从首次游玩就有的 ${RUN.unlocks.start.length} 把里出。`,
     `- 电脑的尸群规模（${POOL.desktop} 只行尸的池子）；手机的池子是 ${POOL.phone} 只，同屏上限见第 2 节。`,
   );

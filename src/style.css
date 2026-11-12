@@ -1128,6 +1128,60 @@ kbd {
   transition: transform 0.12s linear;
 }
 
+/* a dish on a stove: how far along it is, under the clock */
+.rl-cook {
+  position: absolute;
+  top: calc(124px + var(--sat));
+  left: 50%;
+  width: min(300px, 50vw);
+  transform: translateX(-50%);
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.rl-cook.on {
+  opacity: 1;
+}
+.rl-cook-n {
+  font: 800 14px/1 var(--f-display);
+  letter-spacing: var(--trk-m);
+  color: var(--brass);
+}
+.rl-cook-bar {
+  height: 6px;
+  margin-top: 6px;
+  background: rgba(7, 8, 10, 0.55);
+  border: 1px solid var(--line-2);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.rl-cook-bar i {
+  display: block;
+  height: 100%;
+  background: var(--brass);
+  box-shadow: 0 0 8px rgba(232, 195, 124, 0.7);
+  transform-origin: 0 50%;
+  transition: transform 0.12s linear;
+}
+.rl-cook.away .rl-cook-n {
+  color: var(--cinnabar-hot);
+  animation: cook-away 0.7s ease-in-out infinite alternate;
+}
+@keyframes cook-away {
+  to {
+    opacity: 0.45;
+  }
+}
+.rl-cook.away .rl-cook-bar i {
+  background: var(--cinnabar-hot);
+  box-shadow: none;
+  opacity: 0.6;
+}
+.rl.pick .rl-cook,
+.rl.wheel .rl-cook {
+  opacity: 0;
+}
+
 /* wok hei (experience) */
 .rl-xp {
   position: absolute;

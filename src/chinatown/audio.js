@@ -1,4 +1,6 @@
-// Chinatown audio: zombie voices and foley, the three evacuation sirens and the night-city bed.
+// Chinatown audio: zombie voices and foley, the three street stoves and the night-city bed.
+// (The evacuation sirens that stood where the stoves are now keep their code here, switched off:
+// SIREN.on.)
 // The audio section of game.js loads this module, merges SOUNDS into its sound table and calls
 // create() with its context, buses and event wrapper. Everything here plays through those buses,
 // so master volume, pause muting, the death low-pass and the reverb sends apply without extra work.
@@ -919,6 +921,7 @@ function buildMurmur(ctx) {
 // and the rotor follows with inertia, which is what gives the wail its shape. Two rows of ports
 // on one shaft give two tones a minor third apart.
 const SIREN = {
+  on: false, // the sirens were replaced by the stoves (stove.js); their voice is kept here
   top: 720, // Hz of the lower tone at full speed
   ratio: 1.2,
   level: 0.32,
@@ -1627,6 +1630,8 @@ export function create(env) {
   }
 
   function resetSirens(state) {
+    // the street has stoves where the sirens stood: nothing wails any more
+    if (!SIREN.on) return;
     const objectives = (G.level && G.level.objectives) || [];
     const holdout =
       state !== "title" &&
@@ -1805,6 +1810,82 @@ export function create(env) {
         now,
         0.1,
       );
+    }
+  }
+
+  // ---------- the stoves ----------
+  // A burner under a wok: a low roar with a hiss on top, loud while a dish is on, a murmur
+  // once it is served. run.js says which stove is in which state ("stove:state").
+  const stoves = new Map(); // id -> { x, y, z, level, want, nodes }
+  function stoveNodes() {
+    if (!noiseLoop) {
+      const n = Math.round(ctx.sampleRate * 1.5);
+      noiseLoop = ctx.createBuffer(1, n, ctx.sampleRate);
+      const data = noiseLoop.getChannelData(0);
+      const rng = mulberry(4401);
+      for (let i = 0; i < n; i++) data[i] = rng() * 2 - 1;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = noiseLoop;
+    src.loop = true;
+    const roar = ctx.createBiquadFilter();
+    roar.type = "lowpass";
+    roar.frequency.value = 420;
+    roar.Q.value = 0.9;
+    const hiss = ctx.createBiquadFilter();
+    hiss.type = "bandpass";
+    hiss.frequency.value = 5200;
+    hiss.Q.value = 0.8;
+    const hissGain = ctx.createGain();
+    hissGain.gain.value = 0.22;
+    const out = ctx.createGain();
+    out.gain.value = 0;
+    const pan = makePanner(false, 1, 0);
+    src.connect(roar);
+    src.connect(hiss);
+    hiss.connect(hissGain);
+    roar.connect(out);
+    hissGain.connect(out);
+    out.connect(pan);
+    pan.connect(buses.world);
+    src.start(0, rnd() * 1.4);
+    return { out, pan, hissGain };
+  }
+  on("stove:state", (e) => {
+    if (!e || !e.id || !e.pos) return;
+    let s = stoves.get(e.id);
+    if (!s) {
+      if (e.state === "live") return;
+      s = { level: 0, want: 0, t: rnd() * 6, nodes: stoveNodes() };
+      stoves.set(e.id, s);
+    }
+    s.x = e.pos.x;
+    s.y = (e.pos.y || 0) + 1;
+    s.z = e.pos.z;
+    place(s.nodes.pan, s.x, s.y, s.z);
+    s.want = e.state === "cook" ? 1 : e.state === "live" ? 0 : 0.22;
+  });
+  function resetStoves() {
+    for (const s of stoves.values()) s.want = 0;
+  }
+  function updateStoves(dt, st, now) {
+    for (const s of stoves.values()) {
+      s.level += (s.want - s.level) * (1 - Math.exp(-dt / 0.5));
+      s.t += dt;
+      if (s.level < 0.005 && s.want === 0) {
+        s.nodes.out.gain.setTargetAtTime(0, now, 0.05);
+        continue;
+      }
+      const d = Math.hypot(s.x - L.x, s.y - L.y, s.z - L.z);
+      const reach = 1 / (1 + Math.pow(d / 9, 1.5));
+      // the flame breathes
+      const breath = 0.85 + 0.15 * Math.sin(s.t * 9) * Math.sin(s.t * 3.1);
+      s.nodes.out.gain.setTargetAtTime(
+        0.5 * s.level * reach * breath * (1 - 0.4 * st.interior),
+        now,
+        0.05,
+      );
+      s.nodes.hissGain.gain.setTargetAtTime(0.1 + 0.25 * s.level, now, 0.1);
     }
   }
 
@@ -2008,6 +2089,7 @@ export function create(env) {
       for (const v of voices) hush(v, 0.12);
       queue.length = 0;
       resetSirens(s);
+      resetStoves();
     }
   });
   resetSirens((G.game && G.game.state) || "title");
@@ -2026,6 +2108,7 @@ export function create(env) {
       updateVoices(dt, now);
       syncSirens(dt, st);
       updateSirens(dt, st, now);
+      updateStoves(dt, st, now);
       updateMurmur(dt, st, now);
       updateCity(dt, st);
     },

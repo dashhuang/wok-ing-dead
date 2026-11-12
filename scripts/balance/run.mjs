@@ -1,5 +1,5 @@
 // A whole run of the set meal on the model: the timeline, the tickets, the envelopes, the
-// four pools of ammunition, the crates, the sirens and the house special, played by a
+// four pools of ammunition, the crates, the stoves and the house special, played by a
 // simulated player. Thousands of them in a few seconds, each repeatable from its seed.
 //
 // The rules are the game's own (src/chinatown/runflow.js and runtune.js); what is assumed is
@@ -33,6 +33,8 @@ import {
   spawnKind,
   spawnGap,
   foodChance,
+  courseAt,
+  dishOf,
   killXp,
   gainXp,
   packWeights,
@@ -48,7 +50,7 @@ import {
  *   kite     share of walking speed spent keeping the dead at a distance
  *   tempo    share of the weapon's rate kept up (looking around, repositioning)
  *   collect  share of dropped packs picked up      crates   chance to go to a crate when short
- *   trip     seconds a trip to a crate takes       sirens   when the sirens are cut (seconds)
+ *   trip     seconds a trip to a crate takes       stoves   when a stove is lit (seconds)
  *   cases    when a weapon case is opened          build    "focus", "spread" or "random"
  *   fleeAt   share of health below which the player turns and runs to open the distance
  */
@@ -64,7 +66,7 @@ export const PROFILES = {
     collect: 0.5,
     crates: 0.3,
     trip: 18,
-    sirens: [],
+    stoves: [],
     cases: [240],
     fleeAt: 0.25,
     build: "random",
@@ -80,7 +82,7 @@ export const PROFILES = {
     collect: 0.7,
     crates: 0.7,
     trip: 14,
-    sirens: [210, 400],
+    stoves: [150, 330],
     cases: [150],
     fleeAt: 0.35,
     build: "focus",
@@ -96,7 +98,7 @@ export const PROFILES = {
     collect: 0.7,
     crates: 0.7,
     trip: 14,
-    sirens: [210, 400],
+    stoves: [150, 330],
     cases: [70, 150, 230, 310, 400],
     fleeAt: 0.35,
     build: "spread",
@@ -112,7 +114,7 @@ export const PROFILES = {
     collect: 0.85,
     crates: 0.95,
     trip: 11,
-    sirens: [150, 300, 430],
+    stoves: [90, 250, 400],
     cases: [120],
     fleeAt: 0.4,
     build: "focus",
@@ -128,7 +130,7 @@ export const PROFILES = {
     collect: 0.85,
     crates: 0.95,
     trip: 11,
-    sirens: [150, 300, 430],
+    stoves: [90, 250, 400],
     cases: [60, 130, 200, 280, 360],
     fleeAt: 0.4,
     build: "spread",
@@ -236,8 +238,13 @@ export function simulateRun(o = {}) {
     bossAt: 0,
     bossHealth: 0,
     summonT: 0,
-    surgeT: 0,
-    sirens: prof.sirens.slice(),
+    cook: null, // the dish on a stove: { t, course, heat, elite }
+    lit: 0,
+    served: 0,
+    menu: [], // dealt below, once the helpers exist
+    bonusHealth: 0,
+    bonusCap: 0,
+    stoves: prof.stoves.slice(),
     cases: prof.cases.slice(0, RUN.cases.count),
     dry: 0,
     pistol: 0,
@@ -248,6 +255,11 @@ export function simulateRun(o = {}) {
     outcome: "",
   };
   const cap = (kind) => AMMO[kind].cap * R.capMul;
+  {
+    const bag = RUN.dishes.slice();
+    while (bag.length)
+      R.menu.push(bag.splice(Math.floor(rng() * bag.length), 1)[0]);
+  }
   const roomOf = (kind) => cap(kind) - R.pools[kind];
   const add = (kind, units) => {
     const got = Math.max(0, Math.min(units, roomOf(kind)));
@@ -266,9 +278,9 @@ export function simulateRun(o = {}) {
     return out;
   };
   function applySpice() {
-    R.capMul = 1 + spiceValue("portion", R.spice.portion);
+    R.capMul = 1 + spiceValue("portion", R.spice.portion) + R.bonusCap;
     const P = F.player;
-    const hp = PLAYER.health + spiceValue("soup", R.spice.soup);
+    const hp = PLAYER.health + spiceValue("soup", R.spice.soup) + R.bonusHealth;
     if (hp > P.maxHp) P.hp += hp - P.maxHp;
     P.maxHp = hp;
     P.regenRate = PLAYER.regenRate * RUN.heal.regen;
@@ -514,6 +526,20 @@ export function simulateRun(o = {}) {
     if (opts.dull) z.dull = true;
     return F.add(z);
   }
+  function riseElite() {
+    const e = eliteStats(R.eliteN);
+    const s = zombieStats("brute", true);
+    F.add({
+      type: "brute",
+      rank: "elite",
+      ...s,
+      hp: s.hp * e.hpMul,
+      damage: s.damage * e.dmgMul,
+      speed: s.speed * e.speedMul,
+      d: far(20),
+    });
+    R.eliteN++;
+  }
   function drop(kind, spread = false) {
     R.dropped++;
     if (rng() > prof.collect) return;
@@ -539,7 +565,7 @@ export function simulateRun(o = {}) {
     return null;
   }
   F.onKill = (z) => {
-    R.pending += gainXp(R, killXp(z.rank, z.type, R.surgeT > 0));
+    R.pending += gainXp(R, killXp(z.rank, z.type, !!R.cook));
     const A = RUN.ammo;
     const boost = 1 + spiceValue("takeout", R.spice.takeout);
     if (z.rank === "elite") {
@@ -609,12 +635,12 @@ export function simulateRun(o = {}) {
     R.t += dt;
     const t = R.t;
     // ---- the timeline
-    R.surgeT = Math.max(0, R.surgeT - dt);
     R.spawnT -= dt;
     if (R.spawnT <= 0) {
       const st = stageAt(t, place);
       const { every, cap: most } = spawnPace(st, diff, {
-        surge: R.surgeT > 0,
+        cooking: !!R.cook,
+        heat: R.cook ? R.cook.heat : 0,
         crowd,
         room,
       });
@@ -624,7 +650,7 @@ export function simulateRun(o = {}) {
         for (const z of F.zombies)
           if (z.alive && z.type === "brute" && !z.rank) brutes++;
         const kind = spawnKind(st, rng(), brutes);
-        const quiet = st.quiet && R.surgeT <= 0 && kind === "walker";
+        const quiet = st.quiet && !R.cook && kind === "walker";
         rise(kind, {
           runner: kind === "walker" && rng() < st.runner,
           dull: quiet,
@@ -634,19 +660,8 @@ export function simulateRun(o = {}) {
       }
     }
     if (!R.bossSeen && t >= R.eliteAt && t <= RUN.bossAt - 20) {
-      const e = eliteStats(R.eliteN);
-      const s = zombieStats("brute", true);
-      F.add({
-        type: "brute",
-        rank: "elite",
-        ...s,
-        hp: s.hp * e.hpMul,
-        damage: s.damage * e.dmgMul,
-        speed: s.speed * e.speedMul,
-        d: far(20),
-      });
+      riseElite();
       R.eliteAt += place.eliteEvery || RUN.elite.every;
-      R.eliteN++;
     }
     if (!R.bossSeen && t >= RUN.bossAt) {
       const B = RUN.boss;
@@ -708,13 +723,47 @@ export function simulateRun(o = {}) {
         );
       else envelope();
     }
-    if (R.sirens.length && t >= R.sirens[0] && !R.bossSeen) {
-      R.sirens.shift();
-      R.surgeT = RUN.surge.seconds;
+    // ---- the stoves: light one, hold the place until the dish is up
+    if (R.stoves.length && t >= R.stoves[0] && !R.bossSeen && !R.cook) {
+      R.stoves.shift();
+      R.cook = {
+        t: 0,
+        course: Math.min(courseAt(t), RUN.stove.heal.length - 1),
+        heat: R.lit,
+        elite: false,
+      };
+      R.lit++;
       R.spawnT = 0;
-      for (const k of AMMO_TYPES) R.pools[k] = cap(k);
-      R.envelopes.push(t + 2);
-      R.busy = 6;
+      R.busy = 3;
+      // every wanderer in the street smells it
+      for (const z of F.zombies) if (z.alive) z.dull = false;
+    }
+    if (R.cook) {
+      const c = R.cook;
+      const K = RUN.stove;
+      c.t += dt;
+      if (
+        !c.elite &&
+        c.course >= K.eliteFrom &&
+        c.t >= K.seconds / 2 &&
+        !R.bossSeen
+      ) {
+        c.elite = true;
+        riseElite();
+        R.eliteAt = Math.max(R.eliteAt, t + K.eliteHold);
+      }
+      if (c.t >= K.seconds) {
+        R.cook = null;
+        R.served++;
+        const d = dishOf(R.menu.shift() || RUN.dishes[0], c.course);
+        const P = F.player;
+        R.bonusHealth += d.health;
+        R.bonusCap += d.cap;
+        applySpice();
+        P.hp = d.full ? P.maxHp : Math.min(P.maxHp, P.hp + P.maxHp * d.heal);
+        if (d.refill) for (const k of AMMO_TYPES) R.pools[k] = cap(k);
+        for (let i = 0; i < d.envelopes; i++) R.envelopes.push(t + 2 + i);
+      }
     }
     // ---- the tickets
     while (R.pending > 0) {
@@ -754,7 +803,8 @@ export function simulateRun(o = {}) {
     for (const z of F.zombies) if (z.alive && (!near || z.d < near.d)) near = z;
     const blade = model(R.cur).kind === "melee";
     const speed = PLAYER.walk * (1 + spiceValue("runner", R.spice.runner));
-    const away = R.trip ? 1 : prof.kite;
+    // a dish on a stove ties the player to the spot: less room to back away
+    const away = R.trip ? 1 : prof.kite * (R.cook ? 0.6 : 1);
     // Badly hurt: turn and run to open the distance, then face them again. With wounds that
     // close by themselves the player stays away until they have; without, a few seconds
     // is all it buys (and a chance to reach a box of food).
@@ -836,6 +886,7 @@ export function simulateRun(o = {}) {
     pistol: R.pistol,
     hurt: F.stats.taken,
     eaten: R.eaten,
+    served: R.served,
     health: F.player.hp / F.player.maxHp,
     packs: { dropped: R.dropped, taken: R.taken, wasted: R.wasted },
     curve: {
@@ -909,6 +960,7 @@ export function simulateMany(o = {}, n = 200) {
     pistol: mean(runs.map((r) => r.pistol / r.time)),
     hurt: mean(runs.map((r) => (r.hurt * 60) / r.time)),
     eaten: mean(runs.map((r) => r.eaten)),
+    served: mean(runs.map((r) => r.served)),
     healthAtEnd: mean(cleared.map((r) => r.health)),
     wasted: mean(
       runs.map(

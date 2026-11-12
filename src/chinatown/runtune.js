@@ -188,7 +188,28 @@ export const RUN = {
     // ends the run.
     hurt: 22,
   },
-  surge: { seconds: 30, every: 0.5, alive: 6, xp: 2 },
+  // The three street stoves. Lighting one puts a dish on: wok hei fills the street and the
+  // dead come for it until the dish is served. All three can be lit from the start, in any
+  // order; the later the course a dish is started in, the larger the crowd it draws and the
+  // better it is.
+  stove: {
+    seconds: 40, // of cooking, counted only while the player stays within `radius` of it
+    radius: 13,
+    every: 0.5, // while a dish is on: the spawn interval is multiplied by this,
+    alive: 6, // this many more may be up at once,
+    xp: 2, // and a kill pays this many times the wok hei
+    hotter: { every: 0.85, alive: 3 }, // and again for every stove lit before this one
+    eliteFrom: 1, // from this course on (0 is the first) an elite turns up half-way through
+    eliteHold: 45, // the next timed elite is put off at least this long after it
+    // What every dish gives. Lists are by the course the dish was started in.
+    heal: [0.3, 0.4, 0.5, 0.6], // share of full health
+    envelopes: 1,
+    // The three specials: one to a stove, dealt at random every run and not shown beforehand.
+    soup: { health: [10, 15, 20, 25] }, // health back to full, and this much more of it
+    stock: { cap: [0.1, 0.15, 0.2, 0.25] }, // every pool filled, and this much more room
+    lucky: { envelopes: [1, 1, 2, 2] }, // this many more red envelopes
+  },
+  dishes: ["soup", "stock", "lucky"],
   burst: { radius: 3.2, damage: 70, delay: 0.14, perFrame: 3 },
   // Seasonings: three levels each. per = what one level adds.
   spices: [

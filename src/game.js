@@ -85368,8 +85368,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         o.setPrompt && o.setPrompt(null),
         i.addShake(0.18));
       if (runOn()) {
-        // in a run a siren is an optional rush: the director takes it from here
-        (RUN.onSiren(Y),
+        // in a run this is a stove being lit: the director takes it from here
+        (RUN.onStove(Y),
           o.radio &&
             o.radio(Vu.cut[Math.min(g.cut - 1, Vu.cut.length - 1)], 3.6),
           o.setObjective(oe()),

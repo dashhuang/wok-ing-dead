@@ -220,6 +220,12 @@
   - 换弹装满全部：手上的武器换弹完成时，`loadout.js` 的 `reloadRest` 把收着的每把也从各自的弹药池装满
     （军械库武器走 `hooks.loaded`，游戏自带的两把听 `weapon:reload` 的 `magin`）。
   - 补给箱的屏幕标记只在 `RUN.ammo.cacheMark` 米内显示，远处靠箱子上的灯。
+  - 三口灶沿用原版「切断警报器」的目标机制（`level.objectives`、按住 E、`objective:done`）：模型是 `stove.js` 的
+    `buildStove`（金龙街在 `landmarks.js` 里摆，码头在 `docks.js` 里换掉原来的继电器柜），状态经 `userData.setState`
+    设置。按住完成时 `game.js` 调 `RUN.onStove`：`run.js` 记下 `S.cook`，把游走的行尸全部引来，刷怪按
+    `spawnPace` 的 `cooking` / `heat` 加码；`cookTick` 在玩家离灶 `RUN.stove.radius` 米内时推进进度，过半时
+    （`eliteFrom` 那道菜起）放一只精英，满了 `serve`：按 `runflow.js` 的 `dishOf` 发奖。三种招牌每局洗一次（`S.menu`）。
+    灶的声音在 `audio.js`（听 `stove:state`）；原来的警报声保留代码但关掉了（`SIREN.on`）。
   - 击杀给镬气，升级后开三张小票（屏幕中央，街景压暗、上下黑边、准星和战斗按钮收起），`time.scale` 降到 0.05，
     玩家不能移动和开火，鼠标放开，点小票或按 1 2 3（手柄十字键、触屏点击）选择，没有时间限制。
     第 2、5、9、13 次升级的三张全是武器，其余每次有三成机会混入一把。

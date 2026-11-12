@@ -29,6 +29,8 @@ import {
   packWeights,
   eliteStats,
   foodChance,
+  courseAt,
+  dishOf,
 } from "./runflow.js";
 import {
   RUN,
@@ -50,6 +52,7 @@ export function createRun(G, hooks) {
   const hud = createRunHud(G);
   const sites = (G.level && G.level.supplySites) || [];
   const tmp = new V3();
+  const UP = new V3(0, 1, 0);
   // a larger pool of bodies (desktop) carries proportionally more of the dead at once
   const pool = (G.enemies && G.enemies.TUNE && G.enemies.TUNE.pool) || {};
   const { crowd, room: poolRoom } = crowdOf(
@@ -77,7 +80,11 @@ export function createRun(G, hooks) {
     bossDead: false,
     bossRetry: 0,
     summonT: 0,
-    surgeT: 0,
+    cook: null, // the dish on a stove: { o, pos, t, course, heat, elite, away }
+    stoves: 0, // lit so far
+    menu: [], // the specials still to come, in the order they will be served
+    bonusHealth: 0, // from the soup special
+    bonusCap: 0, // from the stock special
     extractOpen: false,
     pending: 0, // level-ups waiting for their tickets
     queue: [], // other picks waiting: { kind: "start" } | { kind: "fork", id }
@@ -196,7 +203,9 @@ export function createRun(G, hooks) {
   // ---------- derived numbers
   function applyStats() {
     const sp = S.active ? S.spice : {};
-    loadout.setCapMul(1 + spiceValue("portion", sp.portion));
+    loadout.setCapMul(
+      1 + spiceValue("portion", sp.portion) + (S.active ? S.bonusCap : 0),
+    );
     loadout.setMods(weaponMods(sp));
     loadout.setInfusions(infusionsOf(sp));
     const P = G.player;
@@ -208,7 +217,10 @@ export function createRun(G, hooks) {
       P.tuning.regenRate = baseTune.regenRate * (S.active ? RUN.heal.regen : 1);
     }
     if (P) {
-      const hp = baseHealth + spiceValue("soup", sp.soup);
+      const hp =
+        baseHealth +
+        spiceValue("soup", sp.soup) +
+        (S.active ? S.bonusHealth : 0);
       if (P.maxHealth !== hp) {
         const gain = hp - P.maxHealth;
         P.maxHealth = hp;
@@ -301,7 +313,8 @@ export function createRun(G, hooks) {
     if (S.spawnT > 0) return;
     const st = stageAt(S.t);
     const { every, cap } = spawnPace(st, diff(), {
-      surge: S.surgeT > 0,
+      cooking: !!S.cook,
+      heat: S.cook ? S.cook.heat : 0,
       crowd,
       room: poolRoom,
     });
@@ -321,7 +334,7 @@ export function createRun(G, hooks) {
         scale: B.scale,
         glow: B.glow,
       });
-    } else if (st.quiet && S.surgeT <= 0)
+    } else if (st.quiet && !S.cook)
       // a quiet course: it rises somewhere out of the way and wanders
       z = hooks.spawn("walker", hooks.pickSpawn("walker", { minDist: 20 }), {
         state: "patrol",
@@ -331,8 +344,7 @@ export function createRun(G, hooks) {
     else z = spawnOne("walker", { runner: rng() < st.runner });
     S.spawnT = z ? spawnGap(every, rng()) : 0.4;
   }
-  function eliteTick() {
-    if (S.bossSeen || S.t < S.eliteAt || S.t > RUN.bossAt - 20) return;
+  function spawnElite() {
     const E = RUN.elite;
     const z = spawnOne(
       "brute",
@@ -344,16 +356,83 @@ export function createRun(G, hooks) {
       },
       { minDist: 20 },
     );
-    if (!z) {
-      S.eliteAt = S.t + 2;
-      return;
-    }
-    S.eliteAt += place().eliteEvery || E.every;
+    if (!z) return null;
     S.eliteN++;
     S.elites.push(z);
     hooks.warn(L10N.t("run.elite.warn", { dir: dirName(z.pos) }), 3.2);
     play("mus_hit", { gain: 0.8 });
     hooks.refreshMarkers();
+    return z;
+  }
+  function eliteTick() {
+    if (S.bossSeen || S.t < S.eliteAt || S.t > RUN.bossAt - 20) return;
+    if (spawnElite()) S.eliteAt += place().eliteEvery || RUN.elite.every;
+    else S.eliteAt = S.t + 2;
+  }
+
+  // ---------- the stoves
+  const setStove = (o, state) => {
+    try {
+      const u = o && o.object && o.object.userData;
+      if (u && u.setState) u.setState(state);
+    } catch {}
+    G.events.emit("stove:state", { id: o && o.id, pos: o && o.pos, state });
+  };
+  // a dish is on: it cooks while the player stands by it, and the dead keep coming
+  function cookTick(dt) {
+    const c = S.cook;
+    if (!c) return;
+    const K = RUN.stove;
+    const P = G.player;
+    const near =
+      P.alive && Math.hypot(P.pos.x - c.pos.x, P.pos.z - c.pos.z) < K.radius;
+    if (near) c.t += dt;
+    c.away = !near;
+    if (
+      !c.elite &&
+      c.course >= K.eliteFrom &&
+      c.t >= K.seconds / 2 &&
+      !S.bossSeen
+    ) {
+      c.elite = true;
+      if (spawnElite()) S.eliteAt = Math.max(S.eliteAt, S.t + K.eliteHold);
+    }
+    hud.setCook({ frac: c.t / K.seconds, away: c.away });
+    if (c.t >= K.seconds) serve(c);
+  }
+  function serve(c) {
+    S.cook = null;
+    S.sirens++;
+    hud.setCook(null);
+    setStove(c.o, "served");
+    const dish = S.menu.shift() || RUN.dishes[0];
+    const d = dishOf(dish, c.course);
+    const P = G.player;
+    if (d.health) S.bonusHealth += d.health;
+    if (d.cap) S.bonusCap += d.cap;
+    if (d.health || d.cap) applyStats();
+    P.heal(d.full ? P.maxHealth : P.maxHealth * d.heal);
+    if (d.refill) loadout.refill();
+    // the envelopes land on the player's side of the stove
+    for (let i = 0; i < d.envelopes; i++) {
+      tmp.set(P.pos.x - c.pos.x, 0, P.pos.z - c.pos.z);
+      if (tmp.lengthSq() > 0.01) tmp.setLength(1.2 + 0.5 * i);
+      tmp.applyAxisAngle(UP, (i - (d.envelopes - 1) / 2) * 0.7);
+      tmp.add(c.pos);
+      tmp.y = P.pos.y;
+      try {
+        if (!G.physics.nav.isWalkable(tmp.x, tmp.z)) tmp.copy(P.pos);
+      } catch {}
+      dropEnvelope(tmp);
+    }
+    hud.toast(
+      L10N.t("run.dish." + dish, {
+        n: d.health || Math.round(d.cap * 100) || d.envelopes,
+      }),
+      "gold",
+    );
+    hooks.radio(L10N.t("radio.served"), 3.6);
+    play("complete", { gain: 0.5, pitch: 1.2 });
   }
   function bossTick(dt) {
     if (S.bossDead) return;
@@ -1031,7 +1110,7 @@ export function createRun(G, hooks) {
     if (!S.active || !e) return;
     S.kills++;
     const rank = e.rank || "";
-    addXp(killXp(rank, e.type, S.surgeT > 0));
+    addXp(killXp(rank, e.type, !!S.cook));
     const pos = e.pos || (e.enemy && e.enemy.pos);
     if (!pos) return;
     const A = RUN.ammo;
@@ -1177,7 +1256,11 @@ export function createRun(G, hooks) {
         bossSeen: false,
         bossDead: false,
         bossRetry: 0,
-        surgeT: 0,
+        cook: null, // the dish on a stove: { o, pos, t, course, heat, elite, away }
+        stoves: 0, // lit so far
+        menu: pickN(RUN.dishes, RUN.dishes.length), // dealt afresh every run
+        bonusHealth: 0, // from the soup special
+        bonusCap: 0, // from the stock special
         extractOpen: false,
         pending: 0,
         queue: pre.weapon ? [] : [{ kind: "start" }],
@@ -1218,6 +1301,9 @@ export function createRun(G, hooks) {
         return;
       }
       S.active = false;
+      S.cook = null;
+      S.bonusHealth = S.bonusCap = 0;
+      hud.setCook(null);
       S.picking = null;
       S.pending = 0;
       S.queue.length = 0;
@@ -1233,6 +1319,8 @@ export function createRun(G, hooks) {
     // reached the truck: let the street run at full speed behind the receipt
     finish() {
       closeWheel();
+      S.cook = null;
+      hud.setCook(null);
       if (S.picking) hud.closeCards(-1);
       S.picking = null;
       S.pending = 0;
@@ -1277,7 +1365,10 @@ export function createRun(G, hooks) {
       G.time.scale = S.scale;
 
       S.t += dt;
-      S.surgeT = Math.max(0, S.surgeT - dt);
+      // (the docks have no updaters of their own: their stoves burn on this clock)
+      const stoves = G.level && G.level.stoves;
+      if (stoves) for (const st of stoves) st.update(dt);
+      cookTick(dt);
       spawnTick(dt);
       eliteTick();
       bossTick(dt);
@@ -1291,7 +1382,7 @@ export function createRun(G, hooks) {
       hud.setClock(
         S.bossSeen ? -1 : RUN.bossAt - S.t,
         S.bossSeen ? "" : st.id,
-        S.surgeT,
+        0,
       );
       hud.setXp(S.xp / RUN.xp.need(S.level), S.level + 1);
       const cur = loadout.cur;
@@ -1324,25 +1415,26 @@ export function createRun(G, hooks) {
           : null,
       );
     },
-    // a siren was shut off: a rush of the dead, double wok hei, full pockets, one envelope
-    onSiren(relay) {
-      if (!S.active) return;
-      S.sirens++;
-      S.surgeT = RUN.surge.seconds;
+    // a stove was lit (the game's objective code calls this): the dish goes on
+    onStove(relay) {
+      if (!S.active || !relay || !relay.o) return;
+      S.cook = {
+        o: relay.o,
+        pos: relay.o.pos,
+        t: 0,
+        course: Math.min(courseAt(S.t), RUN.stove.heal.length - 1),
+        heat: S.stoves,
+        elite: false,
+        away: false,
+      };
+      S.stoves++;
       S.spawnT = 0;
-      loadout.refill();
-      const P = G.player;
-      const at = relay && relay.o && relay.o.pos ? relay.o.pos : P.pos;
-      tmp.set(P.pos.x - at.x, 0, P.pos.z - at.z);
-      if (tmp.lengthSq() > 0.01) tmp.setLength(Math.min(1.1, tmp.length()));
-      tmp.add(at);
-      tmp.y = P.pos.y;
+      setStove(relay.o, "cook");
+      // every wanderer in the street smells it and comes
       try {
-        if (!G.physics.nav.isWalkable(tmp.x, tmp.z)) tmp.copy(P.pos);
+        for (const z of G.enemies.list) if (z.alive) z.dull = false;
+        G.enemies.alert(relay.o.pos, 400);
       } catch {}
-      dropEnvelope(tmp);
-      hooks.warn(L10N.t("run.surge.warn"), 3.4);
-      hud.toast(L10N.t("run.toast.refill"), "gold");
     },
     objectiveKey() {
       return S.bossDead
@@ -1398,11 +1490,7 @@ export function createRun(G, hooks) {
       return out;
     },
     intensity(alive) {
-      return S.bossSeen || S.surgeT > 0 || S.t > 420
-        ? 1
-        : alive > 0
-          ? 0.6
-          : 0.15;
+      return S.bossSeen || S.cook || S.t > 420 ? 1 : alive > 0 ? 0.6 : 0.15;
     },
     /** For the receipts: numbers of the run and the names of weapons it unlocked. */
     placeOpen,
