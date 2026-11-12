@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SALTLINE · 程序化 FPS 音效台</title>
+<style>
+:root{
+  --bg:#090b0a; --panel:#101412; --panel2:#151a17; --line:#232b27; --line2:#2f3a34;
+  --txt:#d9e2dc; --dim:#7d8b83; --faint:#4a564f;
+  --amber:#ffb224; --teal:#3ad6bd; --red:#ff5a4a;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+body{min-height:100vh;background:
+  radial-gradient(1200px 500px at 70% -10%,rgba(58,214,189,.07),transparent 60%),
+  radial-gradient(900px 500px at 0% 0%,rgba(255,178,36,.05),transparent 60%),
+  linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px) 0 0/100% 32px,
+  linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px) 0 0/32px 100%,var(--bg)}
+.wrap{max-width:1320px;margin:0 auto;padding:22px 22px 60px}
+header{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:16px}
+.brand{flex:1;min-width:280px}
+.brand .tag{font:600 11px/1 var(--mono);letter-spacing:.28em;color:var(--amber)}
+.brand h1{margin:8px 0 6px;font:700 30px/1.05 var(--mono);letter-spacing:.04em}
+.brand h1 b{color:var(--amber);font-weight:700}
+.brand p{margin:0;color:var(--dim);font-size:13px}
+.ctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{font:600 12px/1 var(--mono);letter-spacing:.08em;color:var(--txt);background:var(--panel2);border:1px solid var(--line2);padding:10px 14px;border-radius:3px;cursor:pointer;transition:.12s}
+.btn:hover{border-color:var(--amber);color:var(--amber)}
+.btn.pri{background:var(--amber);color:#1a1200;border-color:var(--amber)}
+.btn.pri:hover{filter:brightness(1.1);color:#1a1200}
+.btn.warn:hover{border-color:var(--red);color:var(--red)}
+.vol{display:flex;align-items:center;gap:8px;font:11px var(--mono);color:var(--dim);letter-spacing:.1em}
+input[type=range]{-webkit-appearance:none;appearance:none;width:110px;height:3px;background:var(--line2);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:16px;background:var(--amber);border-radius:2px;cursor:pointer}
+
+.viz{position:sticky;top:8px;z-index:5;box-shadow:0 14px 30px -10px rgba(0,0,0,.8);background:linear-gradient(180deg,#0e1210,#0b0e0c);border:1px solid var(--line);border-radius:4px;padding:14px;margin-bottom:22px}
+.viz:before,.viz:after{content:"";position:absolute;width:14px;height:14px;border:2px solid var(--amber);pointer-events:none}
+.viz:before{left:-1px;top:-1px;border-right:0;border-bottom:0}
+.viz:after{right:-1px;bottom:-1px;border-left:0;border-top:0}
+.vrow{display:grid;grid-template-columns:5fr 7fr;gap:12px}
+.scr{position:relative;background:#070908;border:1px solid var(--line);border-radius:2px;overflow:hidden}
+.scr canvas{display:block;width:100%;height:100%}
+.scr .lbl{position:absolute;left:10px;top:8px;font:600 10px/1 var(--mono);letter-spacing:.2em;color:var(--dim);pointer-events:none}
+.scr .lbl i{font-style:normal;color:var(--teal)}
+#scope,#spec{height:170px}
+#gram{height:84px;margin-top:12px}
+.stat{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font:11px/1 var(--mono);letter-spacing:.08em;color:var(--dim)}
+.stat b{color:var(--txt);font-weight:600}
+.stat .led{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--faint);margin-right:6px;vertical-align:-1px}
+.stat .led.on{background:var(--teal);box-shadow:0 0 8px var(--teal)}
+.stat .led.clip{background:var(--red);box-shadow:0 0 8px var(--red)}
+#now{color:var(--amber)}
+.meter{flex:1;min-width:160px;height:8px;background:#070908;border:1px solid var(--line);position:relative;align-self:center}
+.meter i{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,var(--teal),var(--amber) 80%,var(--red))}
+
+section{margin-bottom:22px}
+section h2{display:flex;align-items:center;gap:10px;margin:0 0 10px;font:600 12px/1 var(--mono);letter-spacing:.24em;color:var(--dim)}
+section h2 b{color:var(--amber)}
+section h2:after{content:"";flex:1;height:1px;background:var(--line)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:12px}
+.card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:13px 13px 11px;cursor:pointer;user-select:none;transition:border-color .12s,transform .06s,background .12s;overflow:hidden;text-align:left;color:inherit;font:inherit;display:block;width:100%}
+.card:hover{border-color:var(--line2);background:var(--panel2)}
+.card:active{transform:translateY(1px)}
+.card.on{border-color:var(--amber)}
+.card.on .nm{color:var(--amber)}
+.card .top{display:flex;align-items:center;gap:8px}
+.card .key{font:600 10px/1 var(--mono);color:var(--dim);border:1px solid var(--line2);border-radius:2px;padding:3px 5px;min-width:18px;text-align:center}
+.card .en{font:600 9.5px/1 var(--mono);letter-spacing:.16em;color:var(--faint);margin-left:auto}
+.card .nm{font-weight:600;font-size:15.5px;margin:10px 0 3px;transition:color .12s}
+.card .ds{font-size:12px;color:var(--dim);line-height:1.5;min-height:36px}
+.card canvas{display:block;width:100%;height:38px;margin:8px 0 8px;background:#0a0d0b;border:1px solid var(--line);border-radius:2px}
+.card .bot{display:flex;align-items:center;gap:5px}
+.chip{font:600 10px/1 var(--mono);letter-spacing:.04em;color:var(--dim);background:transparent;border:1px solid var(--line2);border-radius:2px;padding:4px 6px;cursor:pointer}
+.chip:hover{color:var(--txt);border-color:var(--dim)}
+.chip.sel{color:#1a1200;background:var(--amber);border-color:var(--amber)}
+.card .seed{margin-left:auto;font:10px/1 var(--mono);color:var(--faint)}
+.card .bar{position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--amber)}
+.card.on .bar{animation:run var(--len,1s) linear forwards}
+@keyframes run{from{width:0}to{width:100%}}
+footer{margin-top:26px;color:var(--faint);font:11px/1.7 var(--mono)}
+@media(max-width:820px){.vrow{grid-template-columns:1fr}#scope,#spec{height:140px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="tag">SALTLINE // PROCEDURAL AUDIO BENCH</div>
+      <h1>FPS 音效台 <b>·</b> 纯 WebAudio 合成</h1>
+      <p>没有任何音频文件或采样。每一声都由振荡器、噪声、滤波器和代码生成的混响脉冲实时算出，每次触发都换随机种子。</p>
+    </div>
+    <div class="ctrl">
+      <label class="vol">VOL <input id="vol" type="range" min="0" max="1" step="0.01" value="0.85"></label>
+      <button class="btn pri" id="demo">▶ 交火场景演示</button>
+      <button class="btn warn" id="stop">■ 全部停止 <span style="opacity:.6">SPACE</span></button>
+    </div>
+  </header>
+
+  <div class="viz">
+    <div class="vrow">
+      <div class="scr" id="scope"><div class="lbl">WAVEFORM <i>波形</i></div><canvas></canvas></div>
+      <div class="scr" id="spec"><div class="lbl">SPECTRUM <i>频谱 20Hz–20kHz</i></div><canvas></canvas></div>
+    </div>
+    <div class="scr" id="gram"><div class="lbl">SPECTROGRAM <i>声谱瀑布</i></div><canvas></canvas></div>
+    <div class="stat">
+      <span><i class="led" id="led"></i><b id="state">待机 · 点任意按钮启动音频引擎</b></span>
+      <span>NOW <b id="now">—</b></span>
+      <span>PEAK <b id="pk">-∞</b> dBFS</span>
+      <span>RMS <b id="rms">-∞</b> dBFS</span>
+      <span>VOICES <b id="vc">0</b></span>
+      <span class="meter"><i id="mt"></i></span>
+    </div>
+  </div>
+
+  <div id="board"></div>
+  <footer>48 kHz · 立体声 · 主链路：总线 → 压缩 → 软限幅 → 分析器。键盘：数字键与 Q W E R 触发，空格全部停止。点 A / B / C 可指定变体，直接点卡片则轮换变体并换种子。</footer>
+</div>
+
+<script>
+'use strict';
+/* ============================================================
+   基础：种子随机数、噪声、脉冲响应（全部代码生成）
+   ============================================================ */
+const SR = 48000, TAU = Math.PI * 2;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function RNG(seed){
+  const n = mulberry32(seed);
+  const r = (a, b) => a === undefined ? n() : a + (b - a) * n();
+  r.int = (a, b) => Math.floor(a + (b - a + 1) * n());
+  r.pick = arr => arr[Math.floor(n() * arr.length)];
+  r.sign = () => n() < .5 ? -1 : 1;
+  r.chance = p => n() < p;
+  return r;
+}
+const NOISE = {};
+function noiseBuf(type){
+  if (NOISE[type]) return NOISE[type];
+  const secs = {white:4, pink:5, brown:6}[type], n = SR * secs, fade = SR * .25 | 0;
+  const buf = new AudioBuffer({length:n, numberOfChannels:2, sampleRate:SR});
+  for (let ch = 0; ch < 2; ch++){
+    const rnd = mulberry32(1234 + ch * 77 + type.length * 13), x = new Float32Array(n + fade);
+    let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0, last=0, peak=0;
+    for (let i = 0; i < x.length; i++){
+      const w = rnd() * 2 - 1;
+      if (type === 'white') x[i] = w;
+      else if (type === 'pink'){
+        b0=.99886*b0+w*.0555179; b1=.99332*b1+w*.0750759; b2=.969*b2+w*.153852; b3=.8665*b3+w*.3104856;
+        b4=.55*b4+w*.5329522; b5=-.7616*b5-w*.016898; x[i]=(b0+b1+b2+b3+b4+b5+b6+w*.5362)*.11; b6=w*.115926;
+      } else { last = (last + .02 * w) / 1.02; x[i] = last * 3.5; }
+    }
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < n; i++){            // 首尾交叉淡化，循环无接缝
+      d[i] = i < fade ? x[i] * Math.sqrt(i / fade) + x[n + i] * Math.sqrt(1 - i / fade) : x[i];
+      peak = Math.max(peak, Math.abs(d[i]));
+    }
+    for (let i = 0; i < n; i++) d[i] /= peak;
+  }
+  return NOISE[type] = buf;
+}
+const IRS = {};
+function IR(name){
+  if (IRS[name]) return IRS[name];
+  const S = {
+    field:{dur:4.2, t60:3.3, lp0:4200, lp1:380, att:.06, diff:.32, echo:[[.19,.95],[.33,.75],[.52,.62],[.80,.48],[1.22,.36],[1.75,.26],[2.4,.16]]},
+    room :{dur:1.5, t60:1.1, lp0:10000, lp1:2200, att:.002, diff:1, early:16},
+    small:{dur:.42, t60:.28, lp0:8500, lp1:3000, att:.001, diff:1, early:9},
+    hall :{dur:4.0, t60:3.1, lp0:7000, lp1:1200, att:.03, diff:1, early:6},
+  }[name];
+  const n = SR * S.dur | 0, buf = new AudioBuffer({length:n, numberOfChannels:2, sampleRate:SR});
+  for (let ch = 0; ch < 2; ch++){
+    const rnd = mulberry32(9001 + ch * 31 + name.length * 101 + name.charCodeAt(0)), env = new Float32Array(n), d = buf.getChannelData(ch);
+    for (let i = 0; i < n; i++){ const t = i / SR; env[i] = S.diff * Math.min(1, t / S.att) * Math.exp(-6.91 * t / S.t60); }
+    if (S.echo) for (const [te0, g] of S.echo){          // 室外：稀疏的远处回声团
+      const te = te0 * (1 + (rnd() - .5) * .16), w = .014 + te * .03;
+      const a = Math.max(0, (te - 3 * w) * SR | 0), b = Math.min(n, (te + 4 * w) * SR | 0);
+      for (let i = a; i < b; i++){ const x = (i / SR - te) / (i / SR < te ? w * .5 : w); env[i] += g * Math.exp(-x * x); }
+    }
+    if (S.early) for (let k = 0; k < S.early; k++){      // 室内：密集的早期反射
+      const te = .003 + rnd() * rnd() * .075, g = (1.6 - te * 12) * (.5 + rnd()), a = te * SR | 0, L = 40 + rnd() * 60 | 0;
+      for (let i = a; i < Math.min(n, a + L); i++) env[i] += g * (1 - (i - a) / L);
+    }
+    let y = 0;
+    for (let i = 0; i < n; i++){
+      const t = i / SR, fc = S.lp1 + (S.lp0 - S.lp1) * Math.exp(-t / (S.dur * .22)), a = 1 - Math.exp(-TAU * fc / SR);
+      y += a * ((rnd() * 2 - 1) - y);
+      d[i] = y * env[i] / Math.sqrt(a / (2 - a)) * Math.min(1, (n - i) / (SR * .05));
+    }
+  }
+  return IRS[name] = buf;
+}
+const DROPS = {};
+function dropBuf(v){                                    // 雨点颗粒床：稀疏的衰减共振微粒
+  if (DROPS[v]) return DROPS[v];
+  const n = SR * [5, 6, 7][v], dens = [160, 420, 950][v], rnd = mulberry32(555 + v);
+  const buf = new AudioBuffer({length:n, numberOfChannels:2, sampleRate:SR}), L = buf.getChannelData(0), R = buf.getChannelData(1);
+  const N = dens * n / SR | 0; let peak = 0;
+  for (let k = 0; k < N; k++){
+    const pos = rnd() * n | 0, f = 1500 + Math.pow(rnd(), 1.6) * 8500, tau = (.0003 + rnd() * .0014) * SR, amp = Math.pow(rnd(), 3), pan = rnd(), ph = rnd() * TAU;
+    const len = tau * 6 | 0, gl = Math.cos(pan * Math.PI / 2), gr = Math.sin(pan * Math.PI / 2);
+    for (let i = 0; i < len; i++){ const s = amp * Math.sin(TAU * f * i / SR + ph) * Math.exp(-i / tau) * Math.min(1, i / 4), j = (pos + i) % n; L[j] += s * gl; R[j] += s * gr; }
+  }
+  for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i]));
+  for (let i = 0; i < n; i++){ L[i] /= peak; R[i] /= peak; }
+  return DROPS[v] = buf;
+}
+
+/* ============================================================
+   节点小工具
+   ============================================================ */
+const G = (ctx, v = 1) => { const g = ctx.createGain(); g.gain.value = v; return g; };
+const F = (ctx, type, f, q = .707) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = Math.min(f, 20000); b.Q.value = q; return b; };
+const P = (ctx, p = 0) => { const s = ctx.createStereoPanner(); s.pan.value = Math.max(-1, Math.min(1, p)); return s; };
+const mono = ctx => { const g = ctx.createGain(); g.channelCount = 1; g.channelCountMode = 'explicit'; return g; };
+function link(...n){ for (let i = 0; i < n.length - 1; i++) n[i].connect(n[i + 1]); return n[n.length - 1]; }
+function osc(ctx, type, f, t0, dur, det = 0){ const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = det; o.start(t0); o.stop(t0 + dur); return o; }
+function noise(ctx, type, t0, dur, r, rate = 1){
+  const s = ctx.createBufferSource(); s.buffer = noiseBuf(type); s.loop = true; s.playbackRate.value = rate;
+  s.start(t0, r() * (s.buffer.duration - .2)); s.stop(t0 + dur + .05); return s;
+}
+/* 打击包络：线性起音 + 指数衰减 */
+function pg(ctx, t0, a, d, peak = 1, hold = 0){
+  const g = G(ctx, 0), p = g.gain;
+  p.setValueAtTime(0, t0); p.linearRampToValueAtTime(peak, t0 + a);
+  if (hold) p.setValueAtTime(peak, t0 + a + hold);
+  p.exponentialRampToValueAtTime(Math.max(peak * .001, 1e-6), t0 + a + hold + d);
+  p.linearRampToValueAtTime(0, t0 + a + hold + d + .01);
+  return g;
+}
+/* 任意曲线包络 */
+function cg(ctx, t0, dur, fn, n){
+  n = n || Math.max(8, Math.ceil(dur * 240));
+  const a = new Float32Array(n); for (let i = 0; i < n; i++) a[i] = fn(i / (n - 1)); a[n - 1] = 0;
+  const g = G(ctx, 0); g.gain.setValueCurveAtTime(a, t0, dur); return g;
+}
+function curve(param, t0, dur, fn, n = 64){ const a = new Float32Array(n); for (let i = 0; i < n; i++) a[i] = fn(i / (n - 1)); param.setValueCurveAtTime(a, t0, dur); }
+/* 噪声脉冲 */
+function nb(ctx, out, t0, r, o){
+  const d = o.d || .05, a = o.a || .0005;
+  let x = noise(ctx, o.type || 'white', t0, a + d + .03, r, o.rate || 1);
+  if (o.hp) x = x.connect(F(ctx, 'highpass', o.hp, .707));
+  if (o.bp) x = x.connect(F(ctx, 'bandpass', o.bp, o.q || 1));
+  if (o.lp) x = x.connect(F(ctx, 'lowpass', o.lp, .707));
+  const e = pg(ctx, t0, a, d, o.g === undefined ? 1 : o.g); x.connect(e); e.connect(out); return e;
+}
+/* 模态合成：一组非谐正弦分音，各自指数衰减 → 金属 / 黄铜 */
+function modal(ctx, out, t0, r, freqs, o = {}){
+  const d = o.d || .1, g = o.g || .2, tilt = o.tilt || .78, det = o.det === undefined ? .006 : o.det;
+  freqs.forEach((f, i) => {
+    if (f > 19000) return;
+    const dd = d * Math.pow(tilt, i) * r(.75, 1.25);
+    link(osc(ctx, 'sine', f * (1 + r(-det, det)), t0, dd + .05), pg(ctx, t0, o.a || .0006, dd, g * r(.55, 1) / (1 + i * .3)), out);
+  });
+}
+/* 饱和：tanh 波形整形，输入域 ±4 */
+const SATC = {};
+function sat(ctx, drive){
+  const k = drive.toFixed(2);
+  if (!SATC[k]){ const n = 4097, c = new Float32Array(n); for (let i = 0; i < n; i++){ const x = (i / (n - 1) * 2 - 1) * 4; c[i] = Math.tanh(x * drive) / Math.tanh(drive); } SATC[k] = c; }
+  const i = G(ctx, .25), w = ctx.createWaveShaper(); w.curve = SATC[k]; w.oversample = '2x'; i.connect(w); return {i, o: w};
+}
+/* 主链路：总线 → 压缩 → 软限幅 →（分析器）→ 输出。离线自检走同一条链 */
+const MASTERS = new WeakMap();
+const LIMC = (() => { const n = 8193, c = new Float32Array(n); for (let i = 0; i < n; i++){ const x = (i / (n - 1) * 2 - 1) * 3, a = Math.abs(x); c[i] = Math.sign(x) * (a < .5 ? a : .5 + .44 * Math.tanh((a - .5) / .44)); } return c; })();
+function buildMaster(ctx, live){
+  const bus = G(ctx, 1), comp = ctx.createDynamicsCompressor(), pre = G(ctx, 1 / 3), ws = ctx.createWaveShaper(), vol = G(ctx, 1);
+  comp.threshold.value = -14; comp.knee.value = 10; comp.ratio.value = 3; comp.attack.value = .004; comp.release.value = .2;
+  ws.curve = LIMC; ws.oversample = '2x';
+  link(bus, comp, pre, ws, vol);
+  const m = {bus, vol, verbs: {}};
+  if (live){ m.an = ctx.createAnalyser(); m.an.fftSize = 4096; m.an.smoothingTimeConstant = .72; m.an.minDecibels = -100; m.an.maxDecibels = -8; link(vol, m.an, ctx.destination); }
+  else vol.connect(ctx.destination);
+  MASTERS.set(ctx, m); return m;
+}
+/* 混响发送：每个 ctx 每种空间共用一个卷积器 */
+let SENDS = null;
+function verb(ctx, name, wet){
+  const m = MASTERS.get(ctx);
+  if (!m.verbs[name]){ const c = ctx.createConvolver(); c.buffer = IR(name); c.connect(m.bus); m.verbs[name] = c; }
+  const g = G(ctx, wet); g.connect(m.verbs[name]); if (SENDS) SENDS.push(g); return g;
+}
+
+/* ============================================================
+   音效
+   每个函数：(ctx, out, t0, r, v[, dur])，v = 变体原型 0..2，r = 种子随机数
+   ============================================================ */
+/* ---------- 步枪 ---------- */
+function gunCore(ctx, out, t0, r, v){
+  const A = [{ck:1, bd:1, th:150, ln:1}, {ck:.8, bd:1.25, th:118, ln:1.3}, {ck:1.3, bd:.85, th:178, ln:.8}][v];
+  const p = r(.94, 1.06), ln = A.ln * r(.92, 1.08);
+  const pre = G(ctx, 1), s = sat(ctx, 2.6), post = G(ctx, .9); pre.connect(s.i); s.o.connect(post); post.connect(out);
+  nb(ctx, pre, t0, r, {a:.0002, d:.03 * ln, g:1.2 * A.ck, hp:2600 * p});                 // 超音速裂响
+  nb(ctx, pre, t0, r, {a:.0003, d:.075 * ln, g:1.6, bp:1100 * p, q:.9});                // 中频“吠”
+  const n = noise(ctx, 'white', t0, .6 * ln, r), lp = F(ctx, 'lowpass', 9000, .9);     // 枪口爆轰：低通快速下扫
+  lp.frequency.setValueAtTime(10000 * p, t0); lp.frequency.exponentialRampToValueAtTime(300 * p, t0 + .17 * ln);
+  link(n, lp, pg(ctx, t0, .0006, .3 * ln, .9 * A.bd), pre);
+  const o = osc(ctx, 'sine', A.th * p, t0, .6);                                          // 胸腔冲击
+  o.frequency.setValueAtTime(A.th * p * 1.7, t0); o.frequency.exponentialRampToValueAtTime(40, t0 + .12 * ln);
+  link(o, pg(ctx, t0, .001, .3 * ln, 1.1 * A.bd), pre);
+  nb(ctx, post, t0 + .02, r, {a:.01, d:.13, g:.07, hp:5000});                            // 燃气嘶声
+  const mech = mono(ctx), tm = t0 + r(.05, .07); link(mech, P(ctx, r(-.12, .12)), out);  // 枪机往复
+  nb(ctx, mech, tm, r, {d:.012, g:.22, bp:3200, q:1.2});
+  modal(ctx, mech, tm, r, [2100 * p, 3650 * p, 5300 * p], {d:.035, g:.035});
+  nb(ctx, mech, tm + r(.03, .045), r, {d:.015, g:.16, bp:2400 * p, q:1});
+  return post;
+}
+function shotOutdoor(ctx, out, t0, r, v){
+  const post = gunCore(ctx, out, t0, r, v);
+  const vb = verb(ctx, 'field', .62 * r(.88, 1.12)); post.connect(vb);
+  const k = r.int(2, 3); let dt = 0;
+  for (let i = 0; i < k; i++){                                                           // 远处山体/建筑回拍
+    dt += r(.17, .31) * (1 + i * .5);
+    const d = ctx.createDelay(3); d.delayTime.value = dt;
+    const g = G(ctx, .24 / (1 + i * .8));
+    link(post, d, F(ctx, 'lowpass', 2000 / (1 + i * .7), .5), g, P(ctx, r(-.85, .85)), out); g.connect(vb);
+  }
+  const n = noise(ctx, 'brown', t0, 2.6, r), lp = F(ctx, 'lowpass', 600, .6);            // 低频滚动尾
+  lp.frequency.setValueAtTime(600, t0); lp.frequency.exponentialRampToValueAtTime(110, t0 + 2.2);
+  link(n, lp, pg(ctx, t0, .05, 2.2 * r(.85, 1.15), .7), out);
+  return 4;
+}
+function shotIndoor(ctx, out, t0, r, v){
+  const post = gunCore(ctx, out, t0, r, v);
+  post.connect(verb(ctx, 'room', 1.15 * r(.9, 1.1)));
+  const d = ctx.createDelay(.2), fb = G(ctx, r(.45, .58)), bp = F(ctx, 'bandpass', r(1500, 2600), .8), send = G(ctx, .3);
+  d.delayTime.value = r(.017, .031);                                                     // 平行墙面颤动回声
+  link(post, send, d, bp, fb, d); link(bp, P(ctx, r(-.5, .5)), out);
+  const f = r(92, 135);                                                                  // 房间驻波
+  link(osc(ctx, 'sine', f, t0, .8), pg(ctx, t0, .004, .5, .32), out);
+  link(osc(ctx, 'sine', f * r(1.45, 1.6), t0, .6), pg(ctx, t0, .004, .32, .18), out);
+  nb(ctx, out, t0 + .004, r, {a:.003, d:.3, g:.3, bp:r(2600, 3600), q:1.5});             // 硬墙面高频泛响
+  return 1.9;
+}
+
+/* ---------- 机械碰撞 / 刮擦 ---------- */
+function clack(ctx, out, t, r, o){
+  const nd = o.nd || .018, ng = o.ng === undefined ? .5 : o.ng;
+  nb(ctx, out, t, r, {a:.0004, d:nd, g:ng * 2, bp:o.nf || 3000, q:.8});
+  nb(ctx, out, t, r, {a:.0003, d:nd * .5, g:ng * .6, hp:5200});
+  modal(ctx, out, t, r, o.f, {d:o.d || .05, g:o.g || .2});
+  if (o.thump){ const s = osc(ctx, 'sine', o.thump, t, .2); s.frequency.setValueAtTime(o.thump * 1.6, t); s.frequency.exponentialRampToValueAtTime(o.thump * .8, t + .04); link(s, pg(ctx, t, .001, .08, o.tg || .5), out); }
+}
+function scrape(ctx, out, t, r, o){
+  const n = noise(ctx, 'white', t, o.dur, r), bp = F(ctx, 'bandpass', o.f0, o.q || 2.5);
+  bp.frequency.setValueAtTime(o.f0, t); bp.frequency.exponentialRampToValueAtTime(o.f1, t + o.dur);
+  const rt = o.ratchet || 0, ph = r(0, 1);
+  link(n, bp, cg(ctx, t, o.dur, x => o.g * Math.sin(Math.PI * Math.pow(x, .7)) * (.35 + .65 * Math.pow(r(), 1.5)) * (rt ? .4 + .6 * Math.pow(Math.abs(Math.sin((x * rt + ph) * Math.PI)), 3) : 1), Math.ceil(o.dur * 700)), out);
+}
+function handBus(ctx, out, r, wet = .28){
+  const b = mono(ctx); link(b, P(ctx, r(-.2, .2)), out); b.connect(verb(ctx, 'small', wet)); return b;
+}
+function magOut(ctx, out, t0, r, v){
+  const b = handBus(ctx, out, r), p = r(.92, 1.08), V = [{gap:.07, sl:.11}, {gap:.05, sl:.08}, {gap:.09, sl:.14}][v];
+  clack(ctx, b, t0, r, {f:[3100 * p, 4700 * p, 6400 * p], d:.022, g:.1, ng:.3, nf:4200});          // 弹匣卡榫
+  const t1 = t0 + V.gap * r(.9, 1.15);
+  scrape(ctx, b, t1, r, {dur:V.sl, f0:2700 * p, f1:1400 * p, g:.55, q:2});                        // 滑出
+  const t2 = t1 + V.sl * r(.85, 1);
+  clack(ctx, b, t2, r, {f:[430 * p, 910 * p, 1680 * p, 2500 * p], d:.07, g:.22, ng:.45, nf:1400, nd:.03, thump:150 * p, tg:.5});  // 空匣脱离
+  if (v === 2){ clack(ctx, b, t2 + r(.07, .1), r, {f:[1900 * p, 3300 * p], d:.03, g:.08, ng:.2}); clack(ctx, b, t2 + r(.13, .17), r, {f:[2200 * p, 3700 * p], d:.025, g:.05, ng:.12}); }
+  if (v === 1) scrape(ctx, b, t2 + .03, r, {dur:.09, f0:900, f1:500, g:.25, q:1});               // 布料/战术背心
+  return 1;
+}
+function magIn(ctx, out, t0, r, v){
+  const b = handBus(ctx, out, r), p = r(.92, 1.08), V = [{sl:.09}, {sl:.13}, {sl:.07}][v];
+  clack(ctx, b, t0, r, {f:[1500 * p, 2700 * p], d:.02, g:.07, ng:.22, nf:2200});                  // 匣口对位
+  const t1 = t0 + r(.04, .07);
+  scrape(ctx, b, t1, r, {dur:V.sl, f0:1300 * p, f1:3100 * p, g:.5, q:2});                         // 推入（上扫）
+  const t2 = t1 + V.sl;
+  clack(ctx, b, t2, r, {f:[690 * p, 1520 * p, 2900 * p, 4350 * p, 6100 * p], d:.06, g:.26, ng:.75, nf:2600, nd:.022, thump:112 * p, tg:.7});  // 到位
+  clack(ctx, b, t2 + r(.028, .04), r, {f:[3500 * p, 5200 * p], d:.02, g:.09, ng:.25, nf:4500});   // 卡榫回弹
+  if (v === 1){ const t3 = t2 + r(.16, .21); nb(ctx, b, t3, r, {a:.002, d:.06, g:1.1, lp:600}); clack(ctx, b, t3, r, {f:[520 * p, 1150 * p], d:.04, g:.12, ng:.3, nf:1200, thump:95, tg:.6}); }  // 掌根拍底
+  if (v === 2) clack(ctx, b, t2 + r(.09, .12), r, {f:[2400 * p, 4100 * p], d:.02, g:.05, ng:.14});
+  return 1;
+}
+function boltRack(ctx, out, t0, r, v){
+  const b = handBus(ctx, out, r, .32), p = r(.93, 1.07), V = [{pull:.13, hold:.07}, {pull:.17, hold:.12}, {pull:.1, hold:.04}][v];
+  clack(ctx, b, t0, r, {f:[2600 * p, 4300 * p], d:.02, g:.06, ng:.2, nf:3600});                   // 握住拉机柄
+  const t1 = t0 + r(.03, .05);
+  scrape(ctx, b, t1, r, {dur:V.pull, f0:1900 * p, f1:3600 * p, g:.6, q:2.2, ratchet:r(5, 8)});    // 后拉
+  const t2 = t1 + V.pull;
+  clack(ctx, b, t2, r, {f:[1180 * p, 2550 * p, 4100 * p, 5900 * p], d:.045, g:.2, ng:.6, nf:2800, thump:185 * p, tg:.45});  // 后止点
+  const t3 = t2 + V.hold * r(.85, 1.2);
+  scrape(ctx, b, t3, r, {dur:.045, f0:3700 * p, f1:1700 * p, g:.5, q:1.8});                       // 复进簧送回
+  const t4 = t3 + .045;
+  clack(ctx, b, t4, r, {f:[810 * p, 1880 * p, 3300 * p, 5150 * p, 7300 * p], d:.07, g:.3, ng:.95, nf:2400, nd:.024, thump:96 * p, tg:.85});  // 闭锁
+  const fs = r(880, 1250), lfo = osc(ctx, 'sine', r(45, 70), t4, .5), lg = G(ctx, fs * .012);     // 复进簧余振
+  [1, 2.76, 5.4].forEach((m, i) => { const o = osc(ctx, 'sine', fs * m, t4, .5); lfo.connect(lg); lg.connect(o.frequency); link(o, pg(ctx, t4, .002, .32 / (1 + i), .028 / (1 + i)), b); });
+  return 1.2;
+}
+
+/* ---------- 弹壳落地 ---------- */
+function shell(ctx, out, t0, r, v){
+  const V = [{n:4, gap:.19, ring:.09, k:1}, {n:2, gap:.24, ring:.2, k:1.06}, {n:6, gap:.1, ring:.055, k:.84}][v];
+  const base = r(.9, 1.1) * V.k, modes = [2850, 4720, 6940, 9300, 11800].map(f => f * base);
+  const pan = P(ctx, 0), b = mono(ctx); link(b, pan, G(ctx, 1.8), out); b.connect(verb(ctx, 'small', .6));
+  let t = t0, gap = V.gap * r(.85, 1.15), amp = 1, p0 = r(-.5, .5), dp = r(-.12, .12);
+  pan.pan.setValueAtTime(p0, t0);
+  for (let i = 0; i < V.n; i++){
+    const o = r.pick([1, 1.115, .945, 1.06]);                                           // 每次落点姿态不同，激励不同的模态
+    modal(ctx, b, t, r, modes.map(f => f * o), {d:V.ring * (1 - i * .08), g:.2 * amp, tilt:.8, det:.004});
+    nb(ctx, b, t, r, {a:.0003, d:.007, g:.5 * amp, hp:2400});
+    nb(ctx, b, t, r, {a:.0005, d:.02, g:.9 * amp, bp:620, q:1.2});                       // 水泥地的闷响
+    pan.pan.setValueAtTime(Math.max(-1, Math.min(1, p0 + dp * (i + 1))), t + gap);
+    t += gap; gap *= r(.52, .7); amp *= r(.55, .72);
+  }
+  if (v === 1){                                                                          // 壳体在地上打转
+    const dur = r(.4, .55), f = modes[0] * 1.06, am = G(ctx, 0), lfo = osc(ctx, 'sine', 30, t, dur), lg = G(ctx, .5), e = pg(ctx, t, .004, dur, .09);
+    lfo.frequency.setValueAtTime(r(34, 44), t); lfo.frequency.exponentialRampToValueAtTime(11, t + dur);
+    am.gain.value = .5; lfo.connect(lg); lg.connect(am.gain);
+    [1, 1.66, 2.44].forEach((m, i) => link(osc(ctx, 'sine', f * m, t, dur), G(ctx, 1 / (1 + i)), am)); link(am, e, b);
+    scrape(ctx, b, t, r, {dur, f0:5200, f1:3200, g:.12, q:1.5, ratchet:r(9, 13)});
+  } else {                                                                               // 末段碎跳 / 滚动
+    const m = v === 0 ? r.int(6, 9) : r.int(3, 5); let g2 = amp * 1.1, dt = gap;
+    for (let i = 0; i < m; i++){ modal(ctx, b, t, r, [modes[0] * r(.97, 1.1), modes[1] * r(.97, 1.1)], {d:.022, g:.12 * g2}); nb(ctx, b, t, r, {d:.004, g:.25 * g2, hp:3000}); t += dt; dt = Math.max(.012, dt * .8); g2 *= .8; }
+  }
+  return (t - t0) + .9;
+}
+
+/* ---------- 脚步 ---------- */
+function grit(ctx, b, t, r, dur, g, f){
+  link(noise(ctx, 'white', t, dur, r), F(ctx, 'bandpass', f || r(2400, 4200), .6), F(ctx, 'highpass', 1400),
+    cg(ctx, t, dur, x => g * Math.pow(1 - x, 1.2) * Math.min(1, x * 12) * Math.pow(r(), 2.2) * 3, Math.ceil(dur * 900)), b);
+}
+function thud(ctx, b, t, r, g, f){
+  const o = osc(ctx, 'sine', f, t, .25); o.frequency.setValueAtTime(f * 1.5, t); o.frequency.exponentialRampToValueAtTime(f * .55, t + .06);
+  link(o, pg(ctx, t, .002, .09, .9 * g), b);
+  nb(ctx, b, t, r, {type:'brown', a:.0015, d:.06, g:2.2 * g, lp:800});
+}
+function stepConcrete(ctx, out, t0, r, v){
+  const b = mono(ctx); link(b, P(ctx, r(-.25, .25)), out); b.connect(verb(ctx, 'small', .2));
+  const f = r(88, 118);
+  const hit = (t, g) => { thud(ctx, b, t, r, g, f); nb(ctx, b, t, r, {a:.0008, d:.022, g:.8 * g, bp:r(1500, 2200), q:.8}); nb(ctx, b, t, r, {a:.0005, d:.01, g:.3 * g, hp:3500}); };
+  if (v === 0){ hit(t0, 1); grit(ctx, b, t0 + .004, r, .07, .22); const t1 = t0 + r(.09, .13); hit(t1, .42); grit(ctx, b, t1, r, .06, .16); }       // 脚跟—脚掌
+  else if (v === 1){ grit(ctx, b, t0, r, r(.13, .18), .3); hit(t0 + r(.045, .07), .8); grit(ctx, b, t0 + .16, r, .05, .1); }                        // 拖蹭
+  else { hit(t0, 1.35); grit(ctx, b, t0, r, .1, .34); link(osc(ctx, 'sine', r(58, 68), t0, .3), pg(ctx, t0, .003, .14, .7), b); grit(ctx, b, t0 + r(.1, .14), r, .04, .1); }  // 奔跑重踏
+  return .8;
+}
+function stepMetal(ctx, out, t0, r, v){
+  const b = mono(ctx); link(b, P(ctx, r(-.25, .25)), G(ctx, 1.45), out); b.connect(verb(ctx, 'room', .7));
+  const V = [{base:r(175, 225), d:.32, hi:.5}, {base:r(260, 330), d:.2, hi:1.2}, {base:r(112, 140), d:.5, hi:.3}][v];
+  const ratios = [1, 1.59, 2.14, 2.65, 3.16, 3.89, 4.6, 5.87, 7.3, 9.1];                  // 钢板的非谐分音
+  thud(ctx, b, t0, r, .75, r(80, 100));
+  nb(ctx, b, t0, r, {a:.0006, d:.02, g:1.0, bp:r(2200, 3000), q:.9});
+  modal(ctx, b, t0, r, ratios.map(k => k * V.base * r(.98, 1.02)), {d:V.d, g:.2, tilt:.86, det:.01});
+  modal(ctx, b, t0, r, [r(2400, 2900), r(3600, 4300), r(5200, 6200)], {d:.07, g:.06 * V.hi});
+  const t1 = t0 + r(.024, .042);                                                         // 松动件二次碰撞
+  modal(ctx, b, t1, r, ratios.slice(0, 6).map(k => k * V.base * 1.31), {d:V.d * .5, g:.07 * (v === 1 ? 2 : 1), tilt:.8});
+  nb(ctx, b, t1, r, {d:.008, g:.25 * V.hi, hp:3000});
+  if (v === 1){ const t2 = t1 + r(.03, .05); modal(ctx, b, t2, r, [V.base * 4.1, V.base * 6.3, V.base * 9.2], {d:.06, g:.07}); nb(ctx, b, t2, r, {d:.006, g:.2, hp:4000}); }   // 格栅哗响
+  if (v === 2) link(osc(ctx, 'sine', r(62, 74), t0, .6), pg(ctx, t0, .004, .4, .5), b);   // 空心楼梯腔体
+  return 1.5;
+}
+function stepWater(ctx, out, t0, r, v){
+  const b = G(ctx, 1), pn = r(-.2, .2), m = mono(ctx); link(m, P(ctx, pn), b); b.connect(out); b.connect(verb(ctx, 'small', .25));
+  const V = [{f0:900, f1:2600, d:.2, low:.9, n:6}, {f0:480, f1:1500, d:.32, low:1.4, n:5}, {f0:1400, f1:3600, d:.13, low:.5, n:9}][v];
+  thud(ctx, m, t0, r, .5 * V.low, r(75, 95));
+  const n = noise(ctx, 'white', t0, V.d + .1, r), bp = F(ctx, 'bandpass', V.f0, .8);     // 水花主体
+  bp.frequency.setValueAtTime(V.f0 * r(.9, 1.1), t0); bp.frequency.exponentialRampToValueAtTime(V.f1 * r(.9, 1.1), t0 + V.d * .7);
+  link(n, bp, pg(ctx, t0, .012, V.d, 1.5), m);
+  nb(ctx, m, t0, r, {a:.006, d:.09, g:1.3 * V.low, lp:520});
+  link(noise(ctx, 'white', t0, .4, r), F(ctx, 'highpass', 4500), cg(ctx, t0 + .01, .34, x => .3 * Math.pow(1 - x, 1.6) * Math.min(1, x * 10) * Math.pow(r(), 1.5) * 2, 300), P(ctx, pn), b);  // 水雾
+  for (let i = 0; i < V.n; i++){                                                         // 溅起的水珠落回
+    const t = t0 + r(.06, .16) + Math.pow(r(), 1.4) * .42, f = r(480, 1500), d = r(.03, .075), o = osc(ctx, 'sine', f, t, d + .05);
+    o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * r(1.4, 2.1), t + d * .8);
+    link(o, pg(ctx, t, .003, d, r(.05, .16)), P(ctx, pn + r(-.6, .6)), b);
+  }
+  return 1.2;
+}
+
+/* ---------- 子弹掠过 ---------- */
+function whiz(ctx, out, t0, r, v){
+  const dir = r.sign(), dur = [.42, .85, .26][v] * r(.9, 1.12), fHi = [4200, 1500, 6800][v] * r(.85, 1.15), fLo = fHi * r(.36, .5), c = r(.4, .5);
+  const pan = P(ctx, 0), b = G(ctx, 1); link(b, pan, out); b.connect(verb(ctx, 'field', .18));
+  curve(pan.pan, t0, dur, x => dir * .95 * Math.tanh((x - c) * 5));
+  const dop = x => fLo + (fHi - fLo) / (1 + Math.exp((x - c) * 16));                     // 多普勒下滑
+  const env = cg(ctx, t0, dur, x => Math.exp(-Math.pow((x - c) / (x < c ? .14 : .2), 2)));
+  env.connect(b);
+  [[1, 7, 3.2], [1.92, 3, 1.0], [.52, 2, 1.2]].forEach(([m, q, g]) => {
+    const bp = F(ctx, 'bandpass', fHi * m, q); curve(bp.frequency, t0, dur, x => Math.min(19000, dop(x) * m));
+    link(noise(ctx, 'white', t0, dur, r), bp, G(ctx, g), env);
+  });
+  const o = osc(ctx, 'triangle', fHi / 4, t0, dur), lfo = osc(ctx, 'sine', r(55, 90), t0, dur), lg = G(ctx, fHi * .03);   // 弹头自旋嗡鸣
+  curve(o.frequency, t0, dur, x => dop(x) / 4); lfo.connect(lg); lg.connect(o.frequency);
+  link(o, G(ctx, v === 1 ? .35 : .14), env);
+  if (v === 1) link(noise(ctx, 'pink', t0, dur, r), F(ctx, 'lowpass', 700), G(ctx, 1.4), env);       // 亚音速：低沉气流
+  if (v === 0){ const tc = t0 + dur * c; nb(ctx, b, tc, r, {a:.0002, d:.012, g:1.1, hp:3000}); nb(ctx, b, tc, r, {a:.0003, d:.035, g:1.5, bp:1500, q:.8}); }  // 超音速弹道波
+  if (v === 2) nb(ctx, b, t0 + dur * c, r, {a:.0002, d:.008, g:.5, hp:5000});
+  return dur + 1.4;
+}
+
+/* ---------- 跳弹 ---------- */
+function ricochet(ctx, out, t0, r, v){
+  const pan = P(ctx, 0), b = G(ctx, 1), p0 = r(-.4, .4), side = r.sign(); link(b, pan, G(ctx, 1.45), out); b.connect(verb(ctx, 'field', .55));
+  const dur = [.7, .9, .36][v] * r(.85, 1.15);
+  pan.pan.setValueAtTime(p0, t0); pan.pan.linearRampToValueAtTime(side * .92, t0 + dur);
+  nb(ctx, b, t0, r, {a:.0002, d:.018, g:1.0, hp:2200});                                  // 击中
+  nb(ctx, b, t0, r, {a:.0004, d:.045, g:1.6, bp:r(700, 1100), q:.9});
+  modal(ctx, b, t0, r, [r(1700, 2100), r(3100, 3600), r(5000, 5800), r(7400, 8600)], {d:.06, g:.12});
+  link(noise(ctx, 'white', t0, .22, r), F(ctx, 'lowpass', 2600), cg(ctx, t0, .2, x => .35 * Math.pow(1 - x, 1.5) * Math.pow(r(), 2) * 3, 200), b);  // 碎屑
+  const ts = t0 + .012, f0 = r(2500, 4300), f1 = f0 * r(.22, .36), wob = r(5, 11), wd = r(.015, .04);
+  const fq = x => { let f = v === 1 ? (x < .13 ? f0 * (1 + .28 * x / .13) : f0 * 1.28 * Math.pow(f1 / (f0 * 1.28), (x - .13) / .87)) : f0 * Math.pow(f1 / f0, Math.pow(x, v === 2 ? .55 : .8)); return f * (1 + wd * Math.sin(x * dur * TAU * wob)); };
+  const am = G(ctx, .55), lfo = osc(ctx, 'sine', 60, ts, dur), lg = G(ctx, v === 2 ? .5 : .38);   // 翻滚弹头：颤动越来越慢
+  lfo.frequency.setValueAtTime(r(60, 95), ts); lfo.frequency.exponentialRampToValueAtTime(r(14, 24), ts + dur); lfo.connect(lg); lg.connect(am.gain);
+  [[1, 1], [1.52, .45], [2.31, .22]].forEach(([m, g]) => { const o = osc(ctx, 'sine', f0 * m, ts, dur); curve(o.frequency, ts, dur, x => Math.min(18000, fq(x) * m)); link(o, G(ctx, g), am); });
+  const bp = F(ctx, 'bandpass', f0, 14); curve(bp.frequency, ts, dur, fq); link(noise(ctx, 'white', ts, dur, r), bp, G(ctx, 2.2), am);
+  link(am, pg(ctx, ts, .004, dur * .95, .3), b);
+  return dur + 1.6;
+}
+
+/* ---------- 雨 ---------- */
+function rain(ctx, out, t0, r, v, dur = 12){
+  const I = [{hiss:.085, pat:.14, mid:.05, low:.12, near:3, roof:0}, {hiss:.17, pat:.26, mid:.11, low:.22, near:7, roof:.05}, {hiss:.3, pat:.4, mid:.2, low:.45, near:11, roof:.16}][v];
+  const fd = 2, ep = x => Math.sin(Math.PI / 2 * Math.min(1, x * dur / fd)) * Math.sin(Math.PI / 2 * Math.min(1, (1 - x) * dur / fd));
+  const m = cg(ctx, t0, dur, ep, Math.ceil(dur * 30)); link(m, G(ctx, [1, .8, .6][v]), out); m.connect(verb(ctx, 'field', .08));
+  const smooth = (lo, hi, n) => { const a = []; for (let i = 0; i < n; i++) a.push(r(lo, hi)); return x => { const p = x * (n - 1), i = Math.min(n - 2, p | 0), f = p - i, s = f * f * (3 - 2 * f); return a[i] + (a[i + 1] - a[i]) * s; }; };
+  const gust = cg(ctx, t0, dur, smooth(.72, 1.18, Math.ceil(dur / 1.3) + 2), Math.ceil(dur * 20)); gust.gain.value = 1; gust.connect(m);
+  link(noise(ctx, 'pink', t0, dur, r, r(.92, 1.08)), F(ctx, 'highpass', 2200, .5), F(ctx, 'lowpass', 11000, .5), G(ctx, I.hiss * 3), gust);      // 雨幕嘶声
+  const ds = ctx.createBufferSource(); ds.buffer = dropBuf(v); ds.loop = true; ds.playbackRate.value = r(.9, 1.1);                             // 雨点颗粒床
+  ds.start(t0, r() * (ds.buffer.duration - .5)); ds.stop(t0 + dur + .05); link(ds, F(ctx, 'highpass', 900), G(ctx, I.pat), gust);
+  const g2 = cg(ctx, t0, dur, smooth(.6, 1.3, Math.ceil(dur / 2) + 2), Math.ceil(dur * 20)); g2.connect(m);
+  link(noise(ctx, 'white', t0, dur, r), F(ctx, 'bandpass', r(1000, 1500), .5), G(ctx, I.mid), g2);                                              // 中频打地声
+  link(noise(ctx, 'brown', t0, dur, r), F(ctx, 'lowpass', 320, .6), G(ctx, I.low * 2.5), g2);                                                  // 低频底噪
+  if (I.roof) link(noise(ctx, 'white', t0, dur, r), F(ctx, 'bandpass', r(380, 520), 1.4), cg(ctx, t0, dur, x => I.roof * 6 * Math.pow(r(), 3), Math.ceil(dur * 260)), gust);  // 铁皮棚顶
+  const N = Math.round(I.near * dur);
+  for (let i = 0; i < N; i++){                                                           // 近处单颗水滴
+    const t = t0 + r(.2, dur - .2), f = r(900, 2800), d = r(.025, .06), o = osc(ctx, 'sine', f, t, d + .03), pn = P(ctx, r(-.9, .9)), g = r(.012, .05);
+    o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * r(.6, .8), t + d);
+    link(o, pg(ctx, t, .001, d, g), pn, m); nb(ctx, pn, t, r, {d:.004, g:g * 1.5, hp:4000});
+  }
+  return dur;
+}
+
+/* ---------- 远雷 ---------- */
+function thunder(ctx, out, t0, r, v){
+  const dur = [8, 7, 9.5][v] * r(.92, 1.08), B = [];
+  if (v === 0){ const tm = r(1.2, 1.8); B.push([tm, 1, 1.1]); let t = tm; for (let i = 0; i < 4; i++){ t += r(.7, 1.3); B.push([t, .7 - i * .13, r(.5, .9)]); } }       // 低沉长滚
+  else if (v === 1){ B.push([.18, 1, .28]); let t = .4; for (let i = 0; i < 5; i++){ t += r(.5, 1.1); B.push([t, .8 - i * .12, r(.4, .8)]); } }                    // 先炸后滚
+  else { let t = r(.8, 1.2); B.push([t, .8, .8], [t + r(.8, 1.2), .6, .7]); t = r(4.6, 5.4); B.push([t, 1, .7], [t + r(.9, 1.3), .7, .8], [t + r(2, 2.6), .45, .9]); }  // 两阵
+  const e = t => { let s = 0; for (const [tk, a, w] of B){ const x = (t - tk) / (t < tk ? w * .38 : w); s += a * Math.exp(-x * x); } return s; };
+  const rough = () => .62 + .38 * r();
+  const pan = P(ctx, r(-.5, .5)), b = G(ctx, .42); link(b, pan, out); b.connect(verb(ctx, 'field', .8));
+  pan.pan.linearRampToValueAtTime(r(-.5, .5), t0 + dur);
+  const tail = x => Math.min(1, (1 - x) * 4);
+  const lp = F(ctx, 'lowpass', 400, .6), f0 = v === 1 ? 1000 : r(320, 480);
+  lp.frequency.setValueAtTime(f0, t0); lp.frequency.exponentialRampToValueAtTime(85, t0 + dur);
+  const s = sat(ctx, 1.4);
+  link(noise(ctx, 'brown', t0, dur, r, r(.8, 1.1)), lp, cg(ctx, t0, dur, x => 3.2 * e(x * dur) * rough() * tail(x), Math.ceil(dur * 45)), s.i); link(s.o, G(ctx, .9), b);
+  [r(36, 46), r(52, 66)].forEach((f, i) => link(osc(ctx, 'sine', f, t0, dur), cg(ctx, t0, dur, x => (.5 - i * .2) * e(x * dur) * rough() * tail(x), Math.ceil(dur * 12)), b));   // 次低频
+  link(noise(ctx, 'pink', t0, dur, r), F(ctx, 'bandpass', r(380, 620), .5), F(ctx, 'lowpass', 1400),
+    cg(ctx, t0, dur, x => (v === 1 ? 2.2 : .9) * Math.pow(e(x * dur), 1.6) * Math.pow(r(), 2) * tail(x), Math.ceil(dur * 90)), b);   // 中频撕裂
+  return dur + 3.5;
+}
+
+/* ---------- 紧张配乐 ---------- */
+function music(ctx, out, t0, r, v){
+  const bpm = [100, 96, 104][v], beat = 60 / bpm, s16 = beat / 4, bar = beat * 4, bars = 12, total = bars * bar;
+  const root = [38, 40, 37][v], hz = m => 440 * Math.pow(2, (m - 69) / 12), T = b => t0 + b * bar;
+  const prog = [[0,0,0,0, 0,0,1,1, 0,0,3,1], [0,0,0,0, -4,-4,-2,-2, 0,0,-4,-1], [0,0,1,0, 0,0,1,3, 0,0,6,1]][v];
+  const pat = [[1,0,.5,0,.7,0,.5,.3, 1,0,.5,0,.7,.3,.5,.3], [1,.4,.4,.7,.4,.4,.7,.4, 1,.4,.4,.7,.4,.7,.4,.4], [1,0,0,.6,0,0,.6,0, 1,0,.6,0,.6,0,.5,.5]][v];
+  const mb = G(ctx, .7); mb.connect(out);
+  const hall = verb(ctx, 'hall', .5), rv = (n, a) => { const g = G(ctx, a); n.connect(g); g.connect(hall); };
+  const end = t0 + total;
+
+  /* 持续低音：失谐锯齿 + 次低频，滤波器缓慢打开 */
+  { const lp = F(ctx, 'lowpass', 140, 2), g = G(ctx, 0), w = P(ctx, 0);
+    lp.frequency.setValueAtTime(140, t0); lp.frequency.linearRampToValueAtTime(760, end);
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(.11, t0 + 2.5); g.gain.linearRampToValueAtTime(.16, end - .05); g.gain.linearRampToValueAtTime(0, end + .25);
+    [-9, 0, 8].forEach((d, i) => link(osc(ctx, 'sawtooth', hz(root), t0, total + .3, d + r(-2, 2)), P(ctx, (i - 1) * .75), lp));
+    link(osc(ctx, 'sine', hz(root - 12), t0, total + .3), G(ctx, 1.6), g);
+    link(lp, g, mb); rv(g, .3); }
+
+  /* 十六分音符脉冲低音（单声道合成器，逐步开滤波） */
+  { const oA = osc(ctx, 'sawtooth', hz(root + 12), t0, total + .2, -7), oB = osc(ctx, 'sawtooth', hz(root + 12), t0, total + .2, 8), oC = osc(ctx, 'square', hz(root), t0, total + .2);
+    const lp = F(ctx, 'lowpass', 200, 5), g = G(ctx, 0), s = sat(ctx, 1.6), oc = G(ctx, .35);
+    link(oA, P(ctx, -.6), lp); link(oB, P(ctx, .6), lp); link(oC, oc, lp); link(lp, g, s.i); link(s.o, G(ctx, .55), mb); rv(s.o, .12);
+    for (let b = 0; b < bars; b++) for (let i = 0; i < 16; i++){
+      const acc = pat[i]; if (!acc) continue;
+      const t = T(b) + i * s16, pr = (b + i / 16) / bars, up = b >= 6 && (i === 3 || i === 11 || i === 14) ? 12 : 0, f = hz(root + 12 + prog[b] + up);
+      oA.frequency.setValueAtTime(f, t); oB.frequency.setValueAtTime(f, t); oC.frequency.setValueAtTime(f / 2, t);
+      const pk = acc * (.3 + .7 * pr) * r(.9, 1.1), cut = 170 + Math.pow(pr, 1.4) * 1500;
+      g.gain.setTargetAtTime(pk, t, .003); g.gain.setTargetAtTime(0, t + .02, .04 + .03 * pr);
+      lp.frequency.setTargetAtTime(cut * (1 + 3.5 * acc), t, .002); lp.frequency.setTargetAtTime(cut, t + .012, .06);
+    }
+    g.gain.setTargetAtTime(0, end - .01, .01); }
+
+  /* 心跳底鼓 */
+  const kick = (t, g) => { const o = osc(ctx, 'sine', 50, t, .5); o.frequency.setValueAtTime(115, t); o.frequency.exponentialRampToValueAtTime(40, t + .08); link(o, pg(ctx, t, .002, .34, .95 * g), mb); nb(ctx, mb, t, r, {a:.0005, d:.012, g:.5 * g, lp:2200}); };
+  for (let b = 0; b < bars; b++){
+    const st = b < 4 ? [[0, 1], [.75, .6], [2, .9], [2.75, .5]] : b < 8 ? [[0, 1], [.75, .6], [1, .7], [2, 1], [2.75, .6], [3, .7]] : [[0, 1], [.75, .6], [1, .8], [1.75, .5], [2, 1], [2.75, .6], [3, .8], [3.5, .6], [3.75, .5]];
+    st.forEach(([bt, g]) => kick(T(b) + bt * beat, g));
+  }
+
+  /* 秒针式高频滴答 */
+  for (let b = 2; b < bars; b++) for (let i = 0; i < 16; i++){
+    if (b < 6 && i % 2) continue;
+    const t = T(b) + i * s16, g = (i % 4 === 0 ? .1 : i % 2 === 0 ? .06 : .035) * (.6 + .4 * b / bars), pn = P(ctx, (i % 2 ? .55 : -.55) * (i % 4 < 2 ? 1 : -1));
+    nb(ctx, pn, t, r, {a:.0004, d:r(.014, .024), g, hp:r(6500, 8000)}); modal(ctx, pn, t, r, [r(5200, 5600)], {d:.02, g:g * .25}); pn.connect(mb); rv(pn, .25);
+  }
+
+  /* 不协和弦乐簇：小二度 + 五度，颤弓，末段上滑 */
+  { const g = G(ctx, 0), lp = F(ctx, 'lowpass', 1500, .7), trem = G(ctx, .7), lfo = osc(ctx, 'sine', 1 / s16 / 2, T(4), total), lg = G(ctx, .3), w = G(ctx, 1);
+    lfo.connect(lg); lg.connect(trem.gain);
+    g.gain.setValueAtTime(0, T(4)); g.gain.linearRampToValueAtTime(.05, T(8)); g.gain.linearRampToValueAtTime(.11, end - .03); g.gain.linearRampToValueAtTime(0, end + .12);
+    lp.frequency.setValueAtTime(1100, T(4)); lp.frequency.linearRampToValueAtTime(3600, end);
+    [[24, -.5], [25, .5], [31, -.2], [36, .3], [37, -.4]].forEach(([n, pn], i) => {
+      const st = i < 3 ? T(4) : T(8), p = P(ctx, pn);
+      [-11, 9].forEach(d => { const o = osc(ctx, 'sawtooth', hz(root + n), st, end - st + .2, d + r(-3, 3)); o.detune.setValueAtTime(d, T(10)); o.detune.linearRampToValueAtTime(d + 100, end); o.connect(p); });
+      link(p, G(ctx, i < 3 ? 1 : .6), lp);
+    });
+    link(lp, trem, g, mb); rv(g, .7); }
+
+  /* 铜管重击（braam）+ 冲击 */
+  const braam = (t, big) => {
+    const n = root - 12 + (big ? 0 : 0), g = pg(ctx, t, .03, big ? 3 : 1.7, big ? .5 : .3, .25), lp = F(ctx, 'lowpass', 300, 1.2), s = sat(ctx, 2.2);
+    lp.frequency.setValueAtTime(260, t); lp.frequency.exponentialRampToValueAtTime(big ? 3000 : 2200, t + .09); lp.frequency.exponentialRampToValueAtTime(380, t + (big ? 2.4 : 1.3));
+    [[0, -12], [0, 7], [12, -6], [12, 11], [19, 3], [24, -4]].forEach(([k, d]) => osc(ctx, 'sawtooth', hz(n + k), t, big ? 3.6 : 2.2, d).connect(s.i));
+    link(s.o, lp, g, mb); rv(g, .6);
+    link(osc(ctx, 'sine', hz(n), t, 3), pg(ctx, t, .01, big ? 2.4 : 1.5, .7), mb);
+    nb(ctx, mb, t, r, {type:'brown', a:.003, d:.7, g:1.6, lp:260}); const hi = nb(ctx, mb, t, r, {a:.001, d:.16, g:.16, bp:3000, q:.6}); rv(hi, 1);
+  };
+  /* 反向噪声吸入 */
+  const swell = (t, len, g) => { const bp = F(ctx, 'bandpass', 400, 1.2), e = G(ctx, 0); bp.frequency.setValueAtTime(350, t - len); bp.frequency.exponentialRampToValueAtTime(5200, t);
+    e.gain.setValueAtTime(.0005, t - len); e.gain.exponentialRampToValueAtTime(g, t - .02); e.gain.linearRampToValueAtTime(0, t + .015);
+    link(noise(ctx, 'pink', t - len, len + .05, r), bp, e, mb); rv(e, .4); };
+  braam(T(0), false); braam(T(4), false); braam(T(8), false); braam(end, true);
+  swell(T(4), bar * .75, .5); swell(T(8), bar, .7); swell(end, bar * 2, 1.2);
+
+  /* 战鼓 */
+  const tom = (t, g, f, pn) => { const o = osc(ctx, 'sine', f, t, .5), p = P(ctx, pn); o.frequency.setValueAtTime(f * 1.7, t); o.frequency.exponentialRampToValueAtTime(f * .7, t + .12); link(o, pg(ctx, t, .002, .3, .75 * g), p); nb(ctx, p, t, r, {a:.001, d:.05, g:.9 * g, lp:900}); nb(ctx, p, t, r, {a:.0005, d:.02, g:.35 * g, bp:2200, q:.8}); p.connect(mb); rv(p, .35); };
+  for (let b = 6; b < bars; b++){
+    tom(T(b) + 1.5 * beat, .6, 88, -.4); tom(T(b) + 3.5 * beat, .7, 72, .4);
+    if (b >= 8) [10, 11, 13, 14, 15].forEach((i, k) => { if (b % 2 || k > 1) tom(T(b) + i * s16, .45 + k * .09, [118, 104, 92, 80, 68][k] * r(.97, 1.03), -.6 + k * .3); });
+  }
+
+  /* 诡异的高音钟声动机 */
+  [[1, 31], [3, 32], [5, 27], [7, 32], [9, 34], [10.5, 37]].forEach(([b, n]) => { const t = T(b) + r.pick([0, 2, 2.5]) * beat, f = hz(root + 12 + n), p = P(ctx, r(-.6, .6));
+    [[1, 1, 1.6], [2.76, .35, .7], [5.4, .15, .3]].forEach(([m, g, d]) => link(osc(ctx, 'sine', f * m, t, d + .1, r(-6, 6)), pg(ctx, t, .003, d, .07 * g), p)); p.connect(mb); rv(p, 1.2); });
+  return total + 4.5;
+}
+
+/* ============================================================
+   音效清单
+   ============================================================ */
+const SOUNDS = [
+  {id:'shot_out', cat:'weapon', key:'1', name:'步枪单发 · 室外', en:'RIFLE / OPEN', desc:'裂响 + 爆轰 + 胸腔冲击，开阔地稀疏回拍与长滚尾。', vars:['标准','厚重','清脆'], fn:shotOutdoor, len:4.4},
+  {id:'shot_in',  cat:'weapon', key:'2', name:'步枪单发 · 室内', en:'RIFLE / INTERIOR', desc:'同一把枪，短而密的早期反射、墙面颤动回声和驻波。', vars:['标准','厚重','清脆'], fn:shotIndoor, len:2.2},
+  {id:'mag_out',  cat:'reload', key:'3', name:'换弹 ① 退弹匣', en:'MAG RELEASE', desc:'卡榫按下、弹匣滑出、空匣脱离的闷响。', vars:['利落','快拔','带晃'], fn:magOut, len:1.1},
+  {id:'mag_in',   cat:'reload', key:'4', name:'换弹 ② 上弹匣', en:'MAG INSERT', desc:'匣口对位、上扫推入、到位咔哒与卡榫回弹。', vars:['利落','拍底','轻快'], fn:magIn, len:1.1},
+  {id:'bolt',     cat:'reload', key:'5', name:'换弹 ③ 拉枪栓', en:'CHARGING HANDLE', desc:'后拉棘齿刮擦、后止点、复进闭锁和簧片余振。', vars:['标准','慢拉','急拉'], fn:boltRack, len:1.3},
+  {id:'shell',    cat:'foley',  key:'6', name:'弹壳落地', en:'BRASS CASING', desc:'黄铜壳体模态，弹跳间隔递减，末段碎跳或打转。', vars:['弹跳','打转','碎跳'], fn:shell, len:2.2},
+  {id:'step_con', cat:'foley',  key:'7', name:'脚步 · 水泥', en:'STEP / CONCRETE', desc:'脚跟闷击、鞋底拍地、砂砾碾磨。', vars:['跟—掌','拖蹭','重踏'], fn:stepConcrete, len:.9},
+  {id:'step_met', cat:'foley',  key:'8', name:'脚步 · 金属', en:'STEP / METAL', desc:'钢板非谐分音振铃，松动件二次碰撞。', vars:['钢板','格栅','空心梯'], fn:stepMetal, len:1.7},
+  {id:'step_wat', cat:'foley',  key:'9', name:'脚步 · 积水', en:'STEP / PUDDLE', desc:'水花上扫、水雾、溅起水珠逐颗落回。', vars:['水洼','深水','浅溅'], fn:stepWater, len:1.4},
+  {id:'whiz',     cat:'ballistic', key:'0', name:'子弹掠过耳边', en:'BULLET FLY-BY', desc:'多普勒下滑 + 左右声像横扫，近距带弹道波。', vars:['超音速','亚音速','高速擦过'], fn:whiz, len:2},
+  {id:'rico',     cat:'ballistic', key:'q', name:'跳弹', en:'RICOCHET', desc:'击中碎屑 + 翻滚弹头的颤动啸叫，逐渐远去。', vars:['下滑','先扬后抑','短促'], fn:ricochet, len:2.6},
+  {id:'rain',     cat:'amb', key:'w', name:'雨声（持续）', en:'RAIN LOOP', desc:'雨幕嘶声、雨点颗粒、低频底噪和近处水滴，阵风起伏。再点一次停止。', vars:['细雨','中雨','暴雨'], fn:rain, len:12, loop:true, toggle:true},
+  {id:'thunder',  cat:'amb', key:'e', name:'远处雷声', en:'DISTANT THUNDER', desc:'棕噪低通 + 次低频，多段慢包络滚动。', vars:['长滚','先炸后滚','两阵'], fn:thunder, len:13.5},
+  {id:'music',    cat:'music', key:'r', name:'紧张配乐 · 约 30 秒', en:'TENSION CUE', desc:'脉冲低音、心跳底鼓、不协和弦乐簇、铜管重击与战鼓，12 小节推到顶点。再点一次停止。', vars:['D 100bpm','E 96bpm','C♯ 104bpm'], fn:music, len:34, toggle:true},
+];
+const CATS = [['weapon','WEAPON','武器'], ['reload','RELOAD','换弹三段'], ['foley','FOLEY','弹壳与脚步'], ['ballistic','BALLISTICS','弹道'], ['amb','AMBIENCE','环境'], ['music','SCORE','配乐']];
+const BYID = Object.fromEntries(SOUNDS.map(s => [s.id, s]));
+
+/* ============================================================
+   播放引擎
+   ============================================================ */
+let AC = null, M = null;
+const active = new Set(), running = {}, bags = {}, lastVar = {};
+function ensure(){
+  if (!AC){ AC = new (window.AudioContext || window.webkitAudioContext)({sampleRate: SR, latencyHint: 'interactive'}); M = buildMaster(AC, true); M.vol.gain.value = +$('#vol').value; }
+  if (AC.state !== 'running') AC.resume();
+}
+function nextVar(id){                                    // 洗牌袋：三个原型轮完才重复，且不连着两次相同
+  let b = bags[id];
+  if (!b || !b.length){ b = [0, 1, 2]; for (let i = 2; i > 0; i--){ const j = Math.random() * (i + 1) | 0; [b[i], b[j]] = [b[j], b[i]]; } if (b[b.length - 1] === lastVar[id]) b.reverse(); bags[id] = b; }
+  return lastVar[id] = b.pop();
+}
+function endInst(inst, fade = .08){
+  if (!active.has(inst)) return; active.delete(inst); inst.alive = false; inst.timers.forEach(clearTimeout);
+  if (running[inst.s.id] === inst) delete running[inst.s.id];
+  const t = AC.currentTime; inst.voice.gain.setTargetAtTime(0, t, fade); inst.sends.forEach(g => g.gain.setTargetAtTime(0, t, fade));
+  setTimeout(() => inst.voice.disconnect(), fade * 8000 + 100);
+  cardOff(inst.s, inst);
+}
+function trigger(s, o = {}){
+  ensure();
+  if (s.toggle && running[s.id]){ endInst(running[s.id], .12); if (o.variant === undefined && !o.force) return; }
+  const v = o.variant !== undefined ? (lastVar[s.id] = o.variant) : nextVar(s.id), seed = (Math.random() * 4294967296) >>> 0, delay = o.delay || 0;
+  const voice = G(AC, 1); voice.connect(M.bus);
+  const inst = {s, voice, timers: [], sends: [], alive: true, v, seed}, t = AC.currentTime + .04 + delay;
+  active.add(inst); if (s.toggle) running[s.id] = inst;
+  if (s.loop){
+    const CH = 14, OV = 2, r = RNG(seed); let tn = t;
+    (function sched(){ if (!inst.alive) return; SENDS = inst.sends; try { s.fn(AC, voice, tn, r, v, CH); } finally { SENDS = null; } tn += CH - OV; inst.timers.push(setTimeout(sched, Math.max(500, (tn - AC.currentTime - 4) * 1000))); })();
+  } else {
+    SENDS = inst.sends; try { s.fn(AC, voice, t, RNG(seed), v); } finally { SENDS = null; }
+    inst.timers.push(setTimeout(() => endInst(inst, .02), (delay + s.len + .6) * 1000));
+  }
+  inst.timers.push(setTimeout(() => cardOn(s, inst), delay * 1000));
+  if (!o.noThumb) renderOffline(s, seed, v, s.loop ? 8 : s.len).then(b => drawThumb(s, b)).catch(() => {});
+}
+function stopAll(){ [...active].forEach(i => endInst(i, .06)); demoTimers.forEach(clearTimeout); demoTimers = []; }
+function renderOffline(s, seed, v, len){
+  len = len || s.len;
+  const oc = new OfflineAudioContext(2, Math.ceil(SR * (len + .1)), SR), m = buildMaster(oc, false), voice = G(oc, 1); voice.connect(m.bus);
+  s.fn(oc, voice, .02, RNG(seed), v, s.loop ? len : undefined);
+  return oc.startRendering();
+}
+let demoTimers = [];
+function demo(){
+  ensure();
+  if (!running.rain) trigger(BYID.rain, {variant: 1, noThumb: true});
+  const tl = [['thunder', .3], ['step_con', 1], ['step_con', 1.48], ['step_con', 1.95], ['step_con', 2.42], ['step_met', 2.95], ['step_met', 3.4], ['step_met', 3.86],
+    ['shot_out', 4.6], ['shell', 5.0], ['shot_out', 4.75], ['shell', 5.18], ['shot_out', 4.9], ['shell', 5.33], ['whiz', 5.7], ['whiz', 6.0], ['rico', 6.25], ['whiz', 6.6],
+    ['step_wat', 7.3], ['step_wat', 7.72], ['step_wat', 8.12], ['mag_out', 8.8], ['mag_in', 9.75], ['bolt', 10.6],
+    ['shot_in', 11.8], ['shell', 12.2], ['shot_in', 11.94], ['shell', 12.37], ['shot_in', 12.08], ['shot_in', 12.5], ['rico', 12.9], ['thunder', 13.4]];
+  tl.forEach(([id, t]) => trigger(BYID[id], {delay: t, noThumb: true}));
+}
+
+/* ============================================================
+   界面
+   ============================================================ */
+const $ = q => document.querySelector(q);
+const cards = {};
+function build(){
+  const board = $('#board');
+  CATS.forEach(([cat, en, zh]) => {
+    const sec = document.createElement('section'); sec.innerHTML = `<h2><b>${en}</b>${zh}</h2><div class="grid"></div>`;
+    const grid = sec.querySelector('.grid');
+    SOUNDS.filter(s => s.cat === cat).forEach(s => {
+      const c = document.createElement('div'); c.className = 'card'; c.tabIndex = 0; c.dataset.id = s.id; c.style.setProperty('--len', s.len + 's');
+      if (s.id === 'music' || s.id === 'rain') c.style.gridColumn = 'span 2';
+      c.innerHTML = `<div class="top"><span class="key">${s.key.toUpperCase()}</span><span class="en">${s.en}</span></div>
+        <div class="nm">${s.name}</div><div class="ds">${s.desc}</div><canvas></canvas>
+        <div class="bot">${s.vars.map((n, i) => `<button class="chip" data-v="${i}" title="指定变体">${'ABC'[i]} ${n}</button>`).join('')}<span class="seed">seed —</span></div><div class="bar"></div>`;
+      c.addEventListener('click', e => { const ch = e.target.closest('.chip'); trigger(s, ch ? {variant: +ch.dataset.v} : {}); });
+      c.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); trigger(s); } });
+      grid.appendChild(c); cards[s.id] = {el: c, n: 0, cv: c.querySelector('canvas')};
+    });
+    board.appendChild(sec);
+  });
+}
+function cardOn(s, inst){
+  const c = cards[s.id]; c.n++; inst.shown = true;
+  c.el.classList.remove('on'); void c.el.offsetWidth; c.el.classList.add('on');
+  c.el.querySelectorAll('.chip').forEach((ch, i) => ch.classList.toggle('sel', i === inst.v));
+  c.el.querySelector('.seed').textContent = 'seed ' + inst.seed.toString(16).padStart(8, '0');
+  c.el.style.setProperty('--len', (s.loop ? 14 : s.len) + 's');
+  $('#now').textContent = s.name + ' · ' + 'ABC'[inst.v] + ' ' + s.vars[inst.v];
+}
+function cardOff(s, inst){ if (!inst.shown) return; const c = cards[s.id]; c.n = Math.max(0, c.n - 1); if (!c.n) c.el.classList.remove('on'); }
+function fit(cv){ const d = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth * d | 0, h = cv.clientHeight * d | 0; if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; } return cv.getContext('2d'); }
+function drawThumb(s, buf){
+  const cv = cards[s.id].cv, g = fit(cv), W = cv.width, H = cv.height, L = buf.getChannelData(0), R = buf.getChannelData(1); let n = L.length, last = 0, pk = 1e-4; for (let i = 0; i < n; i += 4){ const a = Math.abs(L[i]) + Math.abs(R[i]); if (a > .004) last = i; if (a > pk) pk = a; } n = Math.min(n, last + SR * .15 | 0); const st = n / W, nk = Math.min(4, 1.7 / pk);
+  g.clearRect(0, 0, W, H); g.fillStyle = 'rgba(255,178,36,.85)';
+  for (let x = 0; x < W; x++){ let mn = 0, mx = 0; const a = x * st | 0, b = Math.min(n, (x + 1) * st | 0); for (let i = a; i < b; i += 1 + (st / 200 | 0)){ const v = (L[i] + R[i]) * .5; if (v < mn) mn = v; if (v > mx) mx = v; }
+    const y0 = H / 2 - mx * nk * H / 2, y1 = H / 2 - mn * nk * H / 2; g.fillRect(x, y0, 1, Math.max(1, y1 - y0)); }
+}
+function idleThumb(cv){ const g = fit(cv); g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(0, cv.height / 2 | 0, cv.width, 1); }
+
+/* ---------- 可视化 ---------- */
+const LUT = (() => { const st = [[0, 7, 9, 8], [.25, 12, 52, 54], [.55, 58, 214, 189], [.8, 255, 178, 36], [1, 255, 246, 220]], a = new Uint8Array(256 * 3);
+  for (let i = 0; i < 256; i++){ const x = i / 255; let k = 0; while (k < st.length - 2 && x > st[k + 1][0]) k++; const p = st[k], q = st[k + 1], f = Math.min(1, Math.max(0, (x - p[0]) / (q[0] - p[0]))); for (let c = 0; c < 3; c++) a[i * 3 + c] = p[c + 1] + (q[c + 1] - p[c + 1]) * f; } return a; })();
+const NB = 112, peaks = new Float32Array(NB);
+let td = null, fd = null, clipT = 0, pkHold = 0;
+function draw(){
+  requestAnimationFrame(draw);
+  const sc = $('#scope canvas'), sp = $('#spec canvas'), gr = $('#gram canvas'), g1 = fit(sc), g2 = fit(sp), g3 = fit(gr);
+  const an = M && M.an;
+  if (an){ if (!td){ td = new Float32Array(an.fftSize); fd = new Float32Array(an.frequencyBinCount); } an.getFloatTimeDomainData(td); an.getFloatFrequencyData(fd); }
+  /* 波形 */
+  let W = sc.width, H = sc.height; g1.clearRect(0, 0, W, H);
+  g1.strokeStyle = 'rgba(255,255,255,.05)'; g1.lineWidth = 1; g1.beginPath(); for (let i = 1; i < 8; i++){ g1.moveTo(W * i / 8, 0); g1.lineTo(W * i / 8, H); } for (let i = 1; i < 4; i++){ g1.moveTo(0, H * i / 4); g1.lineTo(W, H * i / 4); } g1.stroke();
+  let pk = 0, sq = 0;
+  g1.beginPath();
+  if (td){ const N = 2048; let s0 = 0; for (let i = 1; i < td.length - N; i++){ if (td[i - 1] <= 0 && td[i] > 0){ s0 = i; break; } }
+    for (let i = 0; i < td.length; i++){ const a = Math.abs(td[i]); if (a > pk) pk = a; sq += td[i] * td[i]; }
+    for (let x = 0; x < W; x++){ const v = td[s0 + (x / W * N | 0)] || 0, y = H / 2 - v * H * .46; x ? g1.lineTo(x, y) : g1.moveTo(x, y); }
+  } else { g1.moveTo(0, H / 2); g1.lineTo(W, H / 2); }
+  g1.strokeStyle = '#3ad6bd'; g1.lineWidth = 1.6 * (W / sc.clientWidth); g1.shadowColor = '#3ad6bd'; g1.shadowBlur = 10; g1.stroke(); g1.shadowBlur = 0;
+  /* 频谱 */
+  W = sp.width; H = sp.height; g2.clearRect(0, 0, W, H);
+  const dpr = W / sp.clientWidth, lo = Math.log(20), hi = Math.log(20000);
+  g2.font = `${10 * dpr}px ui-monospace,Menlo,monospace`; g2.fillStyle = 'rgba(255,255,255,.28)'; g2.strokeStyle = 'rgba(255,255,255,.06)'; g2.lineWidth = 1;
+  [50, 100, 200, 500, 1000, 2000, 5000, 10000].forEach(f => { const x = (Math.log(f) - lo) / (hi - lo) * W; g2.beginPath(); g2.moveTo(x, 0); g2.lineTo(x, H); g2.stroke(); });
+  [-80, -60, -40, -20].forEach(db => { const y = H - (db + 100) / 92 * H; g2.beginPath(); g2.moveTo(0, y); g2.lineTo(W, y); g2.stroke(); g2.fillText(db + 'dB', W - 34 * dpr, y - 3 * dpr); });
+  const bw = W / NB, grad = g2.createLinearGradient(0, H, 0, 0); grad.addColorStop(0, '#0f5a52'); grad.addColorStop(.55, '#3ad6bd'); grad.addColorStop(.85, '#ffb224'); grad.addColorStop(1, '#ff5a4a');
+  for (let b = 0; b < NB; b++){
+    let v = 0;
+    if (fd){ const f0 = Math.exp(lo + (hi - lo) * b / NB), f1 = Math.exp(lo + (hi - lo) * (b + 1) / NB), i0 = Math.max(1, f0 / (SR / 2) * fd.length | 0), i1 = Math.max(i0 + 1, f1 / (SR / 2) * fd.length | 0); let m = -200; for (let i = i0; i < i1 && i < fd.length; i++) if (fd[i] > m) m = fd[i]; v = Math.max(0, Math.min(1, (m + 100) / 92)); }
+    peaks[b] = Math.max(v, peaks[b] - .006);
+    g2.fillStyle = grad; g2.fillRect(b * bw + 1, H - v * H, Math.max(1, bw - 2), v * H);
+    g2.fillStyle = 'rgba(255,246,220,.85)'; g2.fillRect(b * bw + 1, H - peaks[b] * H - 2 * dpr, Math.max(1, bw - 2), 1.5 * dpr);
+  }
+  g2.fillStyle = 'rgba(8,10,9,.55)'; g2.fillRect(0, H - 16 * dpr, W, 16 * dpr); g2.fillStyle = 'rgba(255,255,255,.7)';
+  [50, 100, 200, 500, 1000, 2000, 5000, 10000].forEach(f => g2.fillText(f >= 1000 ? f / 1000 + 'k' : f, (Math.log(f) - lo) / (hi - lo) * W + 3 * dpr, H - 5 * dpr));
+  /* 声谱瀑布 */
+  W = gr.width; H = gr.height; const stp = Math.max(1, Math.round(dpr * 1.5));
+  g3.drawImage(gr, -stp, 0);
+  const col = g3.createImageData(stp, H);
+  for (let y = 0; y < H; y++){ let v = 0; if (fd){ const f = Math.exp(lo + (hi - lo) * (1 - y / H)), i = Math.min(fd.length - 1, Math.max(1, Math.round(f / (SR / 2) * fd.length))); v = Math.max(0, Math.min(1, (fd[i] + 98) / 84)); }
+    const k = (v * v * 255 | 0) * 3; for (let x = 0; x < stp; x++){ const o = (y * stp + x) * 4; col.data[o] = LUT[k]; col.data[o + 1] = LUT[k + 1]; col.data[o + 2] = LUT[k + 2]; col.data[o + 3] = 255; } }
+  g3.putImageData(col, W - stp, 0);
+  /* 读数 */
+  const rms = td ? Math.sqrt(sq / td.length) : 0; pkHold = Math.max(pk, pkHold * .96);
+  $('#pk').textContent = pkHold > 1e-5 ? (20 * Math.log10(pkHold)).toFixed(1) : '-∞';
+  $('#rms').textContent = rms > 1e-5 ? (20 * Math.log10(rms)).toFixed(1) : '-∞';
+  $('#mt').style.width = Math.max(0, Math.min(100, (20 * Math.log10(pkHold + 1e-6) + 60) / 60 * 100)) + '%';
+  $('#vc').textContent = active.size;
+  if (pk >= .985) clipT = performance.now();
+  const led = $('#led'); led.className = 'led' + (performance.now() - clipT < 400 ? ' clip' : AC && AC.state === 'running' ? ' on' : '');
+  if (AC) $('#state').textContent = (AC.state === 'running' ? '引擎运行中' : '引擎挂起') + ' · ' + AC.sampleRate / 1000 + ' kHz';
+}
+
+/* ---------- 事件 ---------- */
+build();
+Object.values(cards).forEach(c => idleThumb(c.cv));
+requestAnimationFrame(draw);
+$('#vol').addEventListener('input', e => { if (M) M.vol.gain.setTargetAtTime(+e.target.value, AC.currentTime, .02); });
+$('#stop').addEventListener('click', stopAll);
+$('#demo').addEventListener('click', demo);
+addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.repeat && e.key === ' ') return;
+  if (e.key === ' '){ e.preventDefault(); if (AC) stopAll(); return; }
+  if (e.target.tagName === 'INPUT') return;
+  const s = SOUNDS.find(s => s.key === e.key.toLowerCase()); if (s){ e.preventDefault(); if (e.repeat && s.toggle) return; trigger(s); }
+});
+
+/* ============================================================
+   离线自检：window.__selfTest() → window.__report
+   每个音效 3 个原型各渲染一次，再用同一原型换种子渲染一次，走与实时相同的主链路
+   ============================================================ */
+function analyze(buf){
+  const L = buf.getChannelData(0), R = buf.getChannelData(1), n = L.length;
+  let peak = 0, clip = 0, sq = 0, first = -1, last = -1, gap = 0, maxGap = 0, nan = 0, dc = 0;
+  for (let i = 0; i < n; i++){
+    const a = Math.max(Math.abs(L[i]), Math.abs(R[i]));
+    if (a !== a) nan++;
+    if (a > peak) peak = a; if (a > .999) clip++; sq += (L[i] * L[i] + R[i] * R[i]) * .5; dc += L[i];
+    if (a > .001){ if (first < 0) first = i; last = i; if (gap > maxGap) maxGap = gap; gap = 0; } else if (first >= 0) gap++;
+  }
+  const win = SR * .01 | 0, env = []; for (let i = 0; i + win <= n; i += win){ let s = 0; for (let j = i; j < i + win; j++) s += L[j] * L[j] + R[j] * R[j]; env.push(Math.sqrt(s / win / 2)); }
+  let pi = 0; env.forEach((e, i) => { if (e > env[pi]) pi = i; });
+  let d40 = pi; for (let i = env.length - 1; i > pi; i--) if (env[i] > env[pi] * .01){ d40 = i; break; }
+  let diffLR = 0, sum = 0; for (let i = 0; i < n; i++){ diffLR += (L[i] - R[i]) ** 2; sum += L[i] * L[i] + R[i] * R[i]; }
+  const f = x => +x.toFixed(4);
+  return {peak: f(peak), peakDb: f(20 * Math.log10(peak + 1e-9)), clip, nan, rmsDb: f(10 * Math.log10(sq / Math.max(1, last - first) + 1e-12)), lead: f(first / SR), dur: f((last - first) / SR), maxGap: f(maxGap / SR), decay40: f((d40 - pi) * .01), dc: f(dc / n), stereo: f(diffLR / (sum + 1e-12))};
+}
+function ndiff(a, b){ const x = a.getChannelData(0), y = b.getChannelData(0); let d = 0, s = 0; for (let i = 0; i < x.length; i++){ d += (x[i] - y[i]) ** 2; s += x[i] * x[i] + y[i] * y[i]; } return +(d / (s + 1e-12)).toFixed(3); }
+window.__selfTest = async ids => {
+  const rep = {}; window.__report = null; window.__err = null;
+  try {
+    for (const s of SOUNDS){
+      if (ids && !ids.includes(s.id)) continue;
+      const len = s.loop ? 10 : s.len, bufs = [];
+      for (let v = 0; v < 3; v++) bufs.push(await renderOffline(s, 1000 + v * 7919, v, len));
+      const again = await renderOffline(s, 424242, 0, len);
+      rep[s.id] = {vars: bufs.map(analyze), diffAB: ndiff(bufs[0], bufs[1]), diffAC: ndiff(bufs[0], bufs[2]), diffBC: ndiff(bufs[1], bufs[2]), sameVarNewSeed: ndiff(bufs[0], again)};
+    }
+  } catch (e){ window.__err = String(e && e.stack || e); }
+  window.__report = rep; return rep;
+};
+</script>
+</body>
+</html>
