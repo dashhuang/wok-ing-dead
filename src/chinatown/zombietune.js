@@ -39,6 +39,19 @@ export const ZOMBIES = {
   sightCone: 150,
   senseRadius: 8,
   hearRadius: 45,
+  // A wanderer (spawned with { dull: true }) is the dead of the films: it shuffles about the
+  // street and takes no notice until someone comes close, hurts it or fires nearby. These
+  // replace the four numbers above for as long as it has not gone for anyone; once it has,
+  // it is as sharp as the rest. rally: how far its howl carries to other wanderers;
+  // roam: how far from where it stood a shuffle takes it.
+  wander: {
+    sightRange: 9,
+    sightCone: 110,
+    senseRadius: 5,
+    hearRadius: 14,
+    rally: 7,
+    roam: 9,
+  },
   loseInterest: 14,
   corpseTime: 16,
   maxCorpses: 12,

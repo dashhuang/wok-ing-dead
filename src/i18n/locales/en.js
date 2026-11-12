@@ -61,7 +61,7 @@ export default {
   "dead.kicker": "Order cancelled",
   "dead.title": "You're cooked.",
   "dead.time": "Time on the line",
-  "dead.sirens": "Sirens silenced",
+  "dead.sirens": "Stoves lit",
   "dead.waves": "Rounds served",
   "dead.kills": "Dead in the wok",
   "dead.score": "Bill",
@@ -114,7 +114,7 @@ export default {
   "ctl.aim": "Aim",
   "ctl.reload": "Reload",
   "ctl.swap": "Swap weapon",
-  "ctl.cut": "Silence siren",
+  "ctl.cut": "Light a stove",
   "ctl.jump": "Jump",
   "ctl.sprint": "Sprint",
   "ctl.crouch": "Crouch",
@@ -131,7 +131,7 @@ export default {
   "ctl.crouchKeysHtml": "<kbd>C</kbd> or <kbd>Ctrl</kbd>",
   "ctl.pauseKeysHtml": "<kbd>Esc</kbd> or <kbd>P</kbd>",
   "ctl.sticks": "Left stick · Right stick",
-  "ctl.padCutHtml": "Hold <kbd>X</kbd> at a siren box",
+  "ctl.padCutHtml": "Hold <kbd>X</kbd> at a stove",
   "ctl.padSwapHtml":
     "<kbd>Y</kbd> last (hold: wheel) · D-pad ← → next / previous",
   "ctl.padCrouchHtml": "<kbd>B</kbd> or <kbd>LB</kbd>",
@@ -143,7 +143,7 @@ export default {
   "ctl.touchAim": "Aim toggles",
   "ctl.touchReload": "Reload button",
   "ctl.touchJump": "Jump button",
-  "ctl.touchCut": "Hold Use at a siren box",
+  "ctl.touchCut": "Hold Use at a stove",
   "ctl.touchSprint": "Push the stick fully forward",
   "ctl.noteMouseHtml":
     "If the browser will not capture the mouse, hold a mouse button and drag to look (left also fires, right also aims). Arrow keys or <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> turn, <kbd>Enter</kbd> fires.",
@@ -155,7 +155,7 @@ export default {
   "legend.touch": "Touch",
   "legend.sidearm": "Last weapon",
   "legend.padSticks": "Sticks move and look",
-  "legend.padReload": "Reload / silence",
+  "legend.padReload": "Reload / light stove",
   "legend.touchMove": "Left thumb moves",
   "legend.touchLook": "Right thumb looks",
   "legend.touchButtons": "Fire · Aim · Reload · Jump on screen",
@@ -171,7 +171,7 @@ export default {
   "loc.unit": "One warden on the line. No backup.",
 
   "hud.objective": "Objective",
-  "hud.sirens": "Sirens",
+  "hud.sirens": "Stoves",
   "hud.holdTo": "Hold {key} — {action}",
   "hud.vitals": "Vitals",
   "hud.reloading": "Reloading",
@@ -191,14 +191,14 @@ export default {
   "weapon.rifle": "LK-9 Carbine",
   "weapon.pistol": "LK-4 Sidearm",
 
-  "obj.cutAll": "Silence the three evac sirens",
-  "obj.cutLast": "Silence the last siren",
-  "obj.cutN": "Silence the remaining {n} sirens",
+  "obj.cutAll": "Light the three stoves",
+  "obj.cutLast": "Light the last stove",
+  "obj.cutN": "Light the remaining {n} stoves",
   "obj.extract": "Get to the checkpoint",
   "obj.hold": "Hold the street",
   "obj.breathe": "Catch your breath",
   "obj.coming": "The dead are coming",
-  "obj.prompt": "Silence siren {id}",
+  "obj.prompt": "Light stove {id}",
   "obj.extractLocked":
     "Sirens still live — the truck stays shut while they howl",
   "obj.cache": "Siren box cache — +{n} rounds",
@@ -228,15 +228,16 @@ export default {
   "compass.315": "NW",
 
   "radio.intro":
-    "Warden, this is Lantern Control. Chinatown is lost. Your truck reaches the checkpoint in nine minutes. Stay alive until then — count your rounds; lit supply crates are stocked, and the colour of the lamp is the kind of ammunition.",
+    "Night Watch, this is Lantern. Chinatown is lost; the truck reaches the checkpoint in nine minutes. The dead in the street have not noticed you yet. Three street stoves still work: light one and the smell brings them all. Hold out until the dish is up and it is yours. Ammo is in the lit supply crates.",
   "radio.contact":
     "They have your scent. Head shots put them down. Do not let them close.",
   "radio.cut1":
-    "One siren down. The whole street heard it go — here they come. What was in the box is yours.",
-  "radio.cut2": "Two silent. They are pouring out of every doorway now.",
+    "The stove is lit. The whole street can smell it — here they come. Stay by it, don't let the dish go cold.",
+  "radio.cut2": "Second stove. Every doorway is spilling them out.",
   "radio.all":
     "All three silent. The truck is at the east checkpoint, engine running. Move.",
-  "radio.low": "You are bleeding badly. Break contact and breathe.",
+  "radio.low":
+    "You're losing a lot of blood. Break contact and find something to eat.",
   "radio.done": "Warden is through the wire. Chinatown is sealed. Good work.",
 
   "input.touch": "Touch controls active",
@@ -259,7 +260,7 @@ export default {
   // the run (set meal): timeline, level-ups, pickups
   "ctl.pick": "Choose a ticket",
   "ctl.touchPick": "Tap a ticket",
-  "radio.cut3": "All three silent. You just took every order in the house.",
+  "radio.cut3": "All three stoves burning. Tonight's orders are all yours.",
   "radio.boss":
     "The truck is here — and so is the big one that followed it. Put it down and the gate opens.",
   "radio.bossDown":
@@ -309,6 +310,14 @@ export default {
   "run.card.ammo": "Extra Helping",
   "run.card.ammo.d": "Full ammo",
   "run.toast.ammo": "+{n} {a}",
+  "radio.served": "Order up! While it's hot.",
+  "run.cook.bar": "Cooking — stay by the stove",
+  "run.cook.away": "Back to the stove — it's going cold",
+  "run.dish.soup": "Order up — slow broth — full health, max +{n}",
+  "run.dish.stock": "Order up — stock — ammo full, capacity +{n}%",
+  "run.dish.lucky": "Order up — lucky money — {n} red envelopes",
+  "run.toast.food": "+{n} health",
+  "run.toast.reloadAll": "All weapons reloaded",
   "run.toast.cache": "Supply crate — {a} +{n}",
   "run.toast.refill": "Siren box — ammo full",
   "run.toast.weapon": "Red envelope — {w} to level {n}",
@@ -453,9 +462,9 @@ export default {
   "radio.intro@docks":
     "Warden, this is Lantern Control. The docks are lost. Your boat reaches the south-east quay in nine minutes. Stay alive until then — count your rounds; lit supply crates are stocked, and the colour of the lamp is the kind of ammunition.",
   "radio.cut1@docks":
-    "One siren down. The whole yard heard it go — here they come. What was in the box is yours.",
+    "The stove is lit. The whole yard can smell it — here they come. Stay by it, don't let the dish go cold.",
   "radio.cut2@docks":
-    "Two silent. They are coming out from between every stack now.",
+    "Second stove. They're pouring out from behind every stack.",
   "radio.all@docks":
     "All three silent. The boat is at the south-east quay, engine running. Move.",
   "radio.done@docks": "Warden is aboard. The docks are sealed. Good work.",

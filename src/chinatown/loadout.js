@@ -149,6 +149,7 @@ export function createLoadout(G, on = {}) {
           const type = ARMS[id].ammo;
           const got = Math.min(want, have(type) / p);
           setPool(type, have(type) - got * p);
+          reloadRest(id);
           return got;
         };
         a.combat.setMods(mods);
@@ -192,6 +193,55 @@ export function createLoadout(G, on = {}) {
     }
     G.weapon.reloadScale = 1;
   }
+
+  // ---------- one reload fills every magazine
+  // Reloading the weapon in hand tops up the ones put away too, each from its own pool, so
+  // an empty magazine is answered by changing weapon and one quiet moment reloads them all.
+  function reloadRest(done) {
+    if (!active) return;
+    let filled = 0;
+    for (const id of owned()) {
+      if (id === done) continue;
+      if (ARMS[id].own) {
+        const slot = G.weapon.rigs[id] && G.weapon.rigs[id].slot;
+        if (!slot) continue;
+        const want = slot.magSize - slot.ammo;
+        // the sidearm's reserve is bottomless; the carbine's is the bullets pool
+        const got = slot.reserve == null ? want : Math.min(want, slot.reserve);
+        if (got <= 0) continue;
+        slot.ammo += got;
+        if (slot.reserve != null) slot.reserve -= got;
+        filled++;
+        continue;
+      }
+      const it = inv.get(id);
+      const spec = armory && armory.spec(id, it.branch, it.level);
+      // blades have no magazine, charms come back by themselves
+      if (!spec || !spec.mag || spec.mag === Infinity || spec.regen) continue;
+      const rounds = it.rounds ?? spec.mag;
+      const p = perOf(id);
+      const type = ARMS[id].ammo;
+      const got = p
+        ? Math.min(spec.mag - rounds, have(type) / p)
+        : spec.mag - rounds;
+      if (got <= 0) continue;
+      if (p) setPool(type, have(type) - got * p);
+      it.rounds = rounds + got;
+      filled++;
+    }
+    if (filled && on.reloaded) on.reloaded(filled);
+  }
+  // the game's own two guns say when the fresh magazine goes in
+  G.events.on("weapon:reload", (e) => {
+    if (
+      active &&
+      e &&
+      e.phase === "magin" &&
+      ARMS[e.weapon] &&
+      cur === e.weapon
+    )
+      reloadRest(e.weapon);
+  });
 
   // ---------- taking a weapon in hand
   function stash() {

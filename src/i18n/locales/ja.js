@@ -57,7 +57,7 @@ export default {
   "dead.kicker": "注文キャンセル",
   "dead.title": "冷めちまった。",
   "dead.time": "持ちこたえた時間",
-  "dead.sirens": "止めたサイレン",
+  "dead.sirens": "点けた竈",
   "dead.waves": "しのいだウェーブ",
   "dead.kills": "鍋に放り込んだ死者",
   "dead.score": "お会計",
@@ -110,7 +110,7 @@ export default {
   "ctl.aim": "エイム",
   "ctl.reload": "リロード",
   "ctl.swap": "武器切替",
-  "ctl.cut": "サイレン停止",
+  "ctl.cut": "竈に火を入れる",
   "ctl.jump": "ジャンプ",
   "ctl.sprint": "ダッシュ",
   "ctl.crouch": "しゃがむ",
@@ -127,7 +127,7 @@ export default {
   "ctl.crouchKeysHtml": "<kbd>C</kbd> または <kbd>Ctrl</kbd>",
   "ctl.pauseKeysHtml": "<kbd>Esc</kbd> または <kbd>P</kbd>",
   "ctl.sticks": "左スティック · 右スティック",
-  "ctl.padCutHtml": "サイレン箱の前で <kbd>X</kbd> 長押し",
+  "ctl.padCutHtml": "竈の前で <kbd>X</kbd> 長押し",
   "ctl.padSwapHtml":
     "<kbd>Y</kbd> 前の武器（長押し：ホイール）· 十字キー ← → 順番に切替",
   "ctl.padCrouchHtml": "<kbd>B</kbd> または <kbd>LB</kbd>",
@@ -139,7 +139,7 @@ export default {
   "ctl.touchAim": "エイムボタンで切替",
   "ctl.touchReload": "リロードボタン",
   "ctl.touchJump": "ジャンプボタン",
-  "ctl.touchCut": "サイレン箱の前で使用ボタン長押し",
+  "ctl.touchCut": "竈の前で使用ボタン長押し",
   "ctl.touchSprint": "スティックを前に倒し切る",
   "ctl.noteMouseHtml":
     "ブラウザがマウスをロックできない場合は、マウスボタンを押したままドラッグして視点を動かせます（左は射撃、右はエイムも兼ねます）。矢印キーまたは <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> で旋回、<kbd>Enter</kbd> で射撃。",
@@ -151,7 +151,7 @@ export default {
   "legend.touch": "タッチ",
   "legend.sidearm": "前の武器",
   "legend.padSticks": "スティックで移動と視点",
-  "legend.padReload": "リロード / 停止",
+  "legend.padReload": "リロード / 竈に点火",
   "legend.touchMove": "左手で移動",
   "legend.touchLook": "右手で視点",
   "legend.touchButtons": "射撃 · エイム · リロード · ジャンプは画面上",
@@ -167,7 +167,7 @@ export default {
   "loc.unit": "夜警ひとり厨房に立つ。援軍なし。",
 
   "hud.objective": "目標",
-  "hud.sirens": "サイレン",
+  "hud.sirens": "竈",
   "hud.holdTo": "{key} 長押しで{action}",
   "hud.vitals": "体力",
   "hud.reloading": "リロード中",
@@ -187,14 +187,14 @@ export default {
   "weapon.rifle": "LK-9 カービン",
   "weapon.pistol": "LK-4 拳銃",
 
-  "obj.cutAll": "三基の避難サイレンを止めろ",
-  "obj.cutLast": "最後のサイレンを止めろ",
-  "obj.cutN": "残り {n} 基のサイレンを止めろ",
+  "obj.cutAll": "三つの竈に火を入れろ",
+  "obj.cutLast": "最後の竈に火を入れろ",
+  "obj.cutN": "残り {n} つの竈に火を入れろ",
   "obj.extract": "検疫ゲートへ向かえ",
   "obj.hold": "通りを守り抜け",
   "obj.breathe": "息を整えろ",
   "obj.coming": "死者が迫っている",
-  "obj.prompt": "サイレン {id} を止める",
+  "obj.prompt": "竈 {id} に点火",
   "obj.extractLocked": "サイレンが鳴っている限り、トラックの扉は開かない",
   "obj.cache": "サイレン箱の補給：+{n} 発",
   "obj.rescued": "水中から引き上げられた",
@@ -223,14 +223,14 @@ export default {
   "compass.315": "北西",
 
   "radio.intro":
-    "夜警、こちらランタン管制。チャイナタウンは陥落した。トラックは9分後に検疫ゲートへ着く。それまで生き延びろ──弾は節約しろ。ランプの点いた補給箱に在庫がある。ランプの色が弾薬の種類だ。",
+    "夜警、こちら灯籠台。チャイナタウンは陥落、トラックは九分後に検疫所へ着く。通りの死者はまだお前に気づいていない。屋台の竈が三つ使える。火を入れれば匂いで奴らが集まる。料理が上がるまで守り切れば、取り分はお前のものだ。弾は灯りのついた補給箱にある。",
   "radio.contact": "奴らに嗅ぎつけられた。頭を撃て。近寄らせるな。",
   "radio.cut1":
-    "一基停止。通り中に聞こえたぞ──来るぞ。箱の中身はお前のものだ。",
-  "radio.cut2": "二基停止。あらゆる戸口から溢れ出してくる。",
+    "竈に火が入った。通りじゅうに匂いが届く——来るぞ。竈のそばを離れるな、料理が冷める。",
+  "radio.cut2": "二つ目の竈。どの戸口からも溢れてくる。",
   "radio.all":
     "三基とも停止。トラックは東の検疫ゲートでエンジンをかけて待っている。急げ。",
-  "radio.low": "出血がひどい。いったん離れて呼吸を整えろ。",
+  "radio.low": "出血がひどい。いったん離れて、何か食べろ。",
   "radio.done": "夜警、鉄条網を突破。チャイナタウン封鎖完了。よくやった。",
 
   "input.touch": "タッチ操作が有効です",
@@ -253,7 +253,7 @@ export default {
   // the run (set meal): timeline, level-ups, pickups
   "ctl.pick": "追加注文を選ぶ",
   "ctl.touchPick": "伝票をタップ",
-  "radio.cut3": "三基とも停止。今夜の注文は全部お前が受けたな。",
+  "radio.cut3": "三つとも燃えている。今夜の注文は全部お前のものだ。",
   "radio.boss":
     "トラックは着いた。だがデカいのも付いて来た。仕留めればゲートが開く。",
   "radio.bossDown": "倒れた。ゲートが開く──トラックは東だ。急げ。",
@@ -302,6 +302,14 @@ export default {
   "run.card.ammo": "おかわり",
   "run.card.ammo.d": "弾薬を満タンに",
   "run.toast.ammo": "+{n} {a}",
+  "radio.served": "お待ち！熱いうちに。",
+  "run.cook.bar": "調理中　竈のそばで守れ",
+  "run.cook.away": "竈に戻れ　料理が冷める",
+  "run.dish.soup": "お待ち　例湯　体力全快　上限 +{n}",
+  "run.dish.stock": "お待ち　仕込み　弾薬満タン　上限 +{n}%",
+  "run.dish.lucky": "お待ち　利是　紅包 ×{n}",
+  "run.toast.food": "+{n} 体力",
+  "run.toast.reloadAll": "全武器リロード",
   "run.toast.cache": "補給箱　{a} +{n}",
   "run.toast.refill": "サイレン箱の補給　弾薬満タン",
   "run.toast.weapon": "紅包　{w} がレベル {n} に",
@@ -445,8 +453,8 @@ export default {
   "radio.intro@docks":
     "夜警、こちらランタン管制。埠頭は陥落した。迎えの船は9分後に南東の岸壁へ着く。それまで生き延びろ──弾は節約しろ。ランプの点いた補給箱に在庫がある。ランプの色が弾薬の種類だ。",
   "radio.cut1@docks":
-    "一基停止。ヤード中に聞こえたぞ──来るぞ。箱の中身はお前のものだ。",
-  "radio.cut2@docks": "二基停止。コンテナの陰という陰から溢れ出してくる。",
+    "竈に火が入った。ヤードじゅうに匂いが届く——来るぞ。竈のそばを離れるな、料理が冷める。",
+  "radio.cut2@docks": "二つ目の竈。コンテナの陰から溢れてくる。",
   "radio.all@docks":
     "三基とも停止。船は南東の岸壁でエンジンをかけて待っている。急げ。",
   "radio.done@docks": "夜警、乗船完了。埠頭封鎖完了。よくやった。",

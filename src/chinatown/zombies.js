@@ -371,6 +371,7 @@ export async function createZombies(G) {
         z.active = true;
         z.alive = true;
         z.passive = !!opts.passive;
+        z.dull = !!opts.dull; // a wanderer: see TUNE.wander
         z.pos.copy(pos);
         z.pos.y = G.physics.groundHeight(pos.x, pos.z, 1.5);
         z.vel.set(0, 0, 0);
@@ -628,7 +629,8 @@ export async function createZombies(G) {
     for (const o of list) {
       if (o === source || !o.alive || o.passive || o.mode === "engage")
         continue;
-      if (o.pos.distanceToSquared(pos) > radius * radius) continue;
+      const r = o.dull ? Math.min(radius, TUNE.wander.rally) : radius;
+      if (o.pos.distanceToSquared(pos) > r * r) continue;
       o.mode = "investigate";
       o.modeT = rand(8, 12);
       if (G.player) o.lastKnown.copy(G.player.pos);
@@ -650,18 +652,20 @@ export async function createZombies(G) {
     const dz = eye.z - z.sensor.z;
     const dist = Math.hypot(dx, dy, dz);
     let seen = false;
-    if (dist < TUNE.sightRange) {
+    // a wanderer that has not gone for anyone yet notices far less
+    const S = z.dull && z.mode !== "engage" ? TUNE.wander : TUNE;
+    if (dist < S.sightRange) {
       const flat = Math.hypot(dx, dz) || 1e-4;
       const facing = (dx * z.fwd.x + dz * z.fwd.z) / flat;
-      const cone = Math.cos(((TUNE.sightCone / 2) * Math.PI) / 180);
-      if (z.mode === "engage" || facing > cone || dist < TUNE.senseRadius)
+      const cone = Math.cos(((S.sightCone / 2) * Math.PI) / 180);
+      if (z.mode === "engage" || facing > cone || dist < S.senseRadius)
         seen = G.physics.lineOfSight(z.sensor, eye);
     }
     z.los = seen;
     if (seen) {
       z.lastKnown.copy(player.pos);
       if (z.mode !== "engage") engage(z, false);
-    } else if (z.mode !== "engage" && dist < TUNE.senseRadius * 0.6) {
+    } else if (z.mode !== "engage" && dist < S.senseRadius * 0.6) {
       // close enough to smell, wall or not
       z.lastKnown.copy(player.pos);
       engage(z, false);
@@ -839,11 +843,13 @@ export async function createZombies(G) {
         if (rng() < 0.65) {
           let p = null;
           try {
-            p = nav().randomPoint(z.home, 5);
+            p = nav().randomPoint(z.home, z.dull ? TUNE.wander.roam : 5);
           } catch {}
           if (p) {
             z.lastKnown.copy(p);
             z.wander = true;
+            // a wanderer drifts: where it ends up is where it sets out from next
+            if (z.dull) z.home.copy(p);
           }
         } else z.wander = false;
       }
@@ -1191,7 +1197,8 @@ export async function createZombies(G) {
     alert(pos, radius = 40) {
       for (const z of list) {
         if (!z.alive || z.passive || z.mode === "engage") continue;
-        if (z.pos.distanceToSquared(pos) > radius * radius) continue;
+        const r = z.dull ? Math.min(radius, TUNE.wander.hearRadius) : radius;
+        if (z.pos.distanceToSquared(pos) > r * r) continue;
         z.lastKnown.set(pos.x, 0, pos.z);
         if (z.mode === "patrol") emit("enemy:alert", { enemy: z, noise: true });
         z.mode = "investigate";

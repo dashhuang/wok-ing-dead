@@ -218,6 +218,20 @@ LK-9 和 LK-4、命中体积、夜街的曝光和特效亮度都是真的，没�
   - 刷怪按 `RUN.stages` 的时间线：每道菜给出同时存活上限、刷新间隔、奔跑者和重型尸比例，在一道菜内线性过渡；
     难度（辣度）再乘一组系数。僵尸的生命和伤害仍由难度表决定。
   - 开局先开一次「点主菜」：三把已解锁的武器选一把（`time.scale` 0.02，最多等 20 秒）。
+  - 开局街上散布 `RUN.opening` 只游走的行尸（`spawn` 的 `dull: true`）；标了 `quiet` 的菜（前菜）刷出来的也是。
+    游走的行尸在没盯上人之前用 `ZOMBIES.wander` 的感知（视野 9 米、贴近 5 米、枪声 14 米、同伴的嚎叫 7 米），
+    会沿街漂移；被打、被走近或听到近处的枪声后就和普通行尸一样。
+  - 套餐里不自动回血（`RUN.heal.regen` 是保留的比例，现在是 0）。击杀按 `runflow.js` 的 `foodChance` 掉外卖盒，
+    它和弹药包走同一套拾取（`pickups.js` 里种类是 `food`），满血时留在地上。
+  - 换弹装满全部：手上的武器换弹完成时，`loadout.js` 的 `reloadRest` 把收着的每把也从各自的弹药池装满
+    （军械库武器走 `hooks.loaded`，游戏自带的两把听 `weapon:reload` 的 `magin`）。
+  - 补给箱的屏幕标记只在 `RUN.ammo.cacheMark` 米内显示，远处靠箱子上的灯。
+  - 三口灶沿用原版「切断警报器」的目标机制（`level.objectives`、按住 E、`objective:done`）：模型是 `stove.js` 的
+    `buildStove`（金龙街在 `landmarks.js` 里摆，码头在 `docks.js` 里换掉原来的继电器柜），状态经 `userData.setState`
+    设置。按住完成时 `game.js` 调 `RUN.onStove`：`run.js` 记下 `S.cook`，把游走的行尸全部引来，刷怪按
+    `spawnPace` 的 `cooking` / `heat` 加码；`cookTick` 在玩家离灶 `RUN.stove.radius` 米内时推进进度，过半时
+    （`eliteFrom` 那道菜起）放一只精英，满了 `serve`：按 `runflow.js` 的 `dishOf` 发奖。三种招牌每局洗一次（`S.menu`）。
+    灶的声音在 `audio.js`（听 `stove:state`）；原来的警报声保留代码但关掉了（`SIREN.on`）。
   - 击杀给镬气，升级后开三张小票（屏幕中央，街景压暗、上下黑边、准星和战斗按钮收起），`time.scale` 降到 0.05，
     玩家不能移动和开火，鼠标放开，点小票或按 1 2 3（手柄十字键、触屏点击）选择，没有时间限制。
     第 2、5、9、13 次升级的三张全是武器，其余每次有三成机会混入一把。
