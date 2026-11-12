@@ -9,7 +9,7 @@
 | --- | --- | --- | --- |
 | 墙面、地面、屋瓦等 PBR 贴图（22 套） | `public/assets/textures/` | [Poly Haven](https://polyhaven.com) | CC0 |
 | 街头道具模型（42 个） | `public/assets/props/` | [Poly Haven](https://polyhaven.com) | CC0 |
-| 僵尸角色与动作（4 个在用，7 个试用） | `public/assets/zombies/` | Adobe Mixamo（经公开 GitHub 仓库获取） | Mixamo 使用条款，**不是 CC0**，见下文 |
+| 僵尸角色与动作（9 个在用，2 个试用） | `public/assets/zombies/` | Adobe Mixamo（经公开 GitHub 仓库获取） | Mixamo 使用条款，**不是 CC0**，见下文 |
 | 招牌字体（子集） | `public/assets/fonts/` | Noto Serif TC、LXGW WenKai TC（Google Fonts 仓库） | SIL OFL 1.1 |
 | 界面字体（子集） | `public/assets/fonts/ui/` | Inter、Noto Serif Display、Noto Sans / Serif SC·TC·JP（Google Fonts 仓库） | SIL OFL 1.1 |
 | 场景贴图用的拉丁字体 | `public/assets/fonts/world/` | Big Shoulders Display、Barlow Condensed、IBM Plex Mono（Google Fonts，拉丁子集） | SIL OFL 1.1 |
@@ -39,7 +39,9 @@ node scripts/assets/build-chinatown.mjs <缓存目录> public/assets
 原始 FBX 取自三个公开的 GitHub 仓库（`Qwerty-coding/Last-Light`、`lauramurinova/ZombieDefense`、`baponkar/zombie-ai`），
 用 FBX2glTF 转换后由 `scripts/assets/build-zombies.mjs` 处理：统一骨骼名、材质改为普通 PBR、贴图压到 2K WebP、动作单独成文件。
 
-另有七个角色在试用，只在靶场（`/?range=1` 的「模型」）里出现，还没进正常的一局，也不在开局时下载。同样是 Mixamo 的角色，
+另有七个角色，开局时不下载。其中五个已经进了套餐（`src/chinatown/runtune.js` 的 `RUN.bodies`：`mutant` 关底、`skeletonzombie` 和 `yaku`
+两种精英、`parasite` 胀尸、`prisoner` 成群的快尸），一局开始后才下载，`low` 画质不加载；`whiteclown` 和 `pumpkinhulk` 风格和唐人街不搭，
+只留在靶场（`/?range=1` 的「模型」）里。同样是 Mixamo 的角色，
 同样的转换流程，动作沿用上面那九段（`prisoner` 和 `mutant` 没有手指骨骼，手指不动）：
 
 | 文件 | Mixamo 角色 | 原始 FBX 取自 |

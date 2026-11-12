@@ -1202,6 +1202,8 @@ export async function createZombies(G) {
     list,
     TUNE,
     ensure,
+    /** Whether a trial body has been downloaded and can be spawned by name. */
+    has: ready,
     /**
      * The firing range's choice of models: a list of trial bodies that stand in for the
      * usual ones wherever a spawn does not name its own (null: the usual ones). With more
