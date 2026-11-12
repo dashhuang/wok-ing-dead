@@ -1383,16 +1383,54 @@ kbd {
   }
 }
 
-/* order tickets: three small receipts, chosen with 1 2 3 while the street runs slow */
+/* order tickets: three receipts in the middle of the screen, chosen with 1 2 3 while the
+   street all but stops behind a dark veil and letterbox bars, so it reads as ordering,
+   not fighting */
+.rl-veil {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  background: radial-gradient(
+    ellipse 75% 70% at 50% 50%,
+    rgba(10, 7, 5, 0.42),
+    rgba(10, 7, 5, 0.86)
+  );
+}
+.rl-veil::before,
+.rl-veil::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 9vh;
+  background: #050403;
+  transition: transform 0.28s var(--ease-out);
+}
+.rl-veil::before {
+  top: 0;
+  transform: translateY(-100%);
+}
+.rl-veil::after {
+  bottom: 0;
+  transform: translateY(100%);
+}
+.rl.pick .rl-veil {
+  opacity: 1;
+}
+.rl.pick .rl-veil::before,
+.rl.pick .rl-veil::after {
+  transform: none;
+}
 .rl-cards {
   position: absolute;
   left: 50%;
-  bottom: calc(92px + var(--sab));
-  transform: translateX(-50%);
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: none;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   text-shadow: none;
 }
 .rl-cards.on {
@@ -1400,19 +1438,39 @@ kbd {
 }
 .rl-cards-h {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  font: 700 11px/1 var(--f-ui);
-  letter-spacing: var(--trk-l);
-  text-transform: var(--caps);
-  color: var(--brass);
+  align-items: baseline;
+  gap: 14px;
+  font: 800 26px/1 var(--f-display);
+  letter-spacing: 0.06em;
+  color: var(--paper);
   text-shadow: var(--shadow);
 }
+.rl-cards-s {
+  min-width: 1.4em;
+  font: 800 30px/1 var(--f-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--brass);
+  text-align: center;
+}
+.rl-cards.hurry .rl-cards-s {
+  color: var(--cinnabar-hot);
+}
 .rl-cards-bar {
-  width: 120px;
-  height: 3px;
+  width: min(420px, 60vw);
+  height: 4px;
   background: var(--paper-faint);
   overflow: hidden;
+}
+.rl-cards.hurry .rl-cards-bar i {
+  background: var(--cinnabar-hot);
+}
+.rl-cards-hint {
+  margin: 4px 0 0;
+  font: 600 13px/1.3 var(--f-ui);
+  letter-spacing: 0.04em;
+  color: var(--paper-2);
+  text-shadow: var(--shadow);
+  text-align: center;
 }
 .rl-cards-bar i {
   display: block;
@@ -1422,16 +1480,17 @@ kbd {
 }
 .rl-cards-row {
   display: flex;
-  gap: 10px;
+  gap: 14px;
+  margin-top: 6px;
 }
 .rl-card {
   --rc-ink: #1d1813;
   --rc-dim: rgba(29, 24, 19, 0.66);
   position: relative;
-  width: min(196px, 29vw);
-  min-height: 96px;
+  width: min(236px, 29vw);
+  min-height: 132px;
   margin: 0;
-  padding: 12px 12px 18px;
+  padding: 14px 14px 20px;
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-areas: "key name" "pips pips" "desc desc";
@@ -1483,7 +1542,7 @@ kbd {
 }
 .rl-card b {
   grid-area: name;
-  font: 800 18px/1.1 var(--f-display);
+  font: 800 21px/1.1 var(--f-display);
   letter-spacing: 0.02em;
 }
 .rl-card kbd + b {
@@ -1519,7 +1578,7 @@ kbd {
 }
 .rl-card span {
   grid-area: desc;
-  font: 500 12px/1.35 var(--f-ui);
+  font: 500 13px/1.4 var(--f-ui);
   color: var(--rc-dim);
 }
 .rl-card u {
@@ -1547,6 +1606,18 @@ kbd {
 .rl:has(.rl-cards.on) ~ .comms,
 .rl:has(.rl-cards.on) .rl-toasts {
   opacity: 0;
+}
+/* while choosing, put away what says "fight": the crosshair, the weapon and ammo bars,
+   and on touch screens the stick and the combat buttons (pause stays) */
+.hud:has(~ .rl.pick) .h-cross,
+.rl.pick .rl-weapons,
+.rl.pick .rl-pools,
+.rl.pick .rl-xp,
+.rl.pick .rl-spices,
+#ui:has(.rl.pick) .touch .t-stick,
+#ui:has(.rl.pick) .touch .t-btn:not(.t-pause) {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* touch: keep the thumbs' corners clear */
@@ -1607,17 +1678,27 @@ kbd {
   align-items: center;
 }
 .is-touch .rl-cards {
-  bottom: auto;
-  top: calc(96px + var(--sat));
-  flex-direction: column-reverse;
-  gap: 5px;
+  gap: 6px;
 }
-.is-touch .rl-cards-h span {
-  display: none;
+.is-touch .rl-cards-h {
+  font-size: 18px;
+}
+.is-touch .rl-cards-s {
+  font-size: 22px;
+}
+.is-touch .rl-cards-row {
+  margin-top: 2px;
 }
 .is-touch .rl-card {
   min-height: 0;
-  padding: 9px 10px 14px;
+  padding: 10px 10px 15px;
+}
+.is-touch .rl-cards-hint {
+  font-size: 12px;
+}
+.is-touch .rl-veil::before,
+.is-touch .rl-veil::after {
+  height: calc(5vh + var(--sat));
 }
 .is-touch .rl-card b {
   font-size: 15px;
@@ -1625,10 +1706,14 @@ kbd {
 .is-touch .rl-card span {
   font-size: 11px;
 }
-/* portrait phones: below the objective, ammo and health blocks */
+/* portrait phones: the tickets stack, one per row */
 @media (max-width: 600px) {
-  .is-touch .rl-cards {
-    top: calc(200px + var(--sat));
+  .is-touch .rl-cards-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .is-touch .rl-card {
+    width: min(320px, 84vw);
   }
 }
 

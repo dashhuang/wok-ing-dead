@@ -60,13 +60,17 @@ export function createRunHud(G) {
   const cards = el(
     "div",
     "rl-cards",
-    '<div class="rl-cards-h"><span></span><div class="rl-cards-bar"><i></i></div></div><div class="rl-cards-row"></div>',
+    '<div class="rl-cards-h"><span></span><b class="rl-cards-s"></b></div><div class="rl-cards-bar"><i></i></div><div class="rl-cards-row"></div><p class="rl-cards-hint"></p>',
   );
   const cardsTitle = cards.querySelector(".rl-cards-h span");
+  const cardsSecs = cards.querySelector(".rl-cards-s");
   const cardsBar = cards.querySelector(".rl-cards-bar i");
   const cardsRow = cards.querySelector(".rl-cards-row");
+  const cardsHint = cards.querySelector(".rl-cards-hint");
+  // while tickets are up the street darkens behind them: this is ordering, not fighting
+  const veil = el("div", "rl-veil");
 
-  root.append(clock, boss, spices, toasts, weapons, pools, xp, cards);
+  root.append(clock, boss, spices, toasts, weapons, pools, xp, veil, cards);
   // directly after the game's HUD: it shows and hides with it (see .hud.on ~ .rl in the
   // stylesheet) and stays underneath the menus
   const hudRoot = G.hud && G.hud.root;
@@ -91,6 +95,7 @@ export function createRunHud(G) {
     bossOn: null,
     spices: "",
     bar: -1,
+    secs: -1,
     weapons: "",
     pools: "",
   };
@@ -128,6 +133,13 @@ export function createRunHud(G) {
   function drawCards() {
     if (!open) return;
     cardsTitle.textContent = L10N.t(title.key, fill(null, title.varKeys));
+    const how =
+      G.input && G.input.touch
+        ? "touch"
+        : G.input && G.input.device === "pad"
+          ? "pad"
+          : "keys";
+    cardsHint.textContent = L10N.t("run.cards.hint." + how);
     cardsRow.innerHTML = "";
     open.cards.forEach((c, i) => {
       const b = el(
@@ -318,16 +330,26 @@ export function createRunHud(G) {
         varKeys: o.titleVarKeys || null,
       };
       last.bar = -1;
+      last.secs = -1;
+      cardsSecs.textContent = "";
       drawCards();
       cards.classList.toggle("two", list.length === 2);
       cards.classList.remove("out");
       cards.classList.add("on");
+      root.classList.add("pick");
     },
-    setCardTime(frac) {
+    /** frac: share of the time left (for the bar); secs: seconds left (for the count) */
+    setCardTime(frac, secs) {
       const f = Math.round(Math.max(0, Math.min(1, frac)) * 100) / 100;
       if (f !== last.bar) {
         last.bar = f;
         cardsBar.style.transform = `scaleX(${f})`;
+      }
+      const n = secs == null ? -1 : Math.max(0, Math.ceil(secs));
+      if (n !== last.secs) {
+        last.secs = n;
+        cardsSecs.textContent = n < 0 ? "" : String(n);
+        cards.classList.toggle("hurry", n >= 0 && n <= 3);
       }
     },
     closeCards(picked) {
@@ -336,6 +358,7 @@ export function createRunHud(G) {
       if (btn) btn.classList.add("picked");
       open = null;
       cards.classList.add("out");
+      root.classList.remove("pick");
       setTimeout(() => {
         if (!open) cards.classList.remove("on");
         cards.classList.remove("out");
@@ -354,7 +377,8 @@ export function createRunHud(G) {
       for (const t of live) t.el.remove();
       live = [];
       open = null;
-      cards.classList.remove("on", "out");
+      cards.classList.remove("on", "out", "hurry");
+      root.classList.remove("pick");
       api.setBoss(null);
       api.setSpices([]);
       api.setWeapons([]);

@@ -3,7 +3,8 @@
 // - The dead keep coming on a timeline instead of in set waves; at nine minutes the boss
 //   arrives, and the checkpoint only opens once it is down.
 // - Kills fill the wok-hei bar. Every level offers three tickets: seasonings, or a new weapon.
-//   They are picked in slow motion, never a full stop, and the house picks if nobody does.
+//   They are picked in deep slow motion, never a full stop: the player stops to choose
+//   (no walking or firing), and the house picks if nobody does.
 // - Any number of weapons can be carried (loadout.js). Each draws on one of four pools of
 //   ammunition that has to be picked up from the street or fetched from the lit supply crates,
 //   so leaning on one weapon means hunting for its ammunition, and carrying one for every
@@ -114,15 +115,16 @@ export const RUN = {
     elite: 20,
     need: (level) => 5 + 8 * level,
   },
-  // seconds a ticket stays up, and how slow the street runs meanwhile
+  // seconds a ticket stays up, and how slow the street runs meanwhile: slow enough that
+  // choosing is clearly a pause in the fight, never a full stop
   pick: {
-    slow: 0.2,
-    seconds: 4.5,
+    slow: 0.05,
+    seconds: 9,
     guard: 0.35,
     hold: 0.25,
     gap: 0.5,
     start: { seconds: 20, slow: 0.02 }, // choosing the first weapon
-    fork: { seconds: 7, slow: 0.12 }, // choosing a weapon's form
+    fork: { seconds: 12, slow: 0.04 }, // choosing a weapon's form
   },
   // level-ups (counted from 1) whose three tickets are all weapons, and the chance that
   // one of the three is a weapon on any other level-up
@@ -761,7 +763,7 @@ export function createRun(G, hooks) {
     }
     pk.guard -= real;
     pk.left -= real;
-    hud.setCardTime(pk.left / pk.total);
+    hud.setCardTime(pk.left / pk.total, pk.left);
     const I = G.input;
     if (pk.guard <= 0 && I && I.pressed) {
       const pad = I.device === "pad";
@@ -1306,6 +1308,13 @@ export function createRun(G, hooks) {
       hud.update(real);
       pickTick(real);
       keysTick();
+      // while tickets are up the player only chooses: no walking, firing or aiming (looking
+      // around is fine). The input is read before the player and the weapons update.
+      if (S.picking && G.input) {
+        const I = G.input;
+        if (I.move) I.move.x = I.move.y = 0;
+        I.fire = I.ads = I.sprint = I.crouch = false;
+      }
       const target = S.picking ? S.picking.slow : 1;
       S.scale += (target - S.scale) * Math.min(1, real * 14);
       if (Math.abs(S.scale - target) < 0.01) S.scale = target;

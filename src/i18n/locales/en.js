@@ -279,6 +279,12 @@ export default {
   "run.obj.locked": "The truck is not here yet — hold on",
   "run.cards.title": "Add to order",
   "run.cards.rec": "Chef's pick",
+  "run.cards.hint.keys":
+    "Press 1 2 3 to order · when time runs out, you get the chef's pick",
+  "run.cards.hint.pad":
+    "Press ← ↑ → to order · when time runs out, you get the chef's pick",
+  "run.cards.hint.touch":
+    "Tap a ticket · when time runs out, you get the chef's pick",
   "run.spice.fire": "High Flame",
   "run.spice.fire.d": "Damage +{n}%",
   "run.spice.hands": "Quick Hands",
