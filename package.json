@@ -21,7 +21,7 @@
     "arsenal:build": "vite build --config arsenal/vite.config.js",
     "arsenal:single": "node arsenal/scripts/single.mjs",
     "arsenal:test": "playwright test -c arsenal/playwright.config.js",
-    "check": "node scripts/check-syntax.mjs && prettier --check .",
+    "check": "node scripts/check-syntax.mjs && node arsenal/scripts/check-data.mjs && prettier --check .",
     "format": "prettier --write .",
     "test:e2e": "playwright test",
     "verify": "npm run check && npm run build && npm run test:e2e",

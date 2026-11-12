@@ -30,14 +30,13 @@ export const ARMORY_TUNE = {
 export async function createArmory(G) {
   const T = G.THREE;
   const V3 = T.Vector3;
-  const [kitMod, handsMod, combatMod, audioMod, dataMod, fxMod, behMod] =
+  const [kitMod, handsMod, combatMod, audioMod, dataMod, behMod] =
     await Promise.all([
       import("../../arsenal/src/kit/index.js"),
       import("../../arsenal/src/kit/hands.js"),
       import("../../arsenal/src/combat/combat.js"),
       import("../../arsenal/src/audio/audio.js"),
       import("../../arsenal/src/data/weapons.js"),
-      import("../../arsenal/src/fx/core.js"),
       import("../../arsenal/src/combat/behaviours.js"),
     ]);
   const behaviours = behMod.BEHAVIOURS;
@@ -174,7 +173,12 @@ export async function createArmory(G) {
     listeners: new Set(),
     emit() {},
     // the game's zombies instead of the firing range's
-    makeTargets: (l, fx, E) => createGameTargets(G, l, fx, E, root, fxMod),
+    makeTargets: (l, fx, E) => createGameTargets(G, l, fx, E, root),
+    // a reload draws on the run's pools instead of filling the magazine from nowhere
+    supply: {
+      can: (W) => !hooks.canReload || hooks.canReload(W.id, W),
+      take: (W, want) => (hooks.loaded ? hooks.loaded(W.id, W, want) : want),
+    },
   };
   const combat = await combatMod.createCombat(lab);
   const fx = lab.fx;
@@ -391,8 +395,6 @@ export async function createArmory(G) {
   const hooks = { canReload: null, loaded: null, changed: null };
   let cur = null; // { id, model }
   let time = 0;
-  let prevReload = -1;
-  let before = 0;
   let wasFire = false,
     wasAlt = false;
   let thrown = false;
@@ -462,7 +464,6 @@ export async function createArmory(G) {
       const W = combat.weapon;
       if (o.rounds !== undefined && W.spec.mag)
         W.rounds = Math.max(0, Math.min(W.spec.mag, o.rounds));
-      prevReload = -1;
       thrown = false;
       wasFire = wasAlt = false;
       view.visible = true;
@@ -484,7 +485,6 @@ export async function createArmory(G) {
       if (rounds !== undefined && W.spec.mag)
         W.rounds = Math.max(0, Math.min(W.spec.mag, rounds));
       W.draw = 1;
-      prevReload = -1;
     },
     /** Put it away (the game's own guns come back, or nothing is held). */
     holster(silent) {
@@ -555,18 +555,7 @@ export async function createArmory(G) {
       combat.update(dt, time);
       fx.update(dt, time);
       if (!cur) return;
-      const W = combat.weapon;
       const model = cur.model;
-      // ---- magazine bookkeeping: the lab refills a magazine from nowhere, the run has pools
-      if (W.reload >= 0 && prevReload < 0) {
-        before = W.rounds;
-        if (hooks.canReload && !hooks.canReload(cur.id, W)) W.reload = -1;
-      } else if (W.reload < 0 && prevReload >= 0 && W.spec.mag) {
-        const want = W.spec.mag - before;
-        const got = hooks.loaded ? hooks.loaded(cur.id, W, want) : want;
-        W.rounds = Math.max(0, W.rounds - (want - got));
-      }
-      prevReload = W.reload;
       // ---- a thrown weapon leaves the hands: draw it with the street until it is caught
       const away = model.holder.parent !== pose;
       if (away !== thrown) {

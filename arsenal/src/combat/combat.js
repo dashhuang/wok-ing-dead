@@ -1,5 +1,11 @@
-// The firing range controller: input, ammunition, reloads, recoil and weapon handling, melee swings,
+// The weapon controller: input, ammunition, reloads, recoil and weapon handling, melee swings,
 // thrown weapons, damage zones — and the context object the behaviours in behaviours.js work with.
+// The firing range drives it, and so does the game (src/chinatown/armory.js): one controller,
+// so a weapon handles the same in both. What differs is handed in on `lab`:
+//   lab.makeTargets   the zombies it fires at (the range's own if absent)
+//   lab.supply        where a reload gets its rounds: { can(W), take(W, want) -> rounds got }
+//                     (absent: magazines fill from nowhere)
+// and through setMods(): the run's seasonings for damage, rate of fire and reload speed.
 //
 // Scripting (also used by the automated checks):
 //   __lab.combat.press("fire" | "alt") / release(...) / tap("fire", seconds)
@@ -98,8 +104,20 @@ export async function createCombat(lab) {
     poseNow: 0,
   };
   const cam = { pitch: 0, yaw: 0 };
-  const meter = { window: [], total: 0, kills: 0, taken: 0, last: "" };
-  const infuse = new Set();
+  // spent: rounds (or units of fuel) fired since the last reset, less any handed back
+  const meter = {
+    window: [],
+    total: 0,
+    kills: 0,
+    taken: 0,
+    spent: 0,
+    last: "",
+  };
+  // the run's seasonings as multipliers; 1 = none (see setMods)
+  const mods = { damage: 1, rate: 1, reload: 1 };
+  const mulOf = (level) => LEVELS[level - 1].dmg * mods.damage;
+  // seconds a reload takes right now
+  const reloadTime = () => (W.spec.reload || 0) / mods.reload;
   let thrown = null;
   let note = { text: "", until: 0 };
   let time = 0;
@@ -274,33 +292,17 @@ export async function createCombat(lab) {
       trace(segStart, end);
       return { end, hits };
     },
-    /** Damage a zombie with this weapon: level scaling, head multiplier, inscription infusions. Returns true on a kill. */
+    /**
+     * Damage a zombie with this weapon: level and seasoning scaling, head multiplier. Returns
+     * true on a kill. (Statuses, reactions and the elemental seasonings are the targets' rules.)
+     */
     hit(z, dmg, o = {}) {
       let d = dmg * W.mul;
       if (o.head) d *= o.headMul ?? 2.2;
-      const killed = targets.damage(z, d, o);
-      if (o.kind !== "dot" && o.kind !== "stream" && o.kind !== "share") {
-        W.hits++;
-        if (infuse.has("fire") && W.hits % 4 === 0) targets.apply(z, "fire");
-        if (infuse.has("shock") && W.hits % 4 === 1) targets.apply(z, "shock");
-        if (infuse.has("venom") && W.hits % 3 === 0) targets.apply(z, "venom");
-        if (infuse.has("seal") && o.head) targets.apply(z, "seal");
-      } else if (
-        o.kind === "stream" &&
-        infuse.has("venom") &&
-        Math.random() < 0.04
-      )
-        targets.apply(z, "venom");
-      return killed;
+      return targets.damage(z, d, o);
     },
     push(z, dir, knock) {
-      if (z.alive && z.pin <= 0) {
-        z.vel.addScaledVector(
-          _a.set(dir.x, 0, dir.z).normalize(),
-          knock * 4.2 * (z.type === "brute" ? 0.35 : 1),
-        );
-        z.stagger = Math.max(z.stagger, 0.35);
-      }
+      targets.push(z, dir, knock);
     },
     kick(a) {
       view.vz += a * 0.9;
@@ -336,10 +338,14 @@ export async function createCombat(lab) {
       audio && audio.world(name, pos, o);
     },
     refund(n) {
-      W.rounds = Math.min(W.spec.mag, W.rounds + n);
+      const to = Math.min(W.spec.mag, W.rounds + n);
+      meter.spent -= to - W.rounds;
+      W.rounds = to;
     },
     consume(n) {
-      W.rounds = Math.max(0, W.rounds - n);
+      const to = Math.max(0, W.rounds - n);
+      meter.spent += W.rounds - to;
+      W.rounds = to;
     },
     cycleNow() {
       W.cycle = 0;
@@ -397,7 +403,7 @@ export async function createCombat(lab) {
       spec,
       branch,
       level,
-      mul: LEVELS[level - 1].dmg,
+      mul: mulOf(level),
       rounds: spec.mag ?? 0,
       cooldown: 0.3,
       draw: 0,
@@ -406,7 +412,6 @@ export async function createCombat(lab) {
       cycleDur: 0.3,
       casingDone: true,
       shots: 0,
-      hits: 0,
       shot: 9,
       heat: 0,
       charge: 0,
@@ -440,7 +445,7 @@ export async function createCombat(lab) {
     W.swingN = n;
     W.swingOpts = opts || null;
     W.swingHit = false;
-    W.swingDur = W.spec.swingTime || 0.5;
+    W.swingDur = (W.spec.swingTime || 0.5) / mods.rate;
     const tr = W.spec.trail || { color: C(0xffffff, 2) };
     W.trail = null;
     W.trailSpec = tr;
@@ -647,10 +652,12 @@ export async function createCombat(lab) {
     // reload
     if (W.reload >= 0) {
       reloadSounds();
-      W.reload += dt / Math.max(0.2, spec.reload);
+      W.reload += dt / Math.max(0.2, reloadTime());
       if (W.reload >= 1) {
         W.reload = -1;
-        W.rounds = spec.mag;
+        // the range fills the magazine from nowhere; a run has pools to draw on
+        const want = spec.mag - W.rounds;
+        W.rounds += lab.supply ? lab.supply.take(W, want) : want;
       }
     }
     if (spec.regen && W.rounds < spec.mag) {
@@ -715,7 +722,7 @@ export async function createCombat(lab) {
         // hold to charge, release to fire
         if (input.fire && W.cooldown <= 0 && W.rounds >= cost) {
           W.charging = true;
-          W.charge = Math.min(1, W.charge + dt / spec.charge);
+          W.charge = Math.min(1, W.charge + (dt * mods.rate) / spec.charge);
           const m = ctx.muzzle("fuse");
           if (Math.random() < 50 * dt)
             fx.glow({
@@ -751,9 +758,11 @@ export async function createCombat(lab) {
       if (input.fire && W.rounds > 0) {
         W.firing = true;
         W.heat = Math.min(1, W.heat + dt * 0.9);
-        W.rounds = Math.max(0, W.rounds - spec.drain * dt);
+        const left = Math.max(0, W.rounds - spec.drain * dt);
+        meter.spent += W.rounds - left;
+        W.rounds = left;
         beh.stream(ctx, dt);
-        W.tickAcc += dt * spec.tickRate;
+        W.tickAcc += dt * spec.tickRate * mods.rate;
         while (W.tickAcc >= 1) {
           W.tickAcc -= 1;
           beh.tick && beh.tick(ctx);
@@ -845,7 +854,7 @@ export async function createCombat(lab) {
         rounds: Math.ceil(W.rounds),
         mag: spec.mag,
         reload: W.reload,
-        reloadTime: spec.reload || 0,
+        reloadTime: reloadTime(),
         swing: W.swing,
         swingN: W.swingN, // which cut: 0, 1, 2 of the combo; 9 is the rising cut
         draw: W.draw,
@@ -871,7 +880,7 @@ export async function createCombat(lab) {
 
   function shoot(cost) {
     const spec = W.spec;
-    const rpm = W.beh.rpm ? W.beh.rpm(ctx) : spec.rpm;
+    const rpm = (W.beh.rpm ? W.beh.rpm(ctx) : spec.rpm) * mods.rate;
     W.beh.fire(ctx);
     audio && audio.shot(W.id, W.branch);
     // the hands take the shot: fingers and wrists give a little
@@ -879,6 +888,7 @@ export async function createCombat(lab) {
       lab.arms.impulse &&
       lab.arms.impulse(Math.min(1, 0.25 + 0.3 * (W.spec.kick ?? 1)));
     W.rounds -= cost;
+    meter.spent += cost;
     W.shots++;
     W.shot = 0;
     W.cooldown = 60 / rpm;
@@ -901,6 +911,7 @@ export async function createCombat(lab) {
   function startReload() {
     if (!W || W.reload >= 0 || !(W.spec.reload > 0) || W.rounds >= W.spec.mag)
       return;
+    if (lab.supply && !lab.supply.can(W)) return; // nothing to load it with
     W.reload = 0;
     W.charge = 0;
     W.charging = false;
@@ -1076,7 +1087,17 @@ export async function createCombat(lab) {
     projectiles: proj,
     weapon: null,
     meter,
-    infuse,
+    get mods() {
+      return mods;
+    },
+    /**
+     * The run's seasonings, as multipliers on every weapon: { damage, rate, reload }.
+     * rate speeds up shots, stream ticks, melee swings and charging; reload shortens reloads.
+     */
+    setMods(m) {
+      Object.assign(mods, m);
+      if (W) W.mul = mulOf(W.level);
+    },
     get locked() {
       return locked;
     },
@@ -1164,15 +1185,12 @@ export async function createCombat(lab) {
       stage.look.yaw = Math.atan2(-d.x, -d.z);
       stage.look.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
     },
-    setInfuse(el, on) {
-      if (on) infuse.add(el);
-      else infuse.delete(el);
-    },
     resetMeter() {
       meter.window.length = 0;
       meter.total = 0;
       meter.kills = 0;
       meter.taken = 0;
+      meter.spent = 0;
     },
     clear() {
       fx.clear();

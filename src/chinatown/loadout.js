@@ -9,6 +9,11 @@
 // Ammunition: every weapon that needs any draws on one of four shared pools, at so many
 // units per round. A player who leans on one weapon uses a quarter of what the street gives;
 // one who carries something for every pool wastes nothing.
+//
+// AMMO and ARMS are plain data and ammoPer() a plain function: the weapon lab (arsenal/) reads
+// them too, so what a round costs on its firing range is what it costs in a run. What a level
+// multiplies damage by is the arsenal's own table (LEVELS), the one the lab shows.
+import { LEVELS } from "../../arsenal/src/data/levels.js";
 
 export const AMMO = {
   // cap: units carried (the "portion" seasoning raises it), pack: units in one dropped pack
@@ -37,8 +42,15 @@ export const ARMS = {
   coinsword: { ammo: null, group: 5 },
   guandao: { ammo: null, group: 5 },
 };
-export const MAX_LEVEL = 5;
-const LEVEL_DAMAGE = [1, 1.2, 1.35, 1.6, 1.85];
+export const MAX_LEVEL = LEVELS.length;
+
+/** Pool units one round of a weapon costs in a given form (0 for weapons that need none). */
+export function ammoPer(id, branch = "base", level = 1) {
+  const a = ARMS[id];
+  if (!a || !a.ammo) return 0;
+  if (typeof a.per === "number") return a.per;
+  return a.per[level >= 3 ? branch : "base"] ?? a.per.base;
+}
 
 export function createLoadout(G, on = {}) {
   let armory = null;
@@ -52,19 +64,15 @@ export function createLoadout(G, on = {}) {
   let last = null;
   let busy = false; // a weapon is on its way into the hands
   let mods = { damage: 1, rate: 1, reload: 1 };
-  let lastShots = 0;
+  let infusions = [];
   const baseDef = {};
   for (const [id, rig] of Object.entries((G.weapon && G.weapon.rigs) || {}))
     baseDef[id] = { damage: rig.def.damage, rpm: rig.def.rpm };
 
   const rifleSlot = () => G.weapon.slots[0];
   const perOf = (id) => {
-    const a = ARMS[id];
-    if (!a || !a.ammo) return 0;
-    if (typeof a.per === "number") return a.per;
     const it = inv.get(id);
-    const b = it && it.level >= 3 ? it.branch : "base";
-    return a.per[b] ?? a.per.base;
+    return ammoPer(id, it ? it.branch : "base", it ? it.level : 1);
   };
   const cap = (type) => Math.round(AMMO[type].cap * capMul);
   // the carbine's own reload takes rounds out of its slot, so that slot is the bullets pool
@@ -124,6 +132,8 @@ export function createLoadout(G, on = {}) {
           setPool(type, have(type) - got * p);
           return got;
         };
+        a.combat.setMods(mods);
+        a.targets.setInfusions(infusions);
         G.weapon.ext = driver;
         // draw every weapon once, tiny, while nothing much is going on: the first time each
         // is taken in hand must not cost a frame (the game's own two rigs included)
@@ -140,39 +150,20 @@ export function createLoadout(G, on = {}) {
   }
 
   // ---------- numbers that follow level and seasonings
+  // The arsenal's weapons take level and seasonings inside their own controller (the same
+  // code the lab runs): setMods below is all they need. The game's own two rigs are tuned here.
   function tune(id) {
     const it = inv.get(id);
-    if (!it) return;
-    const lvMul = LEVEL_DAMAGE[it.level - 1];
-    if (ARMS[id].own) {
-      const rig = G.weapon.rigs[id];
-      rig.def.damage = baseDef[id].damage * lvMul * mods.damage;
-      rig.def.rpm = baseDef[id].rpm * mods.rate;
-      return;
-    }
-    if (!armory || armory.current !== id) return;
-    const W = armory.weapon;
-    if (!W) return;
-    W.mul = lvMul * mods.damage;
-    const s = W.spec;
-    if (!s.base)
-      s.base = {
-        rpm: s.rpm,
-        tickRate: s.tickRate,
-        swingTime: s.swingTime,
-        reload: s.reload,
-        charge: s.charge,
-      };
-    const b = s.base;
-    if (b.rpm) s.rpm = b.rpm * mods.rate;
-    if (b.tickRate) s.tickRate = b.tickRate * mods.rate;
-    if (b.swingTime) s.swingTime = b.swingTime / mods.rate;
-    if (b.charge) s.charge = b.charge / mods.rate;
-    if (b.reload) s.reload = b.reload / mods.reload;
+    if (!it || !ARMS[id].own) return;
+    const rig = G.weapon.rigs[id];
+    rig.def.damage =
+      baseDef[id].damage * LEVELS[it.level - 1].dmg * mods.damage;
+    rig.def.rpm = baseDef[id].rpm * mods.rate;
   }
   function tuneAll() {
     for (const id of inv.keys()) tune(id);
     G.weapon.reloadScale = mods.reload;
+    if (armory) armory.combat.setMods(mods);
   }
   function untune() {
     for (const [id, base] of Object.entries(baseDef)) {
@@ -219,11 +210,8 @@ export function createLoadout(G, on = {}) {
       if (!active || cur !== id) {
         armory.holster();
         if (active && ARMS[cur] && ARMS[cur].own) G.weapon.setVisible(true);
-      } else {
-        lastShots = armory.weapon.shots;
-        tune(id);
+      } else
         G.events.emit("weapon:switch", { from: last, to: id, phase: "draw" });
-      }
     } catch (e) {
       console.error("[run] could not take up " + id + ": " + e);
       cur = "pistol";
@@ -391,10 +379,7 @@ export function createLoadout(G, on = {}) {
       const it = inv.get(id);
       if (!it || ARMS[id].own) return;
       it.branch = branch === "b" ? "b" : "a";
-      if (armory && armory.current === id) {
-        armory.regrade(it.level, it.branch);
-        tune(id);
-      }
+      if (armory && armory.current === id) armory.regrade(it.level, it.branch);
     },
     /** The first carried weapon below the cap, starting with the one in hand. */
     nextToRaise() {
@@ -409,22 +394,14 @@ export function createLoadout(G, on = {}) {
       mods = { ...mods, ...m };
       tuneAll();
     },
-    /**
-     * Once a frame (real seconds). Keeps the fire-rate seasoning honest for weapons whose rate
-     * is worked out shot by shot, and reports a weapon that has run dry.
-     */
+    /** The elemental seasonings in force (see runtune.js, infusionsOf). */
+    setInfusions(list) {
+      infusions = list;
+      if (armory) armory.targets.setInfusions(list);
+    },
+    /** Once a frame (real seconds): reports a weapon that has run dry. */
     update() {
       if (!active || busy) return;
-      if (armory && armory.held) {
-        const W = armory.weapon;
-        if (W && W.shots !== lastShots) {
-          lastShots = W.shots;
-          if (W.beh.rpm && mods.rate !== 1) {
-            W.cooldown /= mods.rate;
-            W.cycleDur /= mods.rate;
-          }
-        }
-      }
       if (!usable(cur) && G.player.alive) {
         // dry: whatever was held before if that still fires, else anything that does
         const next = [last, ...owned().slice().reverse()].find(

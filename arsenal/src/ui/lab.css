@@ -487,6 +487,13 @@ body {
   font: normal 700 14px var(--serif);
   color: var(--gold);
 }
+/* seasonings have names of two or three characters, not one */
+.rules .ins.wide li {
+  grid-template-columns: 3.6em 1fr;
+}
+.rules .ins.wide em {
+  white-space: nowrap;
+}
 .rules .foot {
   margin: 16px 0 0;
   color: var(--faint);
@@ -619,6 +626,12 @@ body {
   letter-spacing: 0.14em;
   color: var(--gold);
 }
+.ammo-p {
+  margin-top: 3px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
 .ammo-bar {
   margin: 6px 0 0 auto;
   width: 190px;
@@ -710,6 +723,23 @@ body {
 .seg button.on {
   color: #1a1206 !important;
   background: var(--gold) !important;
+}
+/* the seasonings: two rows of four, each with its level beside the name */
+.seg.spices {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 292px;
+  row-gap: 2px;
+}
+.seg.spices span {
+  cursor: help;
+}
+.seg.spices button i {
+  display: inline-block;
+  min-width: 0.7em;
+  margin-left: 3px;
+  font: 600 11px var(--mono);
+  font-style: normal;
 }
 .lock {
   position: absolute;
@@ -953,6 +983,17 @@ body {
 #ui.narrow .rules .cols {
   grid-template-columns: 1fr;
   gap: 4px;
+}
+/* the range on a narrow screen: the meter and the switches sit below the weapon strip */
+#ui.narrow .meter {
+  top: 92px;
+  right: 8px;
+  gap: 12px;
+  padding: 6px 8px;
+}
+#ui.narrow .range-opts {
+  top: 150px;
+  right: 8px;
 }
 
 /* ---------------- taking a hit in the horde */

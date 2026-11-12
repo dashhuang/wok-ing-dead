@@ -3,6 +3,7 @@
 // (list / spawn / raycast / aliveCount / clear / alert / update / TUNE).
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { ZOMBIES } from "./zombietune.js";
 
 const ASSETS = "assets/zombies/";
 const CHARACTERS = {
@@ -24,40 +25,8 @@ const CLIPS = {
   death_front: {},
 };
 
-export const TUNE = {
-  walker: {
-    hp: 55, // one rifle or pistol round to the head
-    damage: 12,
-    cooldown: [0.7, 1.4],
-    walkSpeed: 1.25,
-    runSpeed: 4.3,
-    runnerShare: 0.3,
-    reach: 1.55,
-    scale: [0.95, 1.06],
-  },
-  brute: {
-    hp: 320,
-    damage: 26,
-    cooldown: [1.1, 1.9],
-    walkSpeed: 1.5,
-    runSpeed: 3.3,
-    runnerShare: 1,
-    reach: 1.95,
-    scale: [1.2, 1.26],
-  },
-  sightRange: 34,
-  sightCone: 150,
-  senseRadius: 8,
-  hearRadius: 45,
-  loseInterest: 14,
-  corpseTime: 16,
-  maxCorpses: 12,
-  pool: { romero: 9, girl: 8, cop: 8, soldier: 5 },
-  // desktop presets keep more bodies ready: the run wants a real crowd in the late courses
-  poolLarge: { romero: 13, girl: 12, cop: 12, soldier: 6 },
-};
+export const TUNE = ZOMBIES;
 
-const HEAD_R = 0.14;
 const PART_DAMAGE = { weak: 1, body: 1, arm: 0.6, leg: 0.7 };
 
 export async function createZombies(G) {
@@ -471,8 +440,12 @@ export async function createZombies(G) {
         if (part === "leg") z.legDamage += dealt;
         z.flinch = Math.min(1, z.flinch + (z.type === "brute" ? 0.35 : 0.8));
         if (dir) z.flinchAxis.set(dir.z, 0, -dir.x).normalize();
-        if (z.type !== "brute")
-          z.staggerT = Math.max(z.staggerT, part === "weak" ? 0.45 : 0.28);
+        const flinch = TUNE[z.type].flinch;
+        if (flinch)
+          z.staggerT = Math.max(
+            z.staggerT,
+            part === "weak" ? flinch.weak : flinch.body,
+          );
         emit("enemy:hit", {
           enemy: z,
           part,
@@ -792,7 +765,7 @@ export async function createZombies(G) {
     } else if (z.attackT >= 0) {
       // committed swing: turn a little, land the hit at the measured frame
       const clip = z.actions.attack.getClip();
-      const rate = z.type === "brute" ? 1.15 : 1.45;
+      const rate = tune.attackRate;
       z.attackT += (dt * rate) / clip.duration;
       if (player) steer(z, player.pos, dt * 0.6, 0);
       z.wantSpeed = 0;
@@ -840,7 +813,7 @@ export async function createZombies(G) {
           } else {
             z.attackT = 0;
             z.attackHit = false;
-            play(z, "attack", 0.12, z.type === "brute" ? 1.15 : 1.45);
+            play(z, "attack", 0.12, tune.attackRate);
             emit("enemy:voice", {
               enemy: z,
               pos: z.pos,
@@ -881,7 +854,7 @@ export async function createZombies(G) {
       }
     }
 
-    if (z.staggerT > 0) z.wantSpeed *= 0.15;
+    if (z.staggerT > 0) z.wantSpeed *= TUNE.staggerSlow;
 
     // ---- move ----
     const accel = z.wantSpeed > z.speed ? 5 : 9;
@@ -1129,8 +1102,8 @@ export async function createZombies(G) {
       }
     };
     tmp.a.copy(P.head);
-    tmp.a.y += 0.085 * s;
-    test(raySphere(o, d, tmp.a, HEAD_R * s, max), "weak");
+    tmp.a.y += TUNE.head.above * s;
+    test(raySphere(o, d, tmp.a, TUNE.head.radius * s, max), "weak");
     // the torso capsule stops one radius short of the neck, so its rounded top ends at the
     // neck and does not swallow the head sphere
     tmp.b.subVectors(P.neck, P.hips);

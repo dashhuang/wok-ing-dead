@@ -41,7 +41,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 
 ## 玩法
 
-- **套餐**：一关约十分钟的肉鸽关卡（幸存者类）。全部规则和数值在 `src/chinatown/run.js` 开头的 `RUN` 里。
+- **套餐**：一关约十分钟的肉鸽关卡（幸存者类）。规则在 `src/chinatown/run.js`，全部数值在 `src/chinatown/runtune.js` 的 `RUN` 里。
   - **两家分店**：金龙街；通关一次后「咸水码头」开张（原版港口地图：地方开阔，奔尸更多，精英来得更密，关底更硬）。
     换分店会重新载入页面。
   - **时间线**：死者不分波，持续涌来：前菜、热炒、大菜、猛火四道，越往后越多、越快，热炒起混入会自爆的「胀尸」；
@@ -84,10 +84,12 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `src/chinatown/lights.js` | 局部光源调度（固定数量的点光源在所有发光体之间轮换）和枪灯 |
 | `src/chinatown/kit.js` | 材质、几何批量合并、GLB 道具、碰撞的工具库 |
 | `src/chinatown/zombies.js` | 僵尸：骨骼动画、寻路、感知、近战、分部位命中；精英、关底、胀尸是带倍率和自发光的变体；受定身、减速、恐惧、击退的控制 |
-| `src/chinatown/run.js` | 套餐（肉鸽关卡）的全部规则和数值：时间线刷怪、镬气与调料、弹药掉落与补给箱、武器箱、红包与岔路、精英、关底、分店差异、解锁 |
+| `src/chinatown/run.js` | 套餐（肉鸽关卡）的全部规则：时间线刷怪、镬气与调料、弹药掉落与补给箱、武器箱、红包与岔路、精英、关底、分店差异、解锁 |
+| `src/chinatown/runtune.js` | 套餐的全部数值 `RUN`（纯数据，武器试验场也读它） |
+| `src/chinatown/zombietune.js` | 僵尸的数值表（纯数据，试验场靶场里的僵尸也读它） |
 | `src/chinatown/loadout.js` | 一局里带着的武器和四种弹药池：换武器、按弹药分组的数字键、等级与形态、打空自动换枪 |
 | `src/chinatown/armory.js` | 把 `arsenal/` 的十二把武器接进游戏：模型和双手画在武器图层，特效亮度按场景校正，提前把每把画一遍免得第一次上手卡顿 |
-| `src/chinatown/armtargets.js` | 让 `arsenal/` 的战斗逻辑打在游戏的僵尸上：命中、状态、反应、定身和恐惧 |
+| `src/chinatown/armtargets.js` | 让 `arsenal/` 的战斗逻辑打在游戏的僵尸上。规则（伤害、状态、反应、附魔调料）不在这里，在两边共用的 `arsenal/src/combat/status.js` |
 | `src/chinatown/runhud.js` | 关卡界面：倒计时与菜名、镬气条、调料、关底血条、提示、小票、武器栏、弹药池 |
 | `src/chinatown/pickups.js` | 弹药包、红包、武器箱和补给箱指示灯的模型 |
 | `src/chinatown/supplies.js` | 补给箱的位置：金龙街十二处（烘进街景），咸水码头十二处 |
@@ -99,7 +101,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `.github/` | CI、Dependabot、PR 和 issue 模板 |
 | `public/assets/` | 贴图、道具、僵尸、字体（`fonts/ui` 界面字体，`fonts/world` 场景贴图字体）、音效 |
 | `scripts/assets/` | 素材下载与转换脚本、素材清单；`build-ui-fonts.py` 按语言包生成界面字体子集 |
-| `arsenal/` | 肉鸽武器的试验场（模型、特效、战斗逻辑、靶场），可以单独运行；游戏本体直接导入其中的武器、特效和战斗模块，所以它必须和游戏一起发布。见 [arsenal/README.md](arsenal/README.md) 和 [武器设计](docs/weapons-roguelike.md) |
+| `arsenal/` | 肉鸽武器的试验场（模型、特效、战斗逻辑、靶场），可以单独运行；游戏本体直接导入其中的武器、特效和战斗模块，所以它必须和游戏一起发布。靶场和本体跑同一份规则，靶场里能叠本体的调料、按本体的弹药池结算。见 [arsenal/README.md](arsenal/README.md) 和 [武器设计](docs/weapons-roguelike.md) |
 | `upstream/` | 提取时的原件和来源记录，不应直接编辑 |
 
 实现导读见 [架构与代码导航](docs/architecture.md)，素材来源和许可见 [素材来源与许可](docs/assets.md)。
@@ -116,6 +118,8 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 - `window.__G.run`：套餐关卡。`state` 是当前局的状态，`tune` 是全部数值，`loadout` 是武器和弹药；`debug.addXp(n)`、
   `debug.setTime(秒)`、`debug.envelope()`、`debug.pack("heavy")`、`debug.give("flamer")`、`debug.set("shotgun", 5, "b")`
   用来直接造出升级、关底、红包、弹药包、新武器，以及指定等级和形态的武器。`/?pool=1` 在电脑上也用手机的 30 只僵尸池。
+- `/?w=flamer&b=a&lv=5&spice=chili:2,fire:3`：和武器试验场同一组地址参数。带着这把武器的这个形态（`b` 是 `a` / `b`，`lv` 1–5）
+  和这些调料（`名字:层数`，名字见 `runtune.js` 的 `RUN.spices`）开局，跳过开局的三选一。在试验场里调好的配置换个地址就能进真实关卡试。
 - `/?lang=ja`：指定界面语言（不写入存储）。
 
 后台标签页的帧率会被浏览器限制，不应把自动检查时的后台帧率当作真实性能。

@@ -5,12 +5,14 @@
 //   w=<weapon id>   b=base|a|b   mode=show|fp   lv=1..5
 //   yaw= pitch= dist=   fix the showcase camera (radians / metres) and stop the turntable
 //   ui=0            hide the interface (clean screenshots)
+//   spice=chili:2,fire:3   the run's seasonings at those levels   ammo=meal   the run's pools
 import * as THREE from "three";
 import { createKit } from "./kit/index.js";
 import { createStage } from "./render/stage.js";
 import { createArms } from "./kit/hands.js";
 import { createAudio } from "./audio/audio.js";
 import { WEAPONS, byId } from "./data/weapons.js";
+import { createMeal } from "./combat/meal.js";
 
 const builders = import.meta.glob("./weapons/*.js");
 const q = new URLSearchParams(location.search);
@@ -137,6 +139,9 @@ const lab = {
     if (dist !== undefined) o.dist = dist;
   },
 };
+// the game's seasonings and ammunition, for the firing range (see combat/meal.js)
+lab.meal = createMeal(lab);
+lab.supply = lab.meal.supply;
 lab.audio = createAudio(() => stage.camera);
 // browsers only let sound start from a click or a key press
 for (const ev of ["pointerdown", "keydown"])
@@ -425,6 +430,12 @@ async function boot() {
       if (SOLO) throw new Error("showcase only");
       const { createCombat } = await import("./combat/combat.js");
       await createCombat(lab);
+      for (const part of (q.get("spice") || "").split(",")) {
+        const [id, lv] = part.split(":");
+        if (id) lab.meal.set(id, +(lv || 1));
+      }
+      if (q.get("ammo")) lab.meal.setAmmo(q.get("ammo"));
+      lab.meal.apply();
     } catch (e) {
       if (!SOLO) {
         errors.push("combat: " + String(e && e.stack ? e.stack : e));

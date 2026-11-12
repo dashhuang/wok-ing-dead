@@ -3,32 +3,39 @@
 //
 // Reference values from the current game: walker 55 HP, brute 320 HP, headshot x2.2,
 // LK-9 carbine 26 dmg @ 720 rpm, LK-4 pistol 34 dmg @ 420 rpm.
+import { STATUS } from "./status.js";
 
+const S = STATUS;
+const R = STATUS.reactions;
+const pct = (k) => Math.round(k * 100);
+
+// The hints are written from the numbers in data/status.js: change a number there and the
+// rules, this text, the lab's rules sheet and the design document all follow.
 export const ELEMENTS = {
   none: { name: "无", color: 0xffd9a0, hint: "" },
   fire: {
     name: "火",
     status: "灼烧",
     color: 0xff6a1a,
-    hint: "持续伤害 4 秒，可叠 5 层；灼烧中的敌人死亡时把 1 层传给 3 米内的敌人",
+    hint: `持续伤害 ${S.burn.time} 秒（每层每秒 ${S.burn.dps}），可叠 ${S.burn.max} 层；灼烧中的敌人死亡时把 ${S.burn.spreadStacks} 层传给 ${S.burn.spread} 米内的敌人`,
   },
   shock: {
     name: "雷",
     status: "感电",
     color: 0x6fd8ff,
-    hint: "下一次受击时向 5 米内最近的 2 个敌人跳电，每跳伤害 60%",
+    hint: `下一次受击时向 ${S.shock.range} 米内最近的 ${S.shock.jumps} 个敌人跳电，每跳伤害 ${pct(S.shock.share)}%`,
   },
   venom: {
     name: "毒",
     status: "蚀骨",
     color: 0x8dff4a,
-    hint: "受到的伤害 +8%／层，最多 5 层；死亡时留下 3 秒毒雾",
+    hint: `受到的伤害 +${pct(S.venom.taken)}%／层，最多 ${S.venom.max} 层；死亡时留下 ${S.venom.cloud.life} 秒毒雾`,
   },
   seal: {
     name: "镇",
     status: "镇压",
     color: 0xffc23a,
-    hint: "僵尸额头贴符：满 3 层定身 3 秒，定身期间弱点伤害 +50%",
+    hint: `僵尸额头贴符：满 ${S.seal.max} 层定身 ${S.seal.pin} 秒，定身期间弱点伤害 +${pct(S.seal.head - 1)}%（精英只定 ${pct(S.rank.elite.pin)}% 的时间，关底 ${pct(S.rank.boss.pin)}%）`,
   },
 };
 
@@ -38,55 +45,29 @@ export const REACTIONS = [
     a: "fire",
     b: "venom",
     name: "爆燃",
-    text: "毒雾被点燃，3 米爆炸，清空两种状态",
+    text: `毒雾被点燃，${R.爆燃.radius} 米爆炸，${R.爆燃.damage} 伤害，清空两种状态`,
   },
-  { a: "shock", b: "venom", name: "导电雾", text: "毒雾范围内的敌人全部感电" },
+  {
+    a: "shock",
+    b: "venom",
+    name: "导电雾",
+    text: `${R.导电雾.radius} 米内的敌人全部感电`,
+  },
   {
     a: "seal",
     b: "fire",
     name: "焚符",
-    text: "符纸燃尽，对目标造成 30% 最大生命的真实伤害",
+    text: `符纸燃尽，对目标造成 ${pct(R.焚符.share)}% 最大生命的伤害（精英 ${pct(S.rank.elite.焚符)}%，关底 ${pct(S.rank.boss.焚符)}%），并留下 ${R.焚符.burn} 层灼烧`,
   },
   {
     a: "seal",
     b: "shock",
     name: "引雷",
-    text: "天雷劈中被镇压者，5 米范围伤害",
+    text: `天雷劈中被镇压者：本体 ${R.引雷.self} 伤害，${R.引雷.radius} 米内其余敌人 ${R.引雷.others}`,
   },
 ];
 
-// Levels inside one run. Level 3 is the fork; level 5 unlocks the capstone of the chosen branch.
-export const LEVELS = [
-  { lv: 1, name: "凡品", dmg: 1.0, slots: 0, note: "拾取时的状态" },
-  {
-    lv: 2,
-    name: "良品",
-    dmg: 1.2,
-    slots: 1,
-    note: "数值提升，开第 1 个铭文槽",
-  },
-  {
-    lv: 3,
-    name: "岔路",
-    dmg: 1.35,
-    slots: 1,
-    note: "二选一：甲 / 乙，外形和打法改变",
-  },
-  {
-    lv: 4,
-    name: "上品",
-    dmg: 1.6,
-    slots: 2,
-    note: "数值提升，开第 2 个铭文槽",
-  },
-  {
-    lv: 5,
-    name: "极",
-    dmg: 1.85,
-    slots: 3,
-    note: "所选岔路的终极词条，武器开光发亮",
-  },
-];
+export { LEVELS } from "./levels.js";
 
 export const CLASSES = {
   issue: { name: "制式", note: "守夜人配发的枪械：稳定、吃弹药、靠爆头" },
