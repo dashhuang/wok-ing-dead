@@ -9,7 +9,7 @@
 | --- | --- | --- | --- |
 | 墙面、地面、屋瓦等 PBR 贴图（22 套） | `public/assets/textures/` | [Poly Haven](https://polyhaven.com) | CC0 |
 | 街头道具模型（42 个） | `public/assets/props/` | [Poly Haven](https://polyhaven.com) | CC0 |
-| 僵尸角色与动作 | `public/assets/zombies/` | Adobe Mixamo（经公开 GitHub 仓库获取） | Mixamo 使用条款，**不是 CC0**，见下文 |
+| 僵尸角色与动作（4 个在用，7 个试用） | `public/assets/zombies/` | Adobe Mixamo（经公开 GitHub 仓库获取） | Mixamo 使用条款，**不是 CC0**，见下文 |
 | 招牌字体（子集） | `public/assets/fonts/` | Noto Serif TC、LXGW WenKai TC（Google Fonts 仓库） | SIL OFL 1.1 |
 | 界面字体（子集） | `public/assets/fonts/ui/` | Inter、Noto Serif Display、Noto Sans / Serif SC·TC·JP（Google Fonts 仓库） | SIL OFL 1.1 |
 | 场景贴图用的拉丁字体 | `public/assets/fonts/world/` | Big Shoulders Display、Barlow Condensed、IBM Plex Mono（Google Fonts，拉丁子集） | SIL OFL 1.1 |
@@ -39,7 +39,21 @@ node scripts/assets/build-chinatown.mjs <缓存目录> public/assets
 原始 FBX 取自三个公开的 GitHub 仓库（`Qwerty-coding/Last-Light`、`lauramurinova/ZombieDefense`、`baponkar/zombie-ai`），
 用 FBX2glTF 转换后由 `scripts/assets/build-zombies.mjs` 处理：统一骨骼名、材质改为普通 PBR、贴图压到 2K WebP、动作单独成文件。
 
+另有七个角色在试用，只在靶场（`/?range=1` 的「模型」）里出现，还没进正常的一局，也不在开局时下载。同样是 Mixamo 的角色，
+同样的转换流程，动作沿用上面那九段（`prisoner` 和 `mutant` 没有手指骨骼，手指不动）：
+
+| 文件 | Mixamo 角色 | 原始 FBX 取自 |
+| --- | --- | --- |
+| `yaku.glb` | Yaku J Ignite | `AxelCortes162/Vampiro` |
+| `prisoner.glb` | Prisoner B Styperek | `LihinduPerera/Fractured-UnityHDRP` |
+| `whiteclown.glb` | Whiteclown N Hallin | `MiloGame/CodeName-Prototype` |
+| `parasite.glb` | Parasite L Starkie | `emmmmzc/Table-Archery-by-Proteus-Team` |
+| `skeletonzombie.glb` | Skeletonzombie T Avelange | `Terracota1/TowerDefense` |
+| `pumpkinhulk.glb` | Pumpkinhulk L Shaw | `chacafdz/The-Hollow-Protocol` |
+| `mutant.glb` | Mutant | `GICF-E/Nightmare` |
+
 Mixamo 的角色和动作可以免费用于个人和商业项目，但条款不允许把原始素材单独再分发，也不是 CC0。
+这和「新增素材只用 CC0 / OFL」的规则不符：这七个是为了试用才接进来的，和原有四个一样属于公开发布前要处理的问题。
 **如果要公开发布这个项目，建议用自己的 Adobe 账号从 mixamo.com 重新下载同名角色与动作再跑一遍转换脚本**，
 或者换成明确可再分发的角色（例如 Quaternius、Kenney 的 CC0 角色）。
 
