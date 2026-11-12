@@ -59,3 +59,29 @@ export const ZOMBIES = {
   // desktop presets keep more bodies ready: the run wants a real crowd in the late courses
   poolLarge: { romero: 13, girl: 12, cop: 12, soldier: 6 },
 };
+
+// Bodies on trial: they are not in the run yet, only on the firing range (/?range=1, "模型"),
+// and nothing of theirs is downloaded until one is asked for.
+//   type: the rules it takes when it is brought on as itself (any of them can be given either)
+//   hit: how much wider than the bodies above its hit shapes are (head, body, arm, leg; 1 where
+//        not given), measured on the models
+//   girth: the same for blasts, cones and flames (on top of the type's radius)
+//   rigs: how many of it may be up at once ([phones, desktop])
+export const EXTRA_BODIES = {
+  yaku: { type: "walker", hit: { head: 1.15, body: 1.1 } },
+  prisoner: { type: "walker" },
+  whiteclown: { type: "walker" },
+  parasite: { type: "walker", hit: { arm: 1.4, leg: 1.3 } },
+  skeletonzombie: { type: "brute", hit: { body: 1.1, arm: 1.6, leg: 1.5 } },
+  pumpkinhulk: {
+    type: "brute",
+    hit: { body: 1.6, arm: 2, leg: 1.4 },
+    girth: 1.5,
+  },
+  mutant: {
+    type: "brute",
+    hit: { head: 1.2, body: 1.2, arm: 2.2, leg: 1.5 },
+    girth: 1.25,
+  },
+};
+export const EXTRA_RIGS = [5, 10];

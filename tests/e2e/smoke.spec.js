@@ -284,7 +284,7 @@ test("the lab's address parameters arm a real run", async ({ page }) => {
 // set up the way the address says, which is how it comes back after a reload).
 test("the firing range sets a run up by hand", async ({ page }) => {
   // the street takes a minute or two to build on a busy machine, and there is a lot to click
-  test.setTimeout(420_000);
+  test.setTimeout(540_000);
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(e.message));
   const ready = () =>
@@ -329,6 +329,7 @@ test("the firing range sets a run up by hand", async ({ page }) => {
         mode: R.range.opt.z,
         ammo: R.range.opt.ammo,
         standing: alive.filter((z) => z.passive).length,
+        trial: alive.filter((z) => z.extra).map((z) => z.kind),
         ranks: alive
           .map((z) => z.rank)
           .filter(Boolean)
@@ -383,21 +384,40 @@ test("the firing range sets a run up by hand", async ({ page }) => {
   expect((await range()).spice).toEqual({ vinegar: 2, chili: 1 });
 
   // turn to the nearest target (the mouse would) and fire with the keyboard
-  await page.evaluate(() => {
-    const G = window.__G;
-    const P = G.player;
-    let best = null;
-    let bd = 1e9;
-    for (const z of G.enemies.list) {
-      const d = Math.hypot(z.pos.x - P.pos.x, z.pos.z - P.pos.z);
-      if (z.alive && d < bd) [bd, best] = [d, z];
-    }
-    P.yaw = Math.atan2(-(best.pos.x - P.pos.x), -(best.pos.z - P.pos.z));
-    P.pitch = 0;
-  });
+  const faceNearest = () =>
+    page.evaluate(() => {
+      const G = window.__G;
+      const P = G.player;
+      let best = null;
+      let bd = 1e9;
+      for (const z of G.enemies.list) {
+        const d = Math.hypot(z.pos.x - P.pos.x, z.pos.z - P.pos.z);
+        if (z.alive && d < bd) [bd, best] = [d, z];
+      }
+      P.yaw = Math.atan2(-(best.pos.x - P.pos.x), -(best.pos.z - P.pos.z));
+      P.pitch = 0;
+    });
+  await faceNearest();
   await page.keyboard.down("Enter");
   await expect.poll(async () => (await range()).dealt).toBeGreaterThan(0);
   await page.keyboard.up("Enter");
+
+  // A model on trial is fetched when it is picked, takes the standing targets' places, is
+  // hit like the rest, and gives the street back to the usual dead when "原版" is picked.
+  await press('[data-body="pumpkinhulk"]');
+  await expect
+    .poll(async () => (await range()).trial.length, { timeout: 90_000 })
+    .toBeGreaterThan(3);
+  expect(new Set((await range()).trial)).toEqual(new Set(["pumpkinhulk"]));
+  const before = (await range()).dealt;
+  await faceNearest();
+  await page.keyboard.down("Enter");
+  await expect.poll(async () => (await range()).dealt).toBeGreaterThan(before);
+  await page.keyboard.up("Enter");
+  expect(decodeURIComponent(page.url())).toContain("body=pumpkinhulk");
+  await press('[data-body=""]');
+  await expect.poll(async () => (await range()).trial).toEqual([]);
+  await expect.poll(async () => (await range()).standing).toBeGreaterThan(3);
 
   // the special dead on request, then a course of the meal
   await press('[data-spawn="elite"]');
@@ -425,6 +445,7 @@ test("the firing range sets a run up by hand", async ({ page }) => {
   expect(url).toContain("z=horde");
   expect(url).toContain("course=mains");
   expect(url).not.toContain("ammo=");
+  expect(url).not.toContain("body=");
 
   const runtime = await page.evaluate(() => ({
     fatal: window.__fatal,

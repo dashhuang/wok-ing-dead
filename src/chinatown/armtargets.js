@@ -131,7 +131,7 @@ export function createGameTargets(G, lab, fx, E, root) {
         return gz.scale;
       },
       get radius() {
-        return ZOMBIES[gz.type].radius * Math.max(1, gz.scale);
+        return ZOMBIES[gz.type].radius * Math.max(1, gz.scale) * gz.girth;
       },
       get height() {
         return 1.75 * gz.scale;
@@ -227,7 +227,7 @@ export function createGameTargets(G, lab, fx, E, root) {
       for (const gz of G.enemies.list) {
         if (!gz.alive) continue;
         if (skip && gz.mark && skip.has(gz.mark)) continue;
-        const sc = gz.scale > 1.3 ? gz.scale : 1;
+        const sc = Math.max(gz.scale > 1.3 ? gz.scale : 1, gz.girth);
         _a.set(gz.pos.x - o.x, gz.pos.y + 0.9 * sc - o.y, gz.pos.z - o.z);
         const along = _a.dot(d);
         if (along < -1.5 * sc || along > max + 1.5 * sc) continue;

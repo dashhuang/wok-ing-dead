@@ -1,5 +1,7 @@
 // Turns the converted Mixamo GLBs (FBX2glTF output) into game-ready files:
 //   node build-zombies.mjs <dir with *.glb from FBX2glTF> <out dir>
+// Only the sources that are in the directory are built, so a new character can be added
+// without the others' originals at hand.
 // Needs @gltf-transform/{core,extensions,functions}, meshoptimizer and sharp on the module path.
 // - bones lose their "mixamorigN:" prefix so every clip drives every character
 // - spec/gloss leftovers become plain dielectric PBR, hair/lashes become alpha-tested
@@ -35,6 +37,19 @@ const CHARACTERS = {
   cop: { out: "cop", cut: ["glass_hair_M", "body_M1"] },
   war: { out: "soldier" },
   girl: { out: "girl", cut: ["ZombieGirl_Material"] },
+  // the firing range's trial characters (see docs/assets.md)
+  yaku: { out: "yaku", cut: ["yifu"] },
+  prisoner: { out: "prisoner" },
+  whiteclown: { out: "whiteclown" },
+  parasite: { out: "parasite", cut: ["parasitezombie_Material"] },
+  // (its glow map is dropped: the game puts its own emissive wash over the dead)
+  skeletonzombie: {
+    out: "skeletonzombie",
+    cut: ["skeletonZombie_Material"],
+    noGlow: true,
+  },
+  pumpkinhulk: { out: "pumpkinhulk" },
+  mutant: { out: "mutant" },
 };
 const CLIPS = {
   anim_zombie_idle: "idle",
@@ -50,6 +65,7 @@ const CLIPS = {
 
 await MeshoptSimplifier.ready;
 for (const [file, cfg] of Object.entries(CHARACTERS)) {
+  if (!fs.existsSync(path.join(src, file + ".glb"))) continue;
   const doc = await io.read(path.join(src, file + ".glb"));
   const root = doc.getRoot();
   for (const a of root.listAnimations()) a.dispose();
@@ -62,6 +78,7 @@ for (const [file, cfg] of Object.entries(CHARACTERS)) {
     m.setRoughnessFactor(m.getMetallicRoughnessTexture() ? 1 : 0.78);
     m.setAlphaMode(cut ? "MASK" : "OPAQUE");
     if (cut) m.setAlphaCutoff(0.4).setDoubleSided(true);
+    if (cfg.noGlow) m.setEmissiveTexture(null).setEmissiveFactor([0, 0, 0]);
     void base;
   }
   // vertex colours on the girl are authoring leftovers (all white) and would only cost memory
@@ -92,6 +109,7 @@ for (const [file, cfg] of Object.entries(CHARACTERS)) {
   console.log(cfg.out, (fs.statSync(file2).size / 1048576).toFixed(1) + " MB");
 }
 for (const [file, name] of Object.entries(CLIPS)) {
+  if (!fs.existsSync(path.join(src, file + ".glb"))) continue;
   const doc = await io.read(path.join(src, file + ".glb"));
   const root = doc.getRoot();
   strip(doc);

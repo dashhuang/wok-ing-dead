@@ -11,12 +11,16 @@
 // every save):
 //   /?range=1&w=flamer&b=a&lv=5&spice=chili:2,fire:3&ammo=meal&z=horde&course=mains&god=0
 //
+// It is also where the models on trial are looked at (zombietune.js EXTRA_BODIES): "模型"
+// puts one of them, or all of them, in place of the usual dead for everything the panel
+// brings on, and "列队" stands the lot in a row (&body=pumpkinhulk, &body=mix, &z=lineup).
+//
 // A debugging tool: its own labels are Chinese only and are not in the language packs (the
 // names of weapons, seasonings, ammunition and courses are the game's and follow the language).
 import * as L10N from "../i18n/index.js";
 import { ARMS, AMMO, AMMO_TYPES, MAX_LEVEL, ammoPer } from "./loadout.js";
 import { RUN, spiceVars } from "./runtune.js";
-import { ZOMBIES } from "./zombietune.js";
+import { ZOMBIES, EXTRA_BODIES } from "./zombietune.js";
 import { STATUS } from "../../arsenal/src/data/status.js";
 import { LEVELS } from "../../arsenal/src/data/levels.js";
 
@@ -41,7 +45,40 @@ const MODES = [
   ["stand", "站桩"],
   ["advance", "逼近"],
   ["horde", "尸潮"],
+  ["lineup", "列队", "试用的新模型站成两排"],
 ];
+// the models that can stand in for the usual dead: [id, label]
+const BODY_NAMES = {
+  yaku: "黑帮",
+  prisoner: "囚犯",
+  whiteclown: "小丑",
+  parasite: "寄生",
+  skeletonzombie: "骷髅",
+  pumpkinhulk: "南瓜",
+  mutant: "变异",
+};
+const TRIAL = Object.keys(EXTRA_BODIES);
+const BODIES = [
+  ["", "原版", "现在一局里用的四个模型"],
+  ["mix", "新的混编", "七个新模型一起上，各按自己的规则（行尸或重型）"],
+  ...TRIAL.map((id) => [
+    id,
+    BODY_NAMES[id] || id,
+    `只上这一个，什么身份都由它来演（自己上场时是${EXTRA_BODIES[id].type === "brute" ? "重型" : "行尸"}）`,
+  ]),
+];
+// the trial models in two staggered rows, the ordinary ones in front and the heavy ones
+// behind: [metres ahead, metres to the side, rules, model]
+const lineRow = (heavy, d, gap) =>
+  TRIAL.filter((b) => (EXTRA_BODIES[b].type === "brute") === heavy).map(
+    (body, i, row) => [
+      d,
+      (i - (row.length - 1) / 2) * gap,
+      EXTRA_BODIES[body].type,
+      body,
+    ],
+  );
+const LINE = [...lineRow(false, 5, 1.3), ...lineRow(true, 7.4, 2.6)];
 // the standing targets: metres ahead, metres to the side, body
 const SPOTS = [
   [6, -1.2, "walker"],
@@ -70,20 +107,28 @@ export function createRange(G, c) {
     ammo: p0.ammo === "meal" ? "meal" : "free",
     z: MODES.some((m) => m[0] === p0.z) ? p0.z : "stand",
     course: courses.some((s) => s.id === p0.course) ? p0.course : courses[0].id,
+    body: BODIES.some((b) => b[0] === p0.body) ? p0.body : "",
     god: p0.god !== "0",
     tickets: p0.tickets === "1",
     open: p0.panel !== "0",
   };
   const pref = {}; // the form each weapon was last given: "a" | "b"
   const meter = { hits: [], total: 0, kills: 0, hurt: 0, spent: {} };
-  const spots = SPOTS.map(([d, o, type]) => ({
-    d,
-    o,
-    type,
-    z: null,
-    id: -1,
-    t: 0,
-  }));
+  const spotList = (list) =>
+    list.map(([d, o, type, body]) => ({
+      d,
+      o,
+      type,
+      body,
+      z: null,
+      id: -1,
+      t: 0,
+    }));
+  const stand = spotList(SPOTS);
+  const line = spotList(LINE);
+  const spotsNow = () => (opt.z === "lineup" ? line : stand);
+  let bodyNote = ""; // "载入中…" while a model is on its way, or what went wrong
+  let casting = false; // the chosen models are on their way: nobody is brought on meanwhile
   let anchor = null; // where the standing targets were laid out from: { pos, yaw }
   let advanceT = 0;
   let eliteN = 0;
@@ -162,6 +207,7 @@ export function createRange(G, c) {
     const spawns = SPAWNS.map(
       ([id, label]) => `<button data-spawn="${id}">＋${label}</button>`,
     ).join("");
+    const bodies = seg("body", BODIES, opt.body);
     el.classList.toggle("shut", !opt.open);
     el.querySelector('[data-act="fold"]').textContent = opt.open
       ? "收起"
@@ -182,7 +228,7 @@ export function createRange(G, c) {
         <section><h4>僵尸<small id="rg-alive"></small></h4>
           <div class="rg-row"><div class="rg-seg">${seg(
             "z",
-            MODES.map(([v, label]) => [v, label]),
+            MODES,
             opt.z,
           )}</div><button data-act="clear">清场</button></div>
           <div class="rg-row${opt.z === "horde" ? "" : " dim"}"><span>火候</span><div class="rg-seg">${seg(
@@ -190,6 +236,8 @@ export function createRange(G, c) {
             courses.map((s) => [s.id, L10N.t("run.stage." + s.id)]),
             opt.course,
           )}</div></div>
+          <div class="rg-row"><span>模型</span><span class="rg-note">${esc(bodyNote || "新模型还在试用，只在靶场里有")}</span></div>
+          <div class="rg-grid">${bodies}</div>
           <div class="rg-grid">${spawns}</div></section>
         <section><div class="rg-row"><div class="rg-seg">${seg(
           "god",
@@ -358,6 +406,7 @@ export function createRange(G, c) {
       opt.course = d.course;
       if (opt.z !== "horde") setMode("horde");
     } else if (d.spawn) spawn(d.spawn);
+    else if (d.body !== undefined) setBody(d.body);
     else if (d.god) opt.god = d.god === "1";
     else if (d.tickets) opt.tickets = d.tickets === "1";
     else if (d.act === "refill") loadout.refill();
@@ -438,6 +487,7 @@ export function createRange(G, c) {
     set("ammo", opt.ammo, "free");
     set("z", opt.z, "stand");
     set("course", opt.course, courses[0].id);
+    set("body", opt.body, "");
     set("god", opt.god ? "1" : "0", "1");
     set("tickets", opt.tickets ? "1" : "0", "0");
     set("panel", opt.open ? "1" : "0", "1");
@@ -486,28 +536,66 @@ export function createRange(G, c) {
   // Which way the standing targets are laid out: the way the player is facing if the street
   // is open there, otherwise the nearest heading where it is (facing a wall, the targets
   // go up beside or behind rather than not at all).
-  function openHeading(yaw) {
+  function openHeading(yaw, list) {
     let best = yaw;
     let most = -1;
     for (const turn of [0, 45, -45, 90, -90, 135, -135, 180]) {
       const h = yaw + (turn * Math.PI) / 180;
-      const n = SPOTS.filter(([d, o]) => walkable(spotAt(h, d, o))).length;
+      const n = list.filter((s) => walkable(spotAt(h, s.d, s.o))).length;
       if (n > most) [most, best] = [n, h];
-      if (n === SPOTS.length) break;
+      if (n === list.length) break;
     }
     return best;
   }
   function setMode(mode) {
     opt.z = mode;
     G.enemies.clear();
-    for (const s of spots) {
+    for (const s of [...stand, ...line]) {
       s.z = null;
       s.t = 0;
     }
     advanceT = 0;
     S.spawnT = 0.3;
     anchor = { pos: P().pos.clone(), yaw: P().yaw };
-    if (mode === "stand") anchor.yaw = openHeading(anchor.yaw);
+    if (mode === "stand" || mode === "lineup")
+      anchor.yaw = openHeading(anchor.yaw, spotsNow());
+    if (mode === "lineup") fetchBodies(TRIAL);
+  }
+  // ---- the models on trial
+  function fetchBodies(names) {
+    bodyNote = "载入中…";
+    return G.enemies.ensure(names).then(
+      () => {
+        bodyNote = "";
+        render();
+        return true;
+      },
+      (err) => {
+        console.warn("[range] model failed to load", err);
+        bodyNote = "模型没载入成功";
+        render();
+        return false;
+      },
+    );
+  }
+  // which models stand in for the usual dead: "" | "mix" | one of TRIAL
+  function setBody(body) {
+    opt.body = body;
+    const names = body === "mix" ? TRIAL : body ? [body] : null;
+    G.enemies.cast = null;
+    casting = !!names;
+    setMode(opt.z);
+    if (!names) return void (bodyNote = "");
+    fetchBodies(names).then((ok) => {
+      if (opt.body !== body) return; // another was picked meanwhile
+      casting = false;
+      if (!ok) opt.body = "";
+      else G.enemies.cast = names;
+      // those already on the street were the old cast: lay the scene out again
+      setMode(opt.z);
+      sync();
+      render();
+    });
   }
   function spawn(kind) {
     const def = SPAWNS.find((s) => s[0] === kind);
@@ -530,8 +618,9 @@ export function createRange(G, c) {
   // dt: seconds on the street, real: wall-clock seconds. A fallen target is stood up again
   // by the clock on the wall: the street may be running slow (a ticket up, a slow machine).
   function tend(dt, real) {
-    if (opt.z === "stand") {
-      for (const s of spots) {
+    if (casting) return;
+    if (opt.z === "stand" || opt.z === "lineup") {
+      for (const s of spotsNow()) {
         if (alive(s)) continue;
         s.t -= real;
         if (s.t > 0) continue;
@@ -542,11 +631,12 @@ export function createRange(G, c) {
           passive: true,
           runner: false,
           yaw: Math.atan2(anchor.pos.x - pos.x, anchor.pos.z - pos.z),
+          body: s.body,
         });
         if (z) {
           s.z = z;
           s.id = z.id;
-        }
+        } else if (s.body) s.t = 0.4; // its model is still on the way
       }
     } else if (opt.z === "advance") {
       advanceT -= dt;
@@ -669,9 +759,11 @@ export function createRange(G, c) {
         mode: opt.z,
         player: [r(P().pos.x), r(P().pos.z), r(P().yaw)],
         heading: anchor ? r(anchor.yaw) : null,
-        spots: spots.map((s) => {
+        body: opt.body,
+        cast: G.enemies.cast,
+        spots: spotsNow().map((s) => {
           const p = anchor && spotPos(s.d, s.o);
-          return `${s.type[0]}${s.d}:${p ? "ok" : "blocked"}:${alive(s) ? "up" : "down"}`;
+          return `${s.body || s.type[0]}${s.d}:${p ? "ok" : "blocked"}:${alive(s) ? "up" : "down"}`;
         }),
       };
     },
@@ -683,12 +775,13 @@ export function createRange(G, c) {
       eliteN = 0;
       lastRounds = null;
       zero();
-      setMode(opt.z);
+      setBody(opt.body);
       shown = "";
       render();
     },
     end() {
       el.hidden = true;
+      G.enemies.cast = null;
       if (P()) P().invulnerable = false;
     },
     /** dt: seconds on the street, real: wall-clock seconds. */

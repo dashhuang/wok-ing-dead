@@ -3,7 +3,7 @@
 // (list / spawn / raycast / aliveCount / clear / alert / update / TUNE).
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { ZOMBIES } from "./zombietune.js";
+import { ZOMBIES, EXTRA_BODIES, EXTRA_RIGS } from "./zombietune.js";
 
 const ASSETS = "assets/zombies/";
 const CHARACTERS = {
@@ -26,6 +26,7 @@ const CLIPS = {
 };
 
 export const TUNE = ZOMBIES;
+const HIT = { head: 1, body: 1, arm: 1, leg: 1 };
 
 const PART_DAMAGE = { weak: 1, body: 1, arm: 0.6, leg: 0.7 };
 
@@ -116,32 +117,44 @@ export async function createZombies(G) {
   ];
 
   const templates = {};
-  Object.keys(CHARACTERS).forEach((name, i) => {
-    const scene = charFiles[i].scene;
+  // cfg: an entry of CHARACTERS, or of EXTRA_BODIES (extra: true)
+  function addTemplate(name, cfg, scene, extra) {
     const hips = scene.getObjectByName("Hips");
-    const materials = new Map();
+    const names = new Set();
     scene.traverse((o) => {
+      names.add(o.name);
       if (!o.isMesh) return;
       o.castShadow = true;
       o.receiveShadow = true;
-      if (!materials.has(o.material)) materials.set(o.material, o.material);
       for (const k of MAPS) wantShrink(o.material[k]);
     });
-    templates[name] = {
+    const t = (templates[name] = {
       name,
-      type: CHARACTERS[name].type,
+      type: cfg.type,
+      extra: !!extra,
+      hit: { ...HIT, ...cfg.hit },
+      girth: cfg.girth || 1,
       scene,
       hipsY: hips ? hips.position.y : 1,
       clips: {},
-    };
-    for (const [key, clip] of Object.entries(clips))
-      templates[name].clips[key] = scaleRoot(
-        clip,
-        templates[name].hipsY / clip.userData.hipsY,
-      );
-  });
-
-  await Promise.all([...toShrink].map(shrink));
+    });
+    for (const [key, clip] of Object.entries(clips)) {
+      const copy = scaleRoot(clip, t.hipsY / clip.userData.hipsY);
+      // (a body without finger bones has nothing for those tracks to turn)
+      copy.tracks = copy.tracks.filter((k) => names.has(k.name.split(".")[0]));
+      t.clips[key] = copy;
+    }
+    return t;
+  }
+  async function shrinkPending() {
+    const jobs = [...toShrink];
+    toShrink.clear();
+    await Promise.all(jobs.map(shrink));
+  }
+  Object.keys(CHARACTERS).forEach((name, i) =>
+    addTemplate(name, CHARACTERS[name], charFiles[i].scene, false),
+  );
+  await shrinkPending();
 
   // ---------- shared state ----------
   const list = [];
@@ -303,6 +316,11 @@ export async function createZombies(G) {
       id: 0,
       type: template.type,
       kind: template.name,
+      // a body on trial (EXTRA_BODIES): not in the run's pool, and `type` is whatever it was
+      // last brought on as
+      extra: template.extra,
+      hit: template.hit,
+      girth: template.girth,
       active: false,
       alive: false,
       passive: false,
@@ -1099,6 +1117,10 @@ export async function createZombies(G) {
   function raycastZombie(z, o, d, max, out) {
     const P = z.P;
     const s = z.scale;
+    const H = z.hit;
+    const rb = 0.2 * s * H.body;
+    const ra = s * H.arm;
+    const rl = s * H.leg;
     let best = out.dist;
     let part = null;
     const test = (ok, name) => {
@@ -1109,23 +1131,21 @@ export async function createZombies(G) {
     };
     tmp.a.copy(P.head);
     tmp.a.y += TUNE.head.above * s;
-    test(raySphere(o, d, tmp.a, TUNE.head.radius * s, max), "weak");
+    test(raySphere(o, d, tmp.a, TUNE.head.radius * s * H.head, max), "weak");
     // the torso capsule stops one radius short of the neck, so its rounded top ends at the
     // neck and does not swallow the head sphere
     tmp.b.subVectors(P.neck, P.hips);
     const torso = tmp.b.length();
-    tmp.b
-      .multiplyScalar(Math.max(0, torso - 0.2 * s) / (torso || 1))
-      .add(P.hips);
-    test(rayCapsule(o, d, P.hips, tmp.b, 0.2 * s, max), "body");
-    test(rayCapsule(o, d, P.lArm, P.lFore, 0.075 * s, max), "arm");
-    test(rayCapsule(o, d, P.lFore, P.lHand, 0.065 * s, max), "arm");
-    test(rayCapsule(o, d, P.rArm, P.rFore, 0.075 * s, max), "arm");
-    test(rayCapsule(o, d, P.rFore, P.rHand, 0.065 * s, max), "arm");
-    test(rayCapsule(o, d, P.lUp, P.lLeg, 0.105 * s, max), "leg");
-    test(rayCapsule(o, d, P.lLeg, P.lFoot, 0.085 * s, max), "leg");
-    test(rayCapsule(o, d, P.rUp, P.rLeg, 0.105 * s, max), "leg");
-    test(rayCapsule(o, d, P.rLeg, P.rFoot, 0.085 * s, max), "leg");
+    tmp.b.multiplyScalar(Math.max(0, torso - rb) / (torso || 1)).add(P.hips);
+    test(rayCapsule(o, d, P.hips, tmp.b, rb, max), "body");
+    test(rayCapsule(o, d, P.lArm, P.lFore, 0.075 * ra, max), "arm");
+    test(rayCapsule(o, d, P.lFore, P.lHand, 0.065 * ra, max), "arm");
+    test(rayCapsule(o, d, P.rArm, P.rFore, 0.075 * ra, max), "arm");
+    test(rayCapsule(o, d, P.rFore, P.rHand, 0.065 * ra, max), "arm");
+    test(rayCapsule(o, d, P.lUp, P.lLeg, 0.105 * rl, max), "leg");
+    test(rayCapsule(o, d, P.lLeg, P.lFoot, 0.085 * rl, max), "leg");
+    test(rayCapsule(o, d, P.rUp, P.rLeg, 0.105 * rl, max), "leg");
+    test(rayCapsule(o, d, P.rLeg, P.rFoot, 0.085 * rl, max), "leg");
     if (!part) return false;
     out.dist = best;
     out.point.copy(o).addScaledVector(d, best);
@@ -1135,22 +1155,86 @@ export async function createZombies(G) {
     return true;
   }
 
+  // ---------- bodies on trial ----------
+  const loading = {};
+  const extraRigs = EXTRA_RIGS[lowShadows ? 0 : 1];
+  /** Downloads the named trial bodies (EXTRA_BODIES) and makes them ready to spawn. */
+  function ensure(names) {
+    return Promise.all(
+      names
+        .filter((n) => EXTRA_BODIES[n])
+        .map(
+          (n) =>
+            (loading[n] ||= load(n + ".glb")
+              .then(async (gltf) => {
+                addTemplate(n, EXTRA_BODIES[n], gltf.scene, true);
+                await shrinkPending();
+              })
+              .catch((err) => {
+                delete loading[n];
+                delete templates[n];
+                throw err;
+              })),
+        ),
+    );
+  }
+  const ready = (n) => !!(templates[n] && templates[n].extra);
+  // One of the named trial bodies for a spawn: a rig that is free, a new one while there is
+  // room, or the oldest of their corpses. null when they are all up and about.
+  function trialRig(names) {
+    const free = pool.filter((z) => !z.active && names.includes(z.kind));
+    if (free.length) return free[Math.floor(rng() * free.length)];
+    const room = names.filter(
+      (n) => pool.filter((z) => z.kind === n).length < extraRigs,
+    );
+    if (room.length) {
+      const z = createZombie(templates[room[Math.floor(rng() * room.length)]]);
+      pool.push(z);
+      return z;
+    }
+    const old = corpses.find((z) => names.includes(z.kind));
+    if (old) retire(old);
+    return old || null;
+  }
+
   // ---------- public surface ----------
   const api = {
     list,
     TUNE,
+    ensure,
+    /**
+     * The firing range's choice of models: a list of trial bodies that stand in for the
+     * usual ones wherever a spawn does not name its own (null: the usual ones). With more
+     * than one in the list each plays the rules it is meant for; one alone plays them all.
+     */
+    cast: null,
+    // opts.body: this trial body and no other (nothing is spawned if it is not loaded)
     spawn(type, pos, opts = {}) {
       if (warm) coolDown();
       const kind = type === "brute" ? "brute" : "walker";
-      let free = pool.filter((z) => !z.active && z.type === kind);
-      if (!free.length) {
-        // recycle the oldest corpse of that body type
-        const old = corpses.find((z) => z.type === kind);
-        if (!old) return null;
-        retire(old);
-        free = [old];
+      let z = null;
+      if (opts.body) {
+        if (!ready(opts.body)) return null;
+        z = trialRig([opts.body]);
+        if (!z) return null;
+      } else if (api.cast) {
+        const on = api.cast.filter(ready);
+        const fit =
+          on.length > 1 ? on.filter((n) => templates[n].type === kind) : on;
+        if (fit.length) z = trialRig(fit);
       }
-      const z = free[Math.floor(rng() * free.length)];
+      if (!z) {
+        let free = pool.filter((z) => !z.active && !z.extra && z.type === kind);
+        if (!free.length) {
+          // recycle the oldest corpse of that body type
+          const old = corpses.find((z) => !z.extra && z.type === kind);
+          if (!old) return null;
+          retire(old);
+          free = [old];
+        }
+        z = free[Math.floor(rng() * free.length)];
+      }
+      if (z.extra) z.type = kind;
       z.id = nextId++;
       list.push(z);
       z._activate(pos, opts);
@@ -1162,7 +1246,7 @@ export async function createZombies(G) {
       let out = null;
       for (const z of list) {
         if (!z.alive || (skip && skip.has(z))) continue;
-        const sc = z.scale > 1.3 ? z.scale : 1;
+        const sc = Math.max(z.scale > 1.3 ? z.scale : 1, z.girth);
         const dx = z.pos.x - origin.x;
         const dy = z.pos.y + 0.9 * sc - origin.y;
         const dz = z.pos.z - origin.z;
