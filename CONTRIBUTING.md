@@ -1,9 +1,25 @@
 # 开发流程
 
 `main` 就是线上版本：Vercel 接了这个仓库，`main` 上的每个提交都会自动部署到 https://wok-ing-dead.vercel.app 。
-所以改动一律走分支和 Pull Request，CI 和预览都通过后再合并。
 
-## 一次改动的完整流程
+有两种发布方式，按改动大小选：
+
+- **小改动直接推 `main`**：改文案、调数值、修小问题、改文档。推送前钩子会跑语法和格式检查，推上去就上线。
+- **大改动走 Pull Request**：新玩法、改菜单或启动流程、动很多文件。好处是有 Vercel 预览地址可以先玩，需要时可以跑冒烟测试。
+
+## 小改动：直接推 `main`
+
+```sh
+git switch main && git pull
+# 改完
+npm run check && npm run build
+git commit -am "Fix the pause menu overlapping the timer"
+git push
+```
+
+推上去后 CI 还会再跑一遍检查和构建（约 20 秒），变红就马上修或回滚（见下文）。
+
+## 大改动：走 Pull Request
 
 1. **从最新的 `main` 拉分支**
 
@@ -30,7 +46,7 @@
    npm run verify     # 以上三步一起跑
    ```
 
-   `npm ci` 时会自动启用 `.githooks/`：`git push` 前先跑 `npm run check`，并拒绝直接推送到 `main`。
+   `npm ci` 时会自动启用 `.githooks/`：`git push` 前先跑 `npm run check`。
 
 3. **提交**
 
@@ -45,23 +61,26 @@
    gh pr create --fill
    ```
 
-   - CI 会跑两项：「Check and build」（语法、格式、生产构建，在 GitHub 的机器上）和「Smoke test」（用真实鼠标点击和按键走标题 → 开镬 → 选主菜 → 开火 → 升级选小票 → 暂停 → 继续 → 死亡 → 重试，
-     再从标题页换到第二关码头开一局，并检查手机竖屏、横屏下标题页按钮没有被遮挡，约 9 分钟；
-     之后在同一台机器上跑武器试验场的测试 `npm run arsenal:test`，约 2 分钟）。冒烟测试要约 10 GB 内存，GitHub 给私有仓库的机器只有 7 GB，
-     所以它跑在 Dash 的 Mac Studio 上的自托管 runner（`mac-studio`，安装在 `~/actions-runner/wok-ing-dead`，
-     作为登录项服务运行，登录后自动上线）。runner 离线时这一项会排队等待，超过 24 小时会失败，需要在 PR 页面点 Re-run。
+   - CI 每次都跑「Check and build」：语法、格式、生产构建，在 GitHub 的机器上约 20 秒。
+   - **冒烟测试按需跑**：给 PR 加上 `e2e` 标签就会开始（之后每次推新提交都会再跑），也可以在 Actions 页面选「Smoke test」→ Run workflow，
+     或 `gh workflow run smoke.yml --ref <分支>`。改了菜单、标题页、启动流程或一局的流程时建议跑。
+     它用真实鼠标点击和按键走标题 → 开镬 → 选主菜 → 开火 → 升级选小票 → 暂停 → 继续 → 死亡 → 重试，再从标题页换到第二关码头开一局，
+     并检查手机竖屏、横屏下标题页按钮没有被遮挡（约 9 分钟），之后跑武器试验场的测试 `npm run arsenal:test`（约 2 分钟）。
+     冒烟测试要约 10 GB 内存，GitHub 给私有仓库的机器只有 7 GB，所以它跑在 Dash 的 Mac Studio 上的自托管 runner
+     （`mac-studio`，安装在 `~/actions-runner/wok-ing-dead`，作为登录项服务运行，登录后自动上线）。
+     runner 离线时会排队等待，超过 24 小时会失败，需要在 PR 页面点 Re-run。
    - Vercel 会在 PR 里贴出预览地址。在预览地址上实际玩一遍受影响的部分，再按模板勾选验证项。
    - 画面、界面、特效改动附上截图或录屏。
 
 5. **合并**
 
-   两项检查都通过后用 **Squash and merge** 合并，并删除分支。合并后 Vercel 自动部署生产环境，
+   「Check and build」通过（跑了冒烟测试的话它也要通过）后用 **Squash and merge** 合并，并删除分支。合并后 Vercel 自动部署生产环境，
    用 `npx vercel@latest ls wok-ing-dead` 确认部署成功，再打开线上地址看一眼。
 
 ## 出了问题怎么回滚
 
 - 最快：在 Vercel 控制台把上一个正常的部署 Promote 回生产（或 `npx vercel@latest rollback`）。
-- 然后在 GitHub 上对出问题的 PR 点 Revert，走同样的 PR 流程把 `main` 修正回来。
+- 然后修正 `main`：PR 合进来的就在 GitHub 上对那个 PR 点 Revert；直接推的就 `git revert <提交>` 再推送。
 
 ## 几条约定
 

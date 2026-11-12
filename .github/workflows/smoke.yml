@@ -1,0 +1,54 @@
+name: Smoke test
+
+# Opt-in: runs only for pull requests labelled `e2e`, or when started by hand from the
+# Actions tab / `gh workflow run smoke.yml --ref <branch>`. Use it for changes to menus,
+# the title screen, start-up or the run flow.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Smoke test (real clicks)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.action == 'labeled' && github.event.label.name == 'e2e') ||
+      (github.event.action != 'labeled' &&
+      contains(github.event.pull_request.labels.*.name, 'e2e'))
+    # Job-level so a skipped run (e.g. some other label added) never cancels a real one.
+    concurrency:
+      group: smoke-${{ github.ref }}
+      cancel-in-progress: true
+    # The game needs ~10 GB of browser memory to build the street; GitHub-hosted runners
+    # for private repos have 7 GB. This job runs on Dash's Mac Studio (self-hosted runner).
+    runs-on: [self-hosted, macOS, saltline-e2e]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Install Chromium
+        run: npx playwright install chromium
+      - name: Title → deploy → arm → level up → pause → die → retry; docks
+        run: npm run test:e2e
+      - name: Weapon lab (every form fires; clicks, keys, reloads, phone taps)
+        if: ${{ !cancelled() && hashFiles('arsenal/playwright.config.js') != '' }}
+        run: npm run arsenal:test
+      - name: Upload report
+        if: ${{ !cancelled() && failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+            arsenal/test-results/
+          retention-days: 14

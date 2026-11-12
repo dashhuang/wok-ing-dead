@@ -8,7 +8,7 @@
 基于从 Claude artifact 提取的「Saltline」发布包改造而来，目标是 3A 品质、摆脱原版的复制感。
 
 - 线上：https://wok-ing-dead.vercel.app ，GitHub：`dashhuang/wok-ing-dead`（私有）。
-- **`main` 上的每个提交都会被 Vercel 自动部署到生产。** 不要直接提交或推送 `main`。
+- **`main` 上的每个提交都会被 Vercel 自动部署到生产。** 小改动可以直接推 `main`，大改动走 PR（见下文工作流）。
 - 文档和界面默认中文；提交信息用英文。
 
 ## 命令
@@ -19,7 +19,7 @@ npm run dev            # 开发服务器 http://127.0.0.1:5173/（有热重载�
 npm run check          # 全仓库 JS 语法 + Prettier 格式检查
 npm run format         # 自动修格式
 npm run build          # 生产构建到 dist/
-npm run test:e2e       # Playwright 真实点击冒烟测试（先 build；端口 5199；CI 上跑在 Mac Studio 自托管 runner）
+npm run test:e2e       # Playwright 真实点击冒烟测试（先 build；端口 5199；CI 上按需跑，见下文）
 npm run verify         # check + build + test:e2e
 npm run build:single   # 单文件版 dist-single/wok-ing-dead.html（约 35 MB）
 npm run arsenal        # 武器试验场 http://127.0.0.1:5311/（独立于本体，没有热重载）
@@ -66,12 +66,17 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
    **用 `git worktree add ../Saltline-<任务> -b <分支> origin/main` 单独开目录**，不要切换主目录的分支，也不要动别人未提交的文件。
 2. 提交只 `git add` 自己改的文件；提交信息是英文祈使句、首字母大写、写效果（看 `git log`）。
    AI 协助的提交加上要求的署名 trailer。
-3. 用户要求时才 push 和开 PR（`gh pr create --fill`）。pre-push 钩子会拒绝推送 `main`；不要用 `--no-verify` 绕过，除非用户明确要求紧急修复。
+3. 用户要求时才 push。用户说直接推 / 直接发布时，在最新的 `main` 上提交并推送（推上去立即上线）；没说清楚的，
+   小改动（文案、数值、小修复、文档）问一句，大改动（新玩法、菜单或启动流程、多文件重构）默认开 PR（`gh pr create --fill`）。
+   pre-push 钩子会跑 `npm run check`，不要用 `--no-verify` 绕过。
+   CI 每次只跑检查和构建；冒烟测试按需跑：改了菜单、标题页、启动或一局的流程时给 PR 加 `e2e` 标签（`gh pr edit <号> --add-label e2e`），
+   或 `gh workflow run smoke.yml --ref <分支>`。
 4. 合并用 Squash and merge；合并后用 `npx vercel@latest ls wok-ing-dead` 确认生产部署成功。
 
 ## 验证（交付前必须做）
 
-- `npm run check`、`npm run build` 必须通过。改了界面、流程或启动逻辑，跑 `npm run test:e2e`。
+- `npm run check`、`npm run build` 必须通过。自动化冒烟测试（`npm run test:e2e`）现阶段不是每次必跑：改动大（菜单、标题页、启动或一局的流程）
+  或用户要求时才跑，在本机或按上文在 CI 上跑。
 - **必须用真实鼠标点击和按键走入口**，不能只靠 `?autostart=1` 或直接调用 `G.game.start()`——曾经标题页按钮被透明元素挡住，
   脚本直达的检查全部通过，用户一上手就点不动。界面改动走一遍：标题页 → 开镬 → 选主菜 → 数字键换武器 → Esc 暂停 → 设置里换语言 → 继续 →
   死亡重试 → 通关再开 → 换分店，

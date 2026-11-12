@@ -12,7 +12,7 @@
 
 ## 开始开发
 
-改动走分支和 Pull Request，`main` 上的提交会自动部署到线上，流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+`main` 上的提交会自动部署到线上：小改动可以直接推 `main`，大改动走 Pull Request，流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 AI 编程助手的工作说明在 [AGENTS.md](AGENTS.md)。
 
 需要 Node.js 22（参见 `.nvmrc`）。
