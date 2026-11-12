@@ -10,6 +10,7 @@ import { createBuilder } from "./buildings.js";
 import { buildLandmarks } from "./landmarks.js";
 import { dressStreets } from "./dressing.js";
 import { createLights } from "./lights.js";
+import { placeSupplies } from "./supplies.js";
 
 const PROP_IDS = [
   "CoffeeCart_01",
@@ -535,6 +536,7 @@ export async function createLevel(G) {
   // ---------------- landmarks, dressing, lights ----------------
   const marks = buildLandmarks(ctx, PLAN);
   dressStreets(ctx, PLAN, marks);
+  const supplySites = placeSupplies(ctx);
 
   signs.finish();
   const staticRoot = kit.flush("static", root);
@@ -810,6 +812,7 @@ export async function createLevel(G) {
     },
     placed: [],
     explosives: marks.explosives || [],
+    supplySites,
     lights,
     ctx,
     groundSurfaceAt(x, z) {

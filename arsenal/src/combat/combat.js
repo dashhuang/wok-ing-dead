@@ -63,7 +63,10 @@ export async function createCombat(lab) {
   fx.audio = lab.audio || null;
   const audio = lab.audio || null;
   lab.effects = E;
-  const targets = await createTargets(lab, fx, E);
+  // (the game supplies its own zombies here: see src/chinatown/armory.js)
+  const targets = lab.makeTargets
+    ? await lab.makeTargets(lab, fx, E)
+    : await createTargets(lab, fx, E);
   const proj = createProjectiles(lab, fx, E, targets);
   const canvas = stage.renderer.domElement;
 

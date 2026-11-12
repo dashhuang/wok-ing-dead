@@ -1,7 +1,8 @@
 # 鬼市 · 军械试验场
 
-肉鸽（roguelike）武器的独立试验场：在这里看模型、试开火、检查战斗特效。它和游戏本体互不影响——
-不引用 `src/game.js`，只复用 `public/assets/` 里的僵尸模型和贴图。武器设计见 [docs/weapons-roguelike.md](../docs/weapons-roguelike.md)。
+肉鸽（roguelike）武器的试验场：在这里看模型、试开火、检查战斗特效。它可以单独运行——
+不引用 `src/game.js`，只复用 `public/assets/` 里的僵尸模型和贴图。反过来，游戏本体的套餐通过 `src/chinatown/armory.js`
+直接导入这里的武器模型、特效、战斗和双手模块，所以改这些模块的接口要同时跑本体的 `npm run test:e2e`。武器设计见 [docs/weapons-roguelike.md](../docs/weapons-roguelike.md)。
 
 ```sh
 npm run arsenal          # http://127.0.0.1:5311/

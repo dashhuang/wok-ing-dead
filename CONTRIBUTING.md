@@ -45,8 +45,8 @@
    gh pr create --fill
    ```
 
-   - CI 会跑两项：「Check and build」（语法、格式、生产构建，在 GitHub 的机器上）和「Smoke test」（用真实鼠标点击走标题 → 开镬 → 暂停 → 继续 → 死亡 → 重试，
-     并检查手机竖屏、横屏下标题页按钮没有被遮挡，约 5 分钟；
+   - CI 会跑两项：「Check and build」（语法、格式、生产构建，在 GitHub 的机器上）和「Smoke test」（用真实鼠标点击和按键走标题 → 开镬 → 选主菜 → 开火 → 升级选小票 → 暂停 → 继续 → 死亡 → 重试，
+     再从标题页换到第二关码头开一局，并检查手机竖屏、横屏下标题页按钮没有被遮挡，约 9 分钟；
      之后在同一台机器上跑武器试验场的测试 `npm run arsenal:test`，约 2 分钟）。冒烟测试要约 10 GB 内存，GitHub 给私有仓库的机器只有 7 GB，
      所以它跑在 Dash 的 Mac Studio 上的自托管 runner（`mac-studio`，安装在 `~/actions-runner/wok-ing-dead`，
      作为登录项服务运行，登录后自动上线）。runner 离线时这一项会排队等待，超过 24 小时会失败，需要在 PR 页面点 Re-run。
