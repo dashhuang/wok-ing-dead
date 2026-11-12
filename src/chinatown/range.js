@@ -462,20 +462,40 @@ export function createRange(G, c) {
 
   // ---------------------------------------------------------------- the dead
   const fwdOf = (yaw) => new V3(-Math.sin(yaw), 0, -Math.cos(yaw));
-  // a spot d metres ahead of where the targets were laid out, o metres to the side
-  function spotPos(d, o) {
+  const walkable = (p) => {
     const nav = G.physics && G.physics.nav;
-    const f = fwdOf(anchor.yaw);
-    const r = new V3(-f.z, 0, f.x);
+    return !nav || !nav.isWalkable || nav.isWalkable(p.x, p.z);
+  };
+  // a spot d metres out from where the targets were laid out, o metres to the side, the
+  // whole layout pulled in to k of its size
+  const spotAt = (yaw, d, o, k = 1) => {
+    const f = fwdOf(yaw);
+    return anchor.pos
+      .clone()
+      .addScaledVector(f, d * k)
+      .addScaledVector(new V3(-f.z, 0, f.x), o * k);
+  };
+  function spotPos(d, o) {
     // (walk it in towards the player until it is on ground the dead can stand on)
     for (let k = 1; k >= 0.25; k -= 0.15) {
-      const p = anchor.pos
-        .clone()
-        .addScaledVector(f, d * k)
-        .addScaledVector(r, o * k);
-      if (!nav || !nav.isWalkable || nav.isWalkable(p.x, p.z)) return p;
+      const p = spotAt(anchor.yaw, d, o, k);
+      if (walkable(p)) return p;
     }
     return null;
+  }
+  // Which way the standing targets are laid out: the way the player is facing if the street
+  // is open there, otherwise the nearest heading where it is (facing a wall, the targets
+  // go up beside or behind rather than not at all).
+  function openHeading(yaw) {
+    let best = yaw;
+    let most = -1;
+    for (const turn of [0, 45, -45, 90, -90, 135, -135, 180]) {
+      const h = yaw + (turn * Math.PI) / 180;
+      const n = SPOTS.filter(([d, o]) => walkable(spotAt(h, d, o))).length;
+      if (n > most) [most, best] = [n, h];
+      if (n === SPOTS.length) break;
+    }
+    return best;
   }
   function setMode(mode) {
     opt.z = mode;
@@ -487,6 +507,7 @@ export function createRange(G, c) {
     advanceT = 0;
     S.spawnT = 0.3;
     anchor = { pos: P().pos.clone(), yaw: P().yaw };
+    if (mode === "stand") anchor.yaw = openHeading(anchor.yaw);
   }
   function spawn(kind) {
     const def = SPAWNS.find((s) => s[0] === kind);
@@ -506,14 +527,16 @@ export function createRange(G, c) {
     hooks.refreshMarkers();
   }
   const alive = (s) => s.z && s.z.alive && s.z.id === s.id;
-  function tend(dt) {
+  // dt: seconds on the street, real: wall-clock seconds. A fallen target is stood up again
+  // by the clock on the wall: the street may be running slow (a ticket up, a slow machine).
+  function tend(dt, real) {
     if (opt.z === "stand") {
       for (const s of spots) {
         if (alive(s)) continue;
-        s.t -= dt;
+        s.t -= real;
         if (s.t > 0) continue;
         const pos = spotPos(s.d, s.o);
-        s.t = 3;
+        s.t = 2.5;
         if (!pos) continue;
         const z = hooks.spawn(s.type, pos, {
           passive: true,
@@ -639,6 +662,19 @@ export function createRange(G, c) {
     give,
     zero,
     changes: changesText,
+    /** Where the standing targets are and which of them are up (for tests and diagnosis). */
+    debug() {
+      const r = (n) => +n.toFixed(1);
+      return {
+        mode: opt.z,
+        player: [r(P().pos.x), r(P().pos.z), r(P().yaw)],
+        heading: anchor ? r(anchor.yaw) : null,
+        spots: spots.map((s) => {
+          const p = anchor && spotPos(s.d, s.o);
+          return `${s.type[0]}${s.d}:${p ? "ok" : "blocked"}:${alive(s) ? "up" : "down"}`;
+        }),
+      };
+    },
     /** A run on the range has begun (also after a death and a retry). */
     begin() {
       if (!el.parentNode)
@@ -660,7 +696,7 @@ export function createRange(G, c) {
       clock += real;
       if (P()) P().invulnerable = opt.god;
       if (opt.ammo === "free") loadout.refill();
-      tend(dt);
+      tend(dt, real);
       countSpent();
       readout();
     },

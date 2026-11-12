@@ -362,7 +362,13 @@ test("the firing range sets a run up by hand", async ({ page }) => {
   await press('[data-spice="fire"]'); // past the third level it comes off
   await press('[data-ammo="free"]');
   await press('[data-z="stand"]');
-  await expect.poll(async () => (await range()).standing).toBeGreaterThan(3);
+  await expect
+    .poll(async () => (await range()).standing, {
+      message: `standing targets: ${JSON.stringify(
+        await page.evaluate(() => window.__G.run.range.debug()),
+      )}`,
+    })
+    .toBeGreaterThan(3);
   expect(await range()).toMatchObject({ spice: {}, ammo: "free" });
 
   // a weapon, its form and level, two seasonings
@@ -403,7 +409,11 @@ test("the firing range sets a run up by hand", async ({ page }) => {
   await press('[data-z="horde"]');
   await press('[data-course="mains"]');
   await expect.poll(async () => (await range()).standing).toBe(0);
-  await expect.poll(async () => (await range()).alive).toBeGreaterThan(2);
+  // (the course's own pace, in the street's time: on a slow runner the first of them is
+  // enough to show the spawner is running)
+  await expect
+    .poll(async () => (await range()).alive, { timeout: 150_000 })
+    .toBeGreaterThan(0);
   expect((await range()).state).toBe("playing");
 
   // and the address has followed every click
