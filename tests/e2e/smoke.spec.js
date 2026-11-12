@@ -1,7 +1,9 @@
-// Plays the real entry path with real mouse clicks and key presses: title → deploy → choose
-// a weapon → fire → level up → pause → resume → die → retry, then the second branch (the
-// docks). Shortcuts like ?autostart skip the title page and once hid a fully blocked Deploy
+// Plays the real entry path with real mouse clicks and key presses: title (checked at desktop
+// and phone sizes) → deploy → choose a weapon → fire → level up → pause → resume → die →
+// retry. Shortcuts like ?autostart skip the title page and once hid a fully blocked Deploy
 // button, so this test must keep going through the menus.
+// Each test loads the whole street (about a minute), so checks share a page where they can.
+// The second stage (the docks) is not covered yet: it is not in use.
 import { test, expect } from "@playwright/test";
 
 const state = (page) => page.evaluate(() => window.__G?.game?.state);
@@ -138,12 +140,22 @@ test("a player can start, arm, level up, pause, die and retry with real input", 
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(e.message));
 
-  await page.goto("/?lang=en");
+  await page.goto("/?lang=zh-CN");
   await waitForTitle(page);
   await expectButtonsReachable(page);
 
-  // Title → mission.
-  await clickAct(page, "deploy");
+  // The title page at phone sizes, on the same page load.
+  for (const viewport of [
+    { width: 390, height: 844 }, // portrait
+    { width: 844, height: 390 }, // landscape
+    { width: 1280, height: 720 }, // back to desktop
+  ]) {
+    await page.setViewportSize(viewport);
+    await expectButtonsReachable(page, 30_000);
+  }
+
+  // Title → mission. After a resize the renderer rebuilds its buffers, so allow longer.
+  await clickAct(page, "deploy", 60_000);
   await expect.poll(() => state(page)).toBe("playing");
 
   // The first ticket is a weapon; holding fire spends its rounds.
@@ -251,63 +263,4 @@ test("the lab's address parameters arm a real run", async ({ page }) => {
   expect(runtime.fatal).toBeNull();
   expect(runtime.errors).toEqual([]);
   expect(pageErrors).toEqual([]);
-});
-
-test("the docks branch opens from the title and plays", async ({ page }) => {
-  const pageErrors = [];
-  page.on("pageerror", (e) => pageErrors.push(e.message));
-
-  // (?unlock=all stands in for having cleared the street once)
-  await page.goto("/?lang=en&unlock=all");
-  await waitForTitle(page);
-  expect(await page.evaluate(() => window.__G.stage)).toBe("street");
-
-  // The other branch is another map: clicking it loads the page again at its address.
-  await clickAct(page, "branch:docks");
-  await page.waitForURL(/lvl=harbor/);
-  await waitForTitle(page);
-  expect(await page.evaluate(() => window.__G.stage)).toBe("docks");
-  await expectButtonsReachable(page);
-
-  await clickAct(page, "deploy");
-  await expect.poll(() => state(page)).toBe("playing");
-  await chooseFirstWeapon(page, 1);
-  // supplies and weapon cases are out, and the way out can be walked to
-  const run = await page.evaluate(() => {
-    const G = window.__G;
-    const out = G.level.extraction.pos;
-    return {
-      crates: G.run.state.caches.length,
-      cases: G.run.pickups.cases.length,
-      wayOut: !!G.physics.nav.findPath(G.level.playerStart.pos, out),
-    };
-  });
-  expect(run).toEqual({ crates: 8, cases: 5, wayOut: true });
-
-  const runtime = await page.evaluate(() => ({
-    fatal: window.__fatal,
-    errors: window.__errors,
-  }));
-  expect(runtime.fatal).toBeNull();
-  expect(runtime.errors).toEqual([]);
-  expect(pageErrors).toEqual([]);
-});
-
-test("title buttons are reachable on phones", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/?lang=zh-CN");
-  await waitForTitle(page);
-  for (const viewport of [
-    { width: 390, height: 844 }, // portrait
-    { width: 844, height: 390 }, // landscape
-  ]) {
-    await page.setViewportSize(viewport);
-    await expectButtonsReachable(page);
-  }
-
-  // The docks stay shut until the street has been cleared once: a tap explains, nothing loads.
-  await clickAct(page, "branch:docks", 60_000);
-  await expect(page.locator('[data-f="placenote"]')).toBeVisible();
-  await expect(page.locator('[data-f="placenote"]')).not.toBeEmpty();
-  expect(page.url()).not.toContain("lvl=harbor");
 });

@@ -12,7 +12,13 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [["list"], ["github"]] : "list",
+  reporter: process.env.CI
+    ? [
+        ["list"],
+        ["github"],
+        ["json", { outputFile: "test-results/results.json" }],
+      ]
+    : "list",
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
     trace: "retain-on-failure",

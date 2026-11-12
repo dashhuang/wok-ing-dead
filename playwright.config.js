@@ -5,7 +5,7 @@ const PORT = Number(process.env.E2E_PORT) || 5199;
 
 export default defineConfig({
   testDir: "tests/e2e",
-  // The game builds the whole street on load: ~30 s on a GPU, 30-60 s under software WebGL.
+  // The game builds the whole street on load: ~1 min on the Mac Studio while it is busy.
   timeout: 240_000,
   expect: { timeout: 90_000 },
   fullyParallel: false,
@@ -13,7 +13,12 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI
-    ? [["list"], ["github"], ["html", { open: "never" }]]
+    ? [
+        ["list"],
+        ["github"],
+        ["html", { open: "never" }],
+        ["json", { outputFile: "test-results/results.json" }],
+      ]
     : "list",
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
