@@ -16,7 +16,8 @@
 ```sh
 npm ci                 # 安装依赖（同时启用 .githooks/）
 npm run dev            # 开发服务器 http://127.0.0.1:5173/（有热重载）
-npm run check          # 全仓库 JS 语法 + Prettier 格式检查
+npm run check          # 全仓库 JS 语法 + Prettier 格式检查 + 数值护栏（见 docs/balance.md）
+npm run balance        # 改了数值后重新生成 docs/balance-report.md（不是最新的话 check 会失败）
 npm run format         # 自动修格式
 npm run build          # 生产构建到 dist/
 npm run test:e2e       # Playwright 真实点击冒烟测试（先 build；端口 5199；CI 上按需跑，见下文）
@@ -33,10 +34,11 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
 | 路径 | 说明 |
 | --- | --- |
 | `src/game.js` | 反压缩后的原版发布包（含内嵌 Three.js r180）。变量名是压缩名（`ov`、`hT`、`pT`…），靠 architecture.md 的入口表和搜索字符串定位 |
-| `src/chinatown/` | 唐人街关卡的全部新模块：布局、建筑、店铺、街市、车辆、招牌、灯光、僵尸、音效；套餐（肉鸽关卡）的规则 `run.js` 和数值 `runtune.js`、武器与弹药 `loadout.js`、武器轮盘 `wheel.js`、僵尸数值 `zombietune.js`、接入试验场武器的 `armory.js` / `armtargets.js`、第二关的补充 `docks.js` |
+| `src/chinatown/` | 唐人街关卡的全部新模块：布局、建筑、店铺、街市、车辆、招牌、灯光、僵尸、音效；套餐（肉鸽关卡）的规则 `run.js`、纯规则 `runflow.js` 和数值 `runtune.js`、武器与弹药 `loadout.js`、武器轮盘 `wheel.js`、僵尸数值 `zombietune.js`、接入试验场武器的 `armory.js` / `armtargets.js`、第二关的补充 `docks.js` |
 | `src/i18n/` | 语言选择和四份语言包（`locales/`，英文是基准） |
 | `src/style.css` | 全部界面样式，设计变量在开头 |
 | `public/assets/` | 贴图、GLB、僵尸、字体、音效（来源和许可见 docs/assets.md） |
+| `scripts/balance/` | 数值工具：整局模拟器、护栏、报告生成，用法见 docs/balance.md |
 | `scripts/` | 素材下载转换、字体子集、单文件构建、`check-syntax.mjs` |
 | `tests/e2e/` | Playwright 冒烟测试 |
 | `upstream/` | 提取时的原件，**只读** |
@@ -72,6 +74,9 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
 - **套餐的数值**只改 `src/chinatown/runtune.js` 的 `RUN` 和 `loadout.js` 的 `AMMO` / `ARMS`；僵尸的数值改 `zombietune.js`；
   每级伤害倍率改 `arsenal/src/data/levels.js`；状态和反应的数字改 `arsenal/src/data/status.js`。用户定下的四条不要动：
   弹药必须捡、弹药分四种、武器不限数量、红包只升手上那把。
+- **调数值看 [docs/balance.md](docs/balance.md)**：现在只调微辣（中辣和变态辣在菜单上锁着，`src/settings.js` 的 `openDifficulties`）。
+  改了上面任何一张数值表或 `runflow.js` 的规则，运行 `npm run balance` 并把 `docs/balance-report.md` 一起提交，
+  否则 `npm run check` 不过。目标写成了护栏（`scripts/balance/guards.mjs`）；达到了哪条，就在那次改动里把它启用。
 
 ## 工作流
 

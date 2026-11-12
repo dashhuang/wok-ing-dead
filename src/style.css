@@ -2413,6 +2413,9 @@ kbd {
 .seg button.locked {
   color: var(--paper-mute);
 }
+.seg button.locked .chili {
+  opacity: 0.45;
+}
 .seg button.locked .m-lock {
   display: inline-block;
 }

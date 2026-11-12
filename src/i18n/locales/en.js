@@ -45,6 +45,7 @@ export default {
   "diff.standard": "Mild",
   "diff.hard": "Hot",
   "diff.brutal": "Inferno",
+  "diff.locked": "This heat isn't on the menu yet.",
   "view.1": "Close",
   "view.2": "Three-quarter",
   "view.3": "Compact",

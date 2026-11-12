@@ -83849,6 +83849,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     viewOptions: cT,
     modeOptions: uT,
     difficultyOptions: ab,
+    openDifficulties: gmOpenDiffs,
     qualityOptions: fT,
     load: iL,
     save: cc,
@@ -83902,9 +83903,11 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     // Spice level buttons: label plus one to three chilies.
     gmDiffs = () =>
       ab
-        .map(
-          (W, i) =>
-            `<button data-d="${W[0]}" aria-pressed="false"><span data-i18n="diff.${W[0]}"></span><i class="chili" style="--n:${i + 1}" aria-hidden="true"></i></button>`,
+        .map((W, i) =>
+          // the hotter meals are not served yet (settings.js): shown, but locked
+          gmOpenDiffs.includes(W[0])
+            ? `<button data-d="${W[0]}" aria-pressed="false"><span data-i18n="diff.${W[0]}"></span><i class="chili" style="--n:${i + 1}" aria-hidden="true"></i></button>`
+            : `<button data-d="${W[0]}" class="locked" aria-pressed="false" aria-disabled="true"><span data-i18n="diff.${W[0]}"></span><i class="chili" style="--n:${i + 1}" aria-hidden="true"></i><i class="m-lock" aria-hidden="true"></i></button>`,
         )
         .join(""),
     gmLangs = (cls) =>
@@ -84240,7 +84243,14 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         return;
       }
       if (J.dataset.d) {
-        ((i.difficulty = J.dataset.d),
+        let note = c("placenote");
+        if (J.classList.contains("locked")) {
+          note &&
+            ((note.textContent = L10N.t("diff.locked")), (note.hidden = !1));
+          return;
+        }
+        (note && (note.hidden = !0),
+          (i.difficulty = J.dataset.d),
           e.difficulty && e.difficulty(i.difficulty),
           x(),
           cc(i));
@@ -84785,7 +84795,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         run: g,
         menus: l,
         holdout: cs,
-        difficulty: "hard",
+        difficulty: "standard",
         setDifficulty: (Y) => h(Y),
         start(Y = {}) {
           G({
