@@ -22,6 +22,8 @@ npm run build          # 生产构建到 dist/
 npm run test:e2e       # Playwright 真实点击冒烟测试（先 build；端口 5199；CI 上跑在 Mac Studio 自托管 runner）
 npm run verify         # check + build + test:e2e
 npm run build:single   # 单文件版 dist-single/wok-ing-dead.html（约 35 MB）
+npm run arsenal        # 武器试验场 http://127.0.0.1:5311/（独立于本体，没有热重载）
+npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312；改了 arsenal/ 就跑）
 ```
 
 ## 代码地图
@@ -71,7 +73,7 @@ npm run build:single   # 单文件版 dist-single/wok-ing-dead.html（约 35 MB�
   脚本直达的检查全部通过，用户一上手就点不动。界面改动走一遍：标题页 → 开镬 → Esc 暂停 → 设置里换语言 → 继续 → 死亡重试 → 通关再开，
   桌面、手机竖屏、手机横屏各看一次，确认按钮没有被别的元素盖住。
 - 手动验证用 `npm run build` + `npx vite preview --port 5185` 之类的独立端口，不要用开发服务器：别的会话改文件会触发热重载打断测试。
-  端口约定：dev 5173、arsenal 5311、e2e 5199。
+  端口约定：dev 5173、arsenal 5311（测试 5312）、e2e 5199。
 - 后台标签页会被浏览器限帧，自动化里的后台帧率不代表真实性能；性能对比用 `?bench=1`、`?q=low`。
 - 调试钩子：`window.__G`（`game.state`、`player`、`game.debugCut()`）、`__ready`、`__fatal`、`__errors`、`__stats()`；
   `?cam=x,y,z,lx,ly,lz&noweapon=1` 固定机位截图，`?lang=` 指定语言。完整列表见 README「调试」。
