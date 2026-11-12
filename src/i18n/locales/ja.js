@@ -41,6 +41,7 @@ export default {
   "diff.standard": "ピリ辛",
   "diff.hard": "辛口",
   "diff.brutal": "激辛",
+  "diff.locked": "この辛さはまだ仕込み中。",
   "view.1": "近め",
   "view.2": "標準",
   "view.3": "コンパクト",

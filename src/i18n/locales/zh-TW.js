@@ -41,6 +41,7 @@ export default {
   "diff.standard": "微辣",
   "diff.hard": "中辣",
   "diff.brutal": "變態辣",
+  "diff.locked": "這道辣度還沒上菜單。",
   "view.1": "貼近",
   "view.2": "四分之三",
   "view.3": "緊湊",

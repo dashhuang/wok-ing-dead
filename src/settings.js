@@ -7,7 +7,7 @@ export function createSettingsStore(defaultFov) {
       invertY: false,
       volume: 0.8,
       fov: defaultFov,
-      difficulty: "hard",
+      difficulty: "standard",
       mode: "mission",
       view: 1,
     },
@@ -15,6 +15,10 @@ export function createSettingsStore(defaultFov) {
     viewOptions = [[1], [2], [3]],
     modeOptions = [["mission"], ["holdout"]],
     difficultyOptions = [["standard"], ["hard"], ["brutal"]],
+    // Only the mild meal is served for now. The hotter ones come back later as stages of
+    // their own, opened by clearing this one; until then they are shown locked, and a save
+    // that had one selected falls back to mild.
+    openDifficulties = ["standard"],
     qualityOptions = ["low", "medium", "high", "ultra"];
   function load() {
     const settings = { ...defaults };
@@ -30,7 +34,7 @@ export function createSettingsStore(defaultFov) {
           settings.volume = Math.min(1, Math.max(0, saved.volume));
         if (Number.isFinite(saved.fov))
           settings.fov = Math.min(95, Math.max(60, saved.fov));
-        if (difficultyOptions.some(([value]) => value === saved.difficulty))
+        if (openDifficulties.includes(saved.difficulty))
           settings.difficulty = saved.difficulty;
         if (modeOptions.some(([value]) => value === saved.mode))
           settings.mode = saved.mode;
@@ -55,6 +59,7 @@ export function createSettingsStore(defaultFov) {
     viewOptions,
     modeOptions,
     difficultyOptions,
+    openDifficulties,
     qualityOptions,
     load,
     save,
