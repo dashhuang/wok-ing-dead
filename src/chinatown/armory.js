@@ -378,10 +378,13 @@ export async function createArmory(G) {
       o.scale.setScalar(0.001);
       o.visible = true;
       await bothEnvs(3);
-      // (the game may have shown it for real in the meantime: then leave it alone)
       if (o.scale.x === 0.001) {
-        o.visible = false;
         o.scale.copy(s);
+        // (the game may have taken it in hand for real in the meantime: then it stays up)
+        const arm = G.camera.children.find((c) => c.name === "arm-right");
+        const inHand =
+          !api.held && G.weapon && G.weapon.root === o && !!arm && arm.visible;
+        if (!inHand) o.visible = false;
       }
       if (parent && o.parent !== parent) parent.add(o);
     }

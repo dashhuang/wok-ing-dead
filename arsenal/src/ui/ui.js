@@ -58,8 +58,9 @@ function spiceLine(s, level) {
 }
 
 // The headline numbers of a form. Magazine, rate and reload are read from the behaviour, so
-// they are the form's real ones; damage and range are the base weapon's design values (the
-// forms' own are in their descriptions).
+// they are the form's real ones; damage and range are the base weapon's (the same numbers
+// the behaviour fires with: it reads them from the data). What a form changes is in its
+// description.
 function statLine(w, b = "base", lv = 1) {
   const f = w.fire;
   const spec = BEHAVIOURS[w.id] ? BEHAVIOURS[w.id].spec(b, lv) : {};
@@ -67,10 +68,10 @@ function statLine(w, b = "base", lv = 1) {
   if (f.kind === "melee") {
     out.push(
       ["伤害", f.damage],
-      ["攻速", `${f.rpm}/分`],
+      ["攻速", `${Math.round(60 / spec.swingTime)}/分`],
       ["范围", `${f.reach} 米`],
     );
-    if (f.combo) out.push(["连段", f.combo]);
+    if (spec.combo) out.push(["连段", spec.combo]);
   } else if (f.kind === "stream") {
     out.push(
       ["伤害", `${f.damage}×${spec.tickRate ?? f.tick}/秒`],
@@ -94,7 +95,11 @@ function statLine(w, b = "base", lv = 1) {
     );
     if (spec.reload) out.push(["换弹", `${spec.reload} 秒`]);
     else if (spec.regen) out.push(["补充", `每 ${spec.regen} 秒 1 发`]);
-    if (f.range) out.push(["射程", `${f.range} 米`]);
+    if (f.range)
+      out.push([
+        "射程",
+        `${f.range} 米${f.falloff ? `（${f.falloff[0]} 米后衰减）` : ""}`,
+      ]);
     if (f.head) out.push(["弱点", `×${f.head}`]);
     if (f.pierce) out.push(["穿透", f.pierce]);
     if (f.radius) out.push(["爆炸", `${f.radius} 米`]);
@@ -109,7 +114,8 @@ export function createUI(lab) {
       <div class="brand"><b>鬼市</b><span>军械试验场</span></div>
       <nav class="tabs">
         <button data-mode="show">展柜</button>
-        <button data-mode="fp">靶场</button>
+        <button data-act="range" id="btn-range" title="在游戏本体里打开靶场：真实的街道、僵尸和画面，带着现在这把武器的形态、等级和调料">靶场 ↗</button>
+        <button data-mode="fp" class="bench" title="自动测试用的巷子。规则和数值与游戏是同一份，但场景、僵尸的动作和命中体积是简化的；试手感、看特效亮度请用「靶场」">测试台</button>
       </nav>
       <div class="bar-right">
         <button class="ghost on" data-act="sound" id="btn-sound">声音</button>
@@ -301,10 +307,10 @@ export function createUI(lab) {
             <h3>弹药</h3><ul>${pools}<li><b>不吃弹药</b><span>${esc(free)}</span></li></ul></section>
           <section><h3>元素与状态</h3><ul>${el}</ul><h3>元素反应</h3><ul>${re}</ul></section>
           <section><h3>调料</h3>
-            <h5>靶场里能试（右上角「调料」）</h5><ul class="ins wide">${RANGE_SPICES.map(spice).join("")}</ul>
-            <h5>只在整局里有意义，靶场里试不了</h5><ul class="ins wide">${OTHER_SPICES.map(spice).join("")}</ul></section>
+            <h5>作用在武器上</h5><ul class="ins wide">${RANGE_SPICES.map(spice).join("")}</ul>
+            <h5>作用在人和整局上</h5><ul class="ins wide">${OTHER_SPICES.map(spice).join("")}</ul></section>
         </div>
-        <p class="foot">靶场和本体共用同一份代码：武器的模型、开火、特效、声音，状态与反应，等级倍率，调料对武器的作用，每发吃多少弹药，僵尸的血量、速度和出手节奏。靶场里没有的：走位、捡弹药、精英和关底、胀尸、「爆炒」这类靠整局流程的调料，以及本体自己的 LK-9 和 LK-4。</p>
+        <p class="foot">这些都可以在游戏的靶场里直接试：点顶部的「靶场 ↗」，带着现在这把武器进游戏本体——真实的街道、僵尸和画面，面板上能调等级、形态、全部十二种调料、弹药和僵尸，还能边玩边改数值。</p>
         <h2>还没做进游戏的设计</h2>
         <p class="lead">下面这些只是设计稿，本体和靶场里都没有。</p>
         <div class="cols">
@@ -347,6 +353,36 @@ export function createUI(lab) {
   }
   lab.listeners.add(render);
 
+  // ---------------------------------------------------------------- the range is the game
+  // The firing range is not in the lab: it is the game itself (src/chinatown/range.js), on
+  // its own street with its own dead. This opens it with the weapon on show, in its form and
+  // level, and the seasonings set on the bench. Which game: ?game=<address> if given, the dev
+  // server beside this lab if one answers, the published game otherwise.
+  const PUBLISHED = "https://wok-ing-dead.vercel.app/";
+  const DEV = "http://127.0.0.1:5173/";
+  function rangeQuery() {
+    const s = lab.state;
+    const q = [`range=1`, `w=${s.weapon}`, `lv=${s.level}`];
+    if (s.level >= 3 && s.branch !== "base") q.push(`b=${s.branch}`);
+    const spice = lab.meal ? Object.entries(lab.meal.spice) : [];
+    if (spice.length)
+      q.push("spice=" + spice.map(([id, lv]) => `${id}:${lv}`).join(","));
+    if (lab.meal && lab.meal.ammo === "meal") q.push("ammo=meal");
+    return q.join("&");
+  }
+  async function openRange() {
+    let base = new URLSearchParams(location.search).get("game");
+    if (!base && /^(127\.0\.0\.1|localhost)$/.test(location.hostname)) {
+      try {
+        await fetch(DEV, { mode: "no-cors", signal: AbortSignal.timeout(900) });
+        base = DEV;
+      } catch {}
+    }
+    const url = (base || PUBLISHED) + "?" + rangeQuery();
+    lab.rangeUrl = url; // (for the tests: where the click was about to go)
+    if (!lab.noNavigate) location.href = url;
+  }
+
   // ---------------------------------------------------------------- actions
   const order = () => WEAPONS.filter((w) => lab.has(w.id)).map((w) => w.id);
   const actions = {
@@ -384,6 +420,7 @@ export function createUI(lab) {
       render();
     } else if (d.spice && lab.meal) lab.meal.cycle(d.spice);
     else if (d.ammo && lab.meal) lab.meal.setAmmo(d.ammo);
+    else if (d.act === "range") openRange();
     else if (d.act === "reset" && lab.combat) lab.combat.resetMeter();
     else if (d.act === "hands") lab.setHands(!lab.state.hands);
     else if (d.act === "sound") {

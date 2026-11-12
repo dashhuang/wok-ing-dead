@@ -246,6 +246,20 @@ test("the lab's address parameters arm a real run", async ({ page }) => {
   expect(start.mods.damage).toBeCloseTo(1.45, 6);
   expect(start.mods.rate).toBeCloseTo(1.12, 6);
   expect(start.infusions).toEqual([{ element: "fire", every: 4 }]);
+  // only the arsenal's weapon is in the hands: the game's own pair and its arms are put
+  // away (they once came back up over it, the rifle like a wall across the view)
+  const stock = () =>
+    page.evaluate(() => {
+      const G = window.__G;
+      const arm = G.camera.children.find((c) => c.name === "arm-right");
+      return {
+        rigs: Object.values(G.weapon.rigs).filter(
+          (r) => r.root.visible && r.root.scale.x > 0.01,
+        ).length,
+        arms: !!arm && arm.visible,
+      };
+    });
+  await expect.poll(stock).toEqual({ rigs: 0, arms: false });
 
   // holding fire burns fuel; the reload is paid for from the run's pool
   await page.keyboard.down("Enter");
@@ -255,6 +269,162 @@ test("the lab's address parameters arm a real run", async ({ page }) => {
   await page.keyboard.up("Enter");
   await page.keyboard.press("KeyR");
   await expect.poll(async () => (await run()).fuel).toBeLessThan(start.fuel);
+
+  const runtime = await page.evaluate(() => ({
+    fatal: window.__fatal,
+    errors: window.__errors,
+  }));
+  expect(runtime.fatal).toBeNull();
+  expect(runtime.errors).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+// The firing range is the game itself with the timeline off (src/chinatown/range.js): its
+// panel is worked with real clicks, and its state is kept in the address (the page opens
+// set up the way the address says, which is how it comes back after a reload).
+test("the firing range sets a run up by hand", async ({ page }) => {
+  // the street takes a minute or two to build on a busy machine, and there is a lot to click
+  test.setTimeout(420_000);
+  const pageErrors = [];
+  page.on("pageerror", (e) => pageErrors.push(e.message));
+  const ready = () =>
+    page.waitForFunction(
+      () =>
+        window.__G?.game?.state === "playing" &&
+        !!window.__G.run?.range &&
+        !!window.__G.run.armory,
+      null,
+      { timeout: 200_000 },
+    );
+  /** Click a control of the panel, first making sure the click would land on it. */
+  const press = async (selector) => {
+    const el = page.locator(".rg " + selector).first();
+    await el.scrollIntoViewIfNeeded();
+    const box = await el.boundingBox();
+    expect(box, `${selector} is not on screen`).not.toBeNull();
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    const reachable = await page.evaluate(
+      ([x, y, selector]) => {
+        const hit = document.elementFromPoint(x, y);
+        const want = document.querySelector(".rg " + selector);
+        return !!hit && (hit === want || want.contains(hit));
+      },
+      [x, y, selector],
+    );
+    expect(reachable, `${selector} is covered by something else`).toBe(true);
+    await page.mouse.click(x, y);
+  };
+  const range = () =>
+    page.evaluate(() => {
+      const G = window.__G;
+      const R = G.run;
+      const a = R.armory;
+      const alive = G.enemies.list.filter((z) => z.alive);
+      return {
+        state: G.game.state,
+        hand: R.loadout.cur,
+        form: a.weapon && a.current ? [a.weapon.branch, a.weapon.level] : null,
+        spice: R.state.spice,
+        mode: R.range.opt.z,
+        ammo: R.range.opt.ammo,
+        standing: alive.filter((z) => z.passive).length,
+        ranks: alive
+          .map((z) => z.rank)
+          .filter(Boolean)
+          .sort()
+          .join(),
+        alive: alive.length,
+        dealt: Math.round(R.range.meter.total),
+        timeline: R.state.t,
+        invulnerable: G.player.invulnerable,
+      };
+    });
+
+  // the address sets it up: a weapon at a level, a seasoning, who is on the street, the
+  // ammunition. No title, no first ticket, no timeline.
+  await page.goto(
+    "/?range=1&lang=zh-CN&w=smg&lv=2&spice=fire:1&z=advance&ammo=meal",
+  );
+  await ready();
+  await expect.poll(async () => (await range()).form).toEqual(["base", 2]);
+  expect(await range()).toMatchObject({
+    hand: "smg",
+    spice: { fire: 1 },
+    mode: "advance",
+    ammo: "meal",
+    standing: 0,
+    invulnerable: true,
+  });
+  expect(await tickets(page)).toBeNull();
+  await press('[data-spice="fire"]');
+  await press('[data-spice="fire"]');
+  await press('[data-spice="fire"]'); // past the third level it comes off
+  await press('[data-ammo="free"]');
+  await press('[data-z="stand"]');
+  await expect
+    .poll(async () => (await range()).standing, {
+      message: `standing targets: ${JSON.stringify(
+        await page.evaluate(() => window.__G.run.range.debug()),
+      )}`,
+    })
+    .toBeGreaterThan(3);
+  expect(await range()).toMatchObject({ spice: {}, ammo: "free" });
+
+  // a weapon, its form and level, two seasonings
+  await press('[data-w="shotgun"]');
+  await expect.poll(async () => (await range()).hand).toBe("shotgun");
+  await press('[data-b="a"]');
+  await press('[data-lv="5"]');
+  await expect.poll(async () => (await range()).form).toEqual(["a", 5]);
+  await press('[data-spice="vinegar"]');
+  await press('[data-spice="vinegar"]');
+  await press('[data-spice="chili"]');
+  expect((await range()).spice).toEqual({ vinegar: 2, chili: 1 });
+
+  // turn to the nearest target (the mouse would) and fire with the keyboard
+  await page.evaluate(() => {
+    const G = window.__G;
+    const P = G.player;
+    let best = null;
+    let bd = 1e9;
+    for (const z of G.enemies.list) {
+      const d = Math.hypot(z.pos.x - P.pos.x, z.pos.z - P.pos.z);
+      if (z.alive && d < bd) [bd, best] = [d, z];
+    }
+    P.yaw = Math.atan2(-(best.pos.x - P.pos.x), -(best.pos.z - P.pos.z));
+    P.pitch = 0;
+  });
+  await page.keyboard.down("Enter");
+  await expect.poll(async () => (await range()).dealt).toBeGreaterThan(0);
+  await page.keyboard.up("Enter");
+
+  // the special dead on request, then a course of the meal
+  await press('[data-spawn="elite"]');
+  await press('[data-spawn="bloater"]');
+  await press('[data-spawn="boss"]');
+  await expect
+    .poll(async () => (await range()).ranks)
+    .toBe("bloater,boss,elite");
+  await press('[data-z="horde"]');
+  await press('[data-course="mains"]');
+  await expect.poll(async () => (await range()).standing).toBe(0);
+  // (the course's own pace, in the street's time: on a slow runner the first of them is
+  // enough to show the spawner is running)
+  await expect
+    .poll(async () => (await range()).alive, { timeout: 150_000 })
+    .toBeGreaterThan(0);
+  expect((await range()).state).toBe("playing");
+
+  // and the address has followed every click
+  const url = decodeURIComponent(page.url());
+  expect(url).toContain("w=shotgun");
+  expect(url).toContain("lv=5");
+  expect(url).toContain("b=a");
+  expect(url).toContain("spice=vinegar:2,chili:1");
+  expect(url).toContain("z=horde");
+  expect(url).toContain("course=mains");
+  expect(url).not.toContain("ammo=");
 
   const runtime = await page.evaluate(() => ({
     fatal: window.__fatal,
