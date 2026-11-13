@@ -158,7 +158,7 @@ test("a player can start, arm, level up, pause, die and retry with real input", 
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(e.message));
 
-  await page.goto("/?lang=zh-CN");
+  await page.goto("/?lang=zh-CN&q=low");
   await waitForTitle(page);
   await expectButtonsReachable(page);
 
@@ -199,6 +199,10 @@ test("a player can start, arm, level up, pause, die and retry with real input", 
   await expect.poll(() => state(page)).toBe("paused");
   await waitForScreen(page, "paused");
   await expectButtonsReachable(page);
+  await clickAct(page, "settings");
+  await page.locator('.panel [data-lang="en"]').click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await clickAct(page, "close-panel");
   await clickAct(page, "resume");
   await expect.poll(() => state(page)).toBe("playing");
 
@@ -235,6 +239,19 @@ test("a player can start, arm, level up, pause, die and retry with real input", 
     .toBe("pistol");
   await chooseFirstWeapon(page, 1);
   expect(await page.evaluate(() => window.__G.run.state.level)).toBe(0);
+
+  // Secondary input must never raise the sights, even after switching weapons.
+  for (const id of ["pistol", "rifle", "lever"]) {
+    await page.evaluate((id) => window.__G.run.debug.set(id, 5, "a"), id);
+    await page.mouse.down({ button: "right" });
+    await expect
+      .poll(() => page.evaluate(() => window.__G.input.ads))
+      .toBe(true);
+    await page.waitForTimeout(600);
+    expect(await page.evaluate(() => window.__G.weapon.ads)).toBe(0);
+    expect(await page.evaluate(() => window.__G.player.ads)).toBe(0);
+    await page.mouse.up({ button: "right" });
+  }
 
   const runtime = await page.evaluate(() => ({
     fatal: window.__fatal,
@@ -557,4 +574,44 @@ test("the firing range sets a run up by hand", async ({ page }) => {
   expect(runtime.fatal).toBeNull();
   expect(runtime.errors).toEqual([]);
   expect(pageErrors).toEqual([]);
+});
+
+test.describe("secondary fire on touch screens", () => {
+  test.use({ hasTouch: true });
+  test("press and release work in portrait and landscape without zoom", async ({
+    page,
+    context,
+  }) => {
+    await page.goto("/?lang=zh-CN&q=low&w=lever&b=a&lv=5");
+    await waitForTitle(page);
+    await page.locator('[data-act="deploy"]').tap();
+    await expect.poll(() => state(page)).toBe("playing");
+    const cdp = await context.newCDPSession(page);
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 844, height: 390 },
+    ]) {
+      await page.setViewportSize(viewport);
+      const button = page.locator(".t-ads");
+      await expect(button).toHaveText("副攻击");
+      const box = await button.boundingBox();
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchStart",
+        touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }],
+      });
+      await expect
+        .poll(() => page.evaluate(() => window.__G.input.ads))
+        .toBe(true);
+      await page.waitForTimeout(600);
+      expect(await page.evaluate(() => window.__G.weapon.ads)).toBe(0);
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchEnd",
+        touchPoints: [],
+      });
+      await expect
+        .poll(() => page.evaluate(() => window.__G.input.ads))
+        .toBe(false);
+      await expect(button).not.toHaveClass(/active/);
+    }
+  });
 });

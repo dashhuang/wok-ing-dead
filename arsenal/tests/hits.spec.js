@@ -5,6 +5,61 @@
 import { test, expect } from "./fixtures.js";
 import { STATUS } from "../src/data/status.js";
 import { WEAPONS } from "../src/data/weapons.js";
+import { launchOf, bloodOf, goreOf } from "../src/combat/fate.js";
+
+test("the rule: how far and how much go by the blow and by the dice", () => {
+  const L = STATUS.launch;
+  const B = STATUS.blood;
+  const walker = { type: "walker", rank: "", scale: 1, maxHp: 100, pin: 0 };
+  const dice = (v) => () => v;
+  const shot = { knock: 3.2 };
+
+  // the same hit, the best and the worst of the dice: both throw it, far apart
+  const best = launchOf(walker, shot, 100, dice(0.999));
+  const worst = launchOf(walker, shot, 100, dice(0));
+  expect(best.speed).toBeGreaterThan(worst.speed * 1.8);
+  expect(best.up).toBeGreaterThan(worst.up);
+  expect(best.speed).toBeLessThanOrEqual(L.max);
+  // a blow that only finished it off throws it about half as far as one that took it all
+  const whole = launchOf(walker, shot, 100, dice(0.5));
+  const scrap = launchOf(walker, shot, 5, dice(0.5));
+  expect(scrap.speed).toBeLessThan(whole.speed * 0.6);
+  expect(scrap.speed).toBeGreaterThan(whole.speed * 0.3);
+  // a middling hit throws it only when the dice are kind; a light one never
+  expect(launchOf(walker, { knock: 1 }, 100, dice(0.999))).not.toBeNull();
+  expect(launchOf(walker, { knock: 1 }, 100, dice(0.3))).toBeNull();
+  expect(launchOf(walker, { knock: 1 }, 10, dice(0.999))).toBeNull();
+  expect(launchOf(walker, { knock: 0.5 }, 100, dice(0.999))).toBeNull();
+  // and it leaves to either side of the line of the hit
+  let s = 12345;
+  const rng = () => ((s = (s * 1664525 + 1013904223) >>> 0), s / 4294967296);
+  const turns = Array.from(
+    { length: 200 },
+    () => launchOf(walker, shot, 100, rng).turn,
+  );
+  expect(Math.max(...turns)).toBeGreaterThan(L.turn * 0.6);
+  expect(Math.min(...turns)).toBeLessThan(-L.turn * 0.6);
+  expect(Math.max(...turns.map(Math.abs))).toBeLessThanOrEqual(L.turn);
+
+  // blood: more for a bigger share of its health, for the head, and by the dice
+  expect(bloodOf(0.5, false, dice(0.5))).toBeGreaterThan(
+    bloodOf(0.05, false, dice(0.5)) * 2,
+  );
+  expect(bloodOf(0.2, true, dice(0.5))).toBeGreaterThan(
+    bloodOf(0.2, false, dice(0.5)),
+  );
+  expect(bloodOf(0.2, false, dice(0.999))).toBeGreaterThan(
+    bloodOf(0.2, false, dice(0)) * 2,
+  );
+  expect(bloodOf(1, true, dice(0.999))).toBeLessThanOrEqual(B.max);
+  // a kill: a body that was only finished off bursts with far less than one killed in a blow
+  expect(goreOf(walker, {}, 100, dice(0.5))).toBeGreaterThan(
+    goreOf(walker, {}, 5, dice(0.5)) * 2.5,
+  );
+  expect(goreOf(walker, { kind: "blast" }, 100, dice(0.5))).toBeGreaterThan(
+    goreOf(walker, {}, 100, dice(0.5)),
+  );
+});
 
 async function open(page, query) {
   await page.goto("/?" + query);
@@ -28,10 +83,13 @@ test("a forceful kill throws the body, a plain one drops it, a heavy stays put",
     const V = lab.stage.THREE.Vector3;
     lab.advance(0.5, 1 / 60, false);
     const away = new V(0, 0, -1);
-    // kill one outright with a hit of this much knock-back, and watch where the body goes
-    const kill = (z, knock) => {
+    // kill one with a hit of this much knock-back, and watch where the body goes. roll: the
+    // dice (0..1). left: how much of its health it has left when the hit lands (1: all of it)
+    const kill = (z, knock, roll = 0.999, left = 1) => {
       const from = z.pos.clone();
-      T.damage(z, 99999, { dir: away.clone(), point: z.chest.clone(), knock });
+      T.rng = () => roll;
+      z.hp = Math.max(1, Math.round(z.maxHp * left));
+      T.damage(z, z.hp, { dir: away.clone(), point: z.chest.clone(), knock });
       let high = 0;
       let airborne = 0;
       for (let i = 0; i < 240; i++) {
@@ -54,12 +112,15 @@ test("a forceful kill throws the body, a plain one drops it, a heavy stays put",
       plain: kill(walkers[0], 0),
       nudge: kill(walkers[1], 0.5),
       hard: kill(walkers[2], 3.2),
+      unlucky: kill(walkers[3], 3.2, 0),
+      scrap: kill(walkers[4], 3.2, 0.999, 0.05),
       heavy: kill(brute, 2),
+      walkers: walkers.length,
       errors: window.__errors,
     };
   });
   const L = STATUS.launch;
-  for (const k of ["plain", "nudge", "hard", "heavy"])
+  for (const k of ["plain", "nudge", "hard", "unlucky", "scrap", "heavy"])
     expect(got[k].alive, k).toBe(false);
   // under the threshold: it drops where it stands
   expect(got.plain.high).toBe(0);
@@ -71,6 +132,13 @@ test("a forceful kill throws the body, a plain one drops it, a heavy stays put",
   expect(got.hard.back).toBeGreaterThan(3);
   expect(got.hard.back).toBeLessThan(L.max * 1.2);
   expect(got.hard.rest).toBe(0);
+  // the same blast with the worst of the dice: still thrown, nowhere near as far
+  expect(got.unlucky.high).toBeGreaterThan(0.05);
+  expect(got.unlucky.back).toBeGreaterThan(0.3);
+  expect(got.unlucky.back).toBeLessThan(got.hard.back * 0.5);
+  // and one that only finished off what was left of it, with the best of them
+  expect(got.scrap.back).toBeGreaterThan(0.3);
+  expect(got.scrap.back).toBeLessThan(got.hard.back * 0.65);
   // a heavy takes a third of the force: the same hit does not lift it
   expect(2 * STATUS.brute.knock).toBeLessThan(L.from);
   expect(got.heavy.high).toBe(0);
@@ -136,27 +204,42 @@ test("a hit bleeds and a kill bursts", async ({ page }) => {
     c.clear();
     lab.advance(0.5, 1 / 60, false);
     const drops = () => c.fx.alpha.count;
-    const z = T.list.find((x) => x.type === "walker" && x.alive);
+    T.rng = () => 0.5; // (the dice: how much is spilt varies from hit to hit)
+    const [z, y] = T.list.filter((x) => x.type === "walker" && x.alive);
     const dir = new V(0, 0, -1);
-    const before = drops();
-    T.damage(z, 5, { dir: dir.clone(), point: z.chest.clone() });
-    lab.advance(1 / 60, 1 / 60, false);
-    const hit = drops() - before;
-    lab.advance(3, 1 / 30, false);
-    const settled = drops();
-    T.damage(z, 99999, { dir: dir.clone(), point: z.chest.clone() });
-    lab.advance(1 / 60, 1 / 60, false);
-    const kill = drops() - settled;
+    // what one hit of this much throws into the air
+    const spilt = (who, dmg) => {
+      lab.advance(3, 1 / 30, false);
+      const before = drops();
+      T.damage(who, dmg, { dir: dir.clone(), point: who.chest.clone() });
+      lab.advance(1 / 60, 1 / 60, false);
+      return drops() - before;
+    };
+    const graze = spilt(z, Math.round(z.maxHp * 0.04));
+    const hit = spilt(z, Math.round(z.maxHp * 0.5));
+    // finished off with what little it had left, against one killed in a single blow
+    const scrap = spilt(z, z.hp);
+    const kill = spilt(y, y.maxHp);
     // a hit that should not bleed (a burn, a shared hit) does not
     const other = T.list.find((x) => x.type === "walker" && x.alive);
     lab.advance(3, 1 / 30, false);
     const quiet0 = drops();
     T.damage(other, 5, { dir: dir.clone(), blood: false });
     lab.advance(1 / 60, 1 / 60, false);
-    return { hit, kill, quiet: drops() - quiet0, alive: z.alive };
+    return {
+      graze,
+      hit,
+      scrap,
+      kill,
+      quiet: drops() - quiet0,
+      alive: z.alive || y.alive,
+    };
   });
-  expect(got.hit).toBeGreaterThan(10);
+  expect(got.graze).toBeGreaterThan(2);
+  expect(got.hit).toBeGreaterThan(got.graze * 1.8);
   expect(got.alive).toBe(false);
-  expect(got.kill).toBeGreaterThan(got.hit * 2);
+  expect(got.scrap).toBeGreaterThan(8);
+  expect(got.kill).toBeGreaterThan(got.scrap * 1.5);
+  expect(got.kill).toBeGreaterThan(got.hit * 1.5);
   expect(got.quiet).toBe(0);
 });

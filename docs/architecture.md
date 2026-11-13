@@ -150,7 +150,7 @@
 （非暂停时）特效、地面、关卡、远景、材质 → 音频、HUD → 渲染 → 清理输入的帧内状态。
 
 `time.scale` 是街上的时间倍率：僵尸、爆炸物和关卡时钟乘以它，玩家和武器不乘。套餐里选小票时它降到 0.05（慢动作），
-岔路小票 0.04，开局选第一把武器时 0.02，其余时候是 1。小票开着时 `run.js` 每帧清掉移动、转视角、开火、瞄准输入，
+岔路小票 0.04，开局选第一把武器时 0.02，其余时候是 1。小票开着时 `run.js` 每帧清掉移动、转视角、开火、副攻击输入，
 并放开鼠标锁定（`input.exitLock`）让玩家点小票，选完再 `input.requestLock`；`game.js` 在 `RUN.picking` 时不把失去锁定当成暂停。
 
 事件总线用于 `enemy:killed`、`enemy:voice`、`game:state`、`objective:done`、`weapon:fire` 等联动，避免把所有逻辑塞进主循环。
@@ -210,7 +210,7 @@
 | 每种形态开火做什么，伤害、弹匣、射速、换弹时间 | `arsenal/src/combat/behaviours.js` | 两边 |
 | 输入、后坐、换弹、近战、投掷、范围伤害；调料倍率怎么作用（`setMods`）；换弹从哪里拿子弹（`lab.supply`） | `arsenal/src/combat/combat.js` | 两边用同一个控制器 |
 | 伤害结算、四种状态、四种反应、精英和关底的抗性、附魔调料怎么触发 | `arsenal/src/combat/status.js`，数字在 `arsenal/src/data/status.js` | 本体的 `armtargets.js` 和测试台的 `targets.js` 都只是它的宿主 |
-| 受击和击杀的表现：击退多少、击杀时尸体会不会被打飞（按击退力、重型的抗性和体型算）、霰弹按距离的推力 | 规则在 `arsenal/src/combat/fate.js`（`launchOf`），数字在 `arsenal/src/data/status.js` 的 `launch` 和 `data/weapons.js` 霰弹的 `shove`；溅血和暴血在 `arsenal/src/fx/effects.js` 的 `blood` / `gore` | 两边。本体里尸体怎么飞、怎么落地在 `zombies.js`（`kill` / `updateCorpse`）；`armory.js` 听 `impact`、`enemy:killed`、`enemy:landed` 三个事件出血，所以原版两把枪打中也一样 |
+| 受击和击杀的表现：击退多少、击杀时尸体会不会被打飞、飞多远（按击退力、重型的抗性和体型算，再乘上这一下打掉的血量占比和一次随机，方向也会偏一点，所以每具都不一样）、流多少血（同样按血量占比加随机）、霰弹按距离的推力 | 规则在 `arsenal/src/combat/fate.js`（`launchOf` / `bloodOf` / `goreOf`），数字在 `arsenal/src/data/status.js` 的 `launch`、`blood` 和 `data/weapons.js` 霰弹的 `shove`；溅血和暴血在 `arsenal/src/fx/effects.js` 的 `blood` / `gore` | 两边。本体里尸体怎么飞、怎么落地在 `zombies.js`（`kill` / `updateCorpse`）；`armory.js` 听 `impact`、`enemy:killed`、`enemy:landed` 三个事件出血，所以原版两把枪打中也一样 |
 | 断肢：击杀时掉什么（爆炸从根部炸掉手脚、偶尔带头；刀砍头或齐肩一条手臂；被打飞的带走一截；爆头打掉够多血时头直接炸开；精英和关底不掉）| 规则在 `arsenal/src/combat/fate.js`（`limbsOf` / `fateOf`），数字在 `arsenal/src/data/status.js` 的 `sever`；切下来的肢体、断口和落地在 `arsenal/src/fx/limbs.js`（按骨骼权重从模型里切，每种模型切一次） | 两边。本体多一条只有它有的规则：活着的僵尸某条手臂或腿挨够了伤害（`zombietune.js` 的 `limbs`）就从肘或膝断掉，行尸断了腿改为爬行，在 `zombies.js`（`damage` / `sever` / `limbAt`）；`armory.js` 听 `enemy:severed`、`gore:spurt`、`gore:splat` 出血。回对象池时 `mend` 把骨骼还原 |
 | 手感：每发的枪口上跳、后坐、侧倾、镜头上抬和保留多少、连射的散布扩张、持续喷射的抖动、近战命中的顿挫和镜头跟随 | 数字在 `arsenal/src/data/feel.js`，模型在 `arsenal/src/combat/recoil.js`（照原版两把枪的做法：冲量打在阻尼弹簧上，枪绕握把转） | 两边；靶场「数值」里的「手感」能边玩边改，`node arsenal/scripts/feel-report.mjs` 把数字换算成度、毫米和毫秒 |
 | 每级的伤害倍率 | `arsenal/src/data/levels.js` | 两边 |
@@ -232,6 +232,8 @@ LK-9 和 LK-4、命中体积、夜街的曝光和特效亮度都是真的，没�
 卡片和设计文档上的数值：基础形态的伤害、弹丸数、射程、溅射、弱点倍率、挥砍范围写在 `arsenal/src/data/weapons.js` 的 `fire` 里，`behaviours.js`
 直接读它（`F.<武器>`）；射速、弹匣、换弹时间以 `behaviours.js` 的 `spec()` 为准，卡片读它，`arsenal/scripts/check-data.mjs` 再核对一遍数据里的那份
 （`npm run check` 的一部分）。还是手写的只有岔路说明文字里的数字（「单发 150 伤害」这类），改岔路的数值时要一起改。
+
+当前所有武器都不开镜瞄准；鼠标右键、手柄 LT 和触屏「副攻击」只用于武器的副攻击（按住使用、松开结束）。原版输入字段 `ads` 暂留作副攻击通道，不代表开镜。未来只有为狙击枪等设计了有意义的机制后才重新引入瞄准。
 
 ## 玩法与状态
 
@@ -302,7 +304,7 @@ LK-9 和 LK-4、命中体积、夜街的曝光和特效亮度都是真的，没�
 - `/?w=flamer&b=a&lv=5&spice=chili:2,fire:3`：和试验场同一组地址参数，带着这把武器的这个形态和这些调料开局（跳过开局的三选一）。
 - `__G.physics.nav._grid()`：导航网格，改动布局后用它检查目标点和撤离点是否连通。
 - `__G.game.spawnDirector.debug.last`：最近一次选点的位置、实际入口、候选入口与寻路次数；没有安全位置时记录原因。
-- 实际游玩还需验证瞄准、射击、换弹、暂停、目标推进与声音；构建成功不能替代这些检查。
+- 实际游玩还需验证副攻击、射击、换弹、暂停、目标推进与声音；构建成功不能替代这些检查。
 - 界面改动后用真实点击走一遍：标题页切换语言 → 出发 → 选主菜 → 数字键换武器 → Esc 暂停 → 设置里换语言 → 继续 →
   死亡重试 → 通关再出发 → 换分店，并在桌面、手机竖屏、手机横屏（触屏）三种尺寸下各看一次。
 - 查卡顿：每帧比较 `renderer.info.programs`，新出现的着色器程序连同它的 `cacheKey` 和已有程序逐项对比，

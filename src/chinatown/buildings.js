@@ -1390,13 +1390,20 @@ export function createBuilder(kit, signs, ctx) {
     // end caps and a round ridge along the wall
     for (const i of [0, segS]) {
       const row = pts[i];
+      // Match the underside's straight slope from the wall to the lifted lip.
+      // Adjacent strips must share their lower edge, and face out of the roof.
+      const bottom = (j) => [
+        row[j][0],
+        y - 0.05 + ((row[segD][1] - 0.14 - (y - 0.05)) * j) / segD,
+        row[j][2],
+      ];
       for (let j = 0; j < segD; j++) {
         const a = row[j],
           b = row[j + 1];
-        const q = [[a[0], y - 0.05, a[2]], [b[0], b[1] - 0.14, b[2]], b, a];
+        const q = [bottom(j), bottom(j + 1), b, a];
         if (i === 0)
-          kit.quad(wood, q[1], q[0], q[3], q[2], null, { cast: false });
-        else kit.quad(wood, q[0], q[1], q[2], q[3], null, { cast: false });
+          kit.quad(wood, q[0], q[1], q[2], q[3], null, { cast: false });
+        else kit.quad(wood, q[1], q[0], q[3], q[2], null, { cast: false });
       }
     }
     if (o.ridge !== false) {
