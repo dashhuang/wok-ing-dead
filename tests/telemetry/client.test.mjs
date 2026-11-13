@@ -88,6 +88,8 @@ test("actual client module distinguishes holdout weapons, difficulty changes and
       await settle(0);
       const final = records.at(-1);
       assert.equal(final.outcome, "dead");
+      assert.equal(final.device.os, "other");
+      assert.equal(final.perf.qualityStart, "low");
       assert.equal(final.difficulty, "hard");
       assert.equal(final.difficultyChanged, true);
       assert.equal(
