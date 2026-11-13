@@ -59368,6 +59368,7 @@ void main() {
       return Me;
     }
     let Bt = (t ? rE : createMusic)({
+      game: n,
       ctx: e,
       out: z.music,
       bufs: r,
