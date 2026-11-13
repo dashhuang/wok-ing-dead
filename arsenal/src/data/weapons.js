@@ -1,9 +1,10 @@
 // Roguelike arsenal: the single source of truth for weapon design data.
 // The lab UI, the combat behaviours and docs/weapons-roguelike.md all describe these entries.
 //
-// Reference values from the current game: walker 55 HP, brute 320 HP, headshot x2.2,
-// LK-9 carbine 26 dmg @ 720 rpm, LK-4 pistol 34 dmg @ 420 rpm.
+// Reference values from the current game: walker 55 HP, brute 320 HP, headshot x2.2; the
+// game's own two guns are EXISTING below (their numbers: src/chinatown/stockguns.js).
 import { STATUS } from "./status.js";
+import { STOCK_GUNS } from "../../../src/chinatown/stockguns.js";
 
 const S = STATUS;
 const R = STATUS.reactions;
@@ -539,7 +540,11 @@ export const WEAPONS = [
   },
 ];
 
-// Weapons that already exist in the game. No new art; listed so the roster and the fork design are complete.
+// The game's own two guns (src/game.js builds them). Their numbers are the game's table,
+// src/chinatown/stockguns.js; the test bench fires them with a stand-in model and a plain
+// hitscan behaviour (combat/behaviours.js) so they sit the same test as the twelve above.
+// They have no forks in a run: the branches below are an old design that was never built.
+const G = STOCK_GUNS;
 export const EXISTING = [
   {
     id: "rifle",
@@ -547,9 +552,15 @@ export const EXISTING = [
     type: "卡宾枪",
     cls: "issue",
     slot: "主",
-    fire: { kind: "hitscan", damage: 26, rpm: 720, range: 300, auto: true },
-    mag: 30,
-    reserve: 150,
+    fire: {
+      kind: "hitscan",
+      damage: G.rifle.damage,
+      rpm: G.rifle.rpm,
+      range: G.rifle.range,
+      auto: G.rifle.auto,
+    },
+    mag: G.rifle.mag,
+    reserve: G.rifle.reserve,
     branches: {
       a: {
         name: "三连",
@@ -572,9 +583,15 @@ export const EXISTING = [
     type: "手枪",
     cls: "issue",
     slot: "副",
-    fire: { kind: "hitscan", damage: 34, rpm: 420, range: 120 },
-    mag: 15,
-    reserve: Infinity,
+    fire: {
+      kind: "hitscan",
+      damage: G.pistol.damage,
+      rpm: G.pistol.rpm,
+      range: G.pistol.range,
+      auto: G.pistol.auto,
+    },
+    mag: G.pistol.mag,
+    reserve: G.pistol.reserve,
     branches: {
       a: {
         name: "双持",

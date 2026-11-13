@@ -102,7 +102,13 @@ export function guards({ TL, W, WR, sims, calRows }) {
     const within = (list, [a, b]) => list.every((x) => x.v >= a && x.v <= b);
     const show = ({ lo, hi }, d = 2) =>
       `${lo.v.toFixed(d)}（${lo.n}）到 ${hi.v.toFixed(d)}（${hi.n}）`;
-    const forkName = (id, k) => `${wname(id)}·${k[0] === "a" ? "甲" : "乙"}`;
+    const formName = (id, k) =>
+      k.startsWith("base")
+        ? wname(id)
+        : `${wname(id)}·${k[0] === "a" ? "甲" : "乙"}`;
+    // the forms a weapon has at a level: its two forks, or itself if it has none
+    const formsAt = (r, lv) =>
+      r.forkless ? ["base" + lv] : ["a" + lv, "b" + lv];
 
     const guns = M.filter((r) => r.ammo).map((r) => ({
       n: wname(r.id),
@@ -120,21 +126,21 @@ export function guards({ TL, W, WR, sims, calRows }) {
       [5, B.fork5],
     ]) {
       const forks = M.flatMap((r) =>
-        ["a" + lv, "b" + lv].map((k) => ({
-          n: forkName(r.id, k),
+        formsAt(r, lv).map((k) => ({
+          n: formName(r.id, k),
           v: r.score[k].total,
         })),
       );
       add(
         true,
-        `${lv} 级：每条岔路的总分都在目标带里`,
+        `${lv} 级：每个形态（两条岔路，没有岔路的就是它本身）的总分都在目标带里`,
         within(forks, band),
         show(span(forks)),
         band.join("–"),
       );
     }
     {
-      const gaps = M.map((r) => {
+      const gaps = M.filter((r) => !r.forkless).map((r) => {
         const a = r.score.a5.total,
           b = r.score.b5.total;
         return { n: wname(r.id), v: Math.abs(a - b) / Math.max(a, b) };

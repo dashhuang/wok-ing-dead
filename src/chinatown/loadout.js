@@ -17,7 +17,7 @@
 // AMMO and ARMS are plain data and ammoPer() a plain function: the weapon lab (arsenal/) reads
 // them too, so what a round costs on its firing range is what it costs in a run. What a level
 // multiplies damage by is the arsenal's own table (LEVELS), the one the lab shows.
-import { LEVELS } from "../../arsenal/src/data/levels.js";
+import { LEVELS, levelMul } from "../../arsenal/src/data/levels.js";
 
 export const AMMO = {
   // cap: units carried (the "portion" seasoning raises it), pack: units in one dropped pack,
@@ -191,7 +191,8 @@ export function createLoadout(G, on = {}) {
     if (!it || !ARMS[id].own) return;
     const rig = G.weapon.rigs[id];
     rig.def.damage =
-      baseDef[id].damage * LEVELS[it.level - 1].dmg * mods.damage;
+      // (the game's own guns never fork: they climb by the level table's `bare` column)
+      baseDef[id].damage * levelMul(it.level, true) * mods.damage;
     rig.def.rpm = baseDef[id].rpm * mods.rate;
   }
   function tuneAll() {

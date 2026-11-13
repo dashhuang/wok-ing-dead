@@ -10,7 +10,7 @@
   变量名是压缩后的。搜索函数声明或 `// ===` 分区标记来定位，不要依赖行号。
 - `src/chinatown/`：唐人街版本新增的普通 ES 模块，负责关卡、远景、僵尸、音频和套餐（肉鸽关卡），通过游戏上下文对象与原版系统对接。
 - `arsenal/`：十二把肉鸽武器的试验场，可单独运行。游戏通过 `src/chinatown/armory.js` 直接导入其中的武器模型、特效和战斗模块；
-  反过来，试验场读本体的三张数值表（`runtune.js`、`loadout.js`、`zombietune.js`）。武器在两边跑的是同一份规则，见下文「试验场和本体共用的规则」。
+  反过来，试验场读本体的四张数值表（`runtune.js`、`loadout.js`、`zombietune.js`、两把本体枪的 `stockguns.js`）。武器在两边跑的是同一份规则，见下文「试验场和本体共用的规则」。
 - `src/i18n/`：界面语言与界面字体。`game.js` 以 `L10N` 的名字导入它，HUD、菜单、无线电、加载提示里的所有文字都经由它取得。
 
 推荐阅读顺序：`src/main.js` → `cL`（装配）→ `src/chinatown/level.js`（场景怎么搭）→ `pT`（状态机）→
@@ -213,7 +213,8 @@
 | 受击和击杀的表现：击退多少、击杀时尸体会不会被打飞、飞多远（按击退力、重型的抗性和体型算，再乘上这一下打掉的血量占比和一次随机，方向也会偏一点，所以每具都不一样）、流多少血（同样按血量占比加随机）、霰弹按距离的推力 | 规则在 `arsenal/src/combat/fate.js`（`launchOf` / `bloodOf` / `goreOf`），数字在 `arsenal/src/data/status.js` 的 `launch`、`blood` 和 `data/weapons.js` 霰弹的 `shove`；溅血和暴血在 `arsenal/src/fx/effects.js` 的 `blood` / `gore` | 两边。本体里尸体怎么飞、怎么落地在 `zombies.js`（`kill` / `updateCorpse`）；`armory.js` 听 `impact`、`enemy:killed`、`enemy:landed` 三个事件出血，所以原版两把枪打中也一样 |
 | 断肢：击杀时掉什么（爆炸从根部炸掉手脚、偶尔带头；刀砍头或齐肩一条手臂；被打飞的带走一截；爆头打掉够多血时头直接炸开；精英和关底不掉）| 规则在 `arsenal/src/combat/fate.js`（`limbsOf` / `fateOf`），数字在 `arsenal/src/data/status.js` 的 `sever`；切下来的肢体、断口和落地在 `arsenal/src/fx/limbs.js`（按骨骼权重从模型里切，每种模型切一次） | 两边。本体多一条只有它有的规则：活着的僵尸某条手臂或腿挨够了伤害（`zombietune.js` 的 `limbs`）就从肘或膝断掉，行尸断了腿改为爬行，在 `zombies.js`（`damage` / `sever` / `limbAt`）；`armory.js` 听 `enemy:severed`、`gore:spurt`、`gore:splat` 出血。回对象池时 `mend` 把骨骼还原 |
 | 手感：每发的枪口上跳、后坐、侧倾、镜头上抬和保留多少、连射的散布扩张、持续喷射的抖动、近战命中的顿挫和镜头跟随 | 数字在 `arsenal/src/data/feel.js`，模型在 `arsenal/src/combat/recoil.js`（照原版两把枪的做法：冲量打在阻尼弹簧上，枪绕握把转） | 两边；靶场「数值」里的「手感」能边玩边改，`node arsenal/scripts/feel-report.mjs` 把数字换算成度、毫米和毫秒 |
-| 每级的伤害倍率 | `arsenal/src/data/levels.js` | 两边 |
+| 每级的伤害倍率（有岔路的 `dmg`，没有岔路的 `bare`） | `arsenal/src/data/levels.js` | 两边 |
+| 本体两把枪（LK-9、LK-4）的伤害、射速、射程、弹匣、备弹、换弹时间、散布 | `src/chinatown/stockguns.js` | `src/game.js` 造枪和开火；测试台的替身（`arsenal/src/kit/standin.js` + `behaviours.js` 末尾）只为测量 |
 | 调料的层数和数值 | `src/chinatown/runtune.js` | `run.js`；测试台的 `combat/meal.js` |
 | 四种弹药的上限、每把武器每发吃多少 | `src/chinatown/loadout.js` 的 `AMMO`、`ARMS`、`ammoPer` | `loadout.js`；测试台的 `combat/meal.js` |
 | 僵尸的血量、速度、伤害、出手节奏、受击硬直、弱点大小 | `src/chinatown/zombietune.js` | `zombies.js`；测试台的 `targets.js` |
@@ -226,7 +227,7 @@
 **靶场就是游戏**：`/?range=1` 是同一个套餐，关掉时间线、加一块调试面板（`src/chinatown/range.js`），所以走位、拾取、精英、关底、胀尸、
 LK-9 和 LK-4、命中体积、夜街的曝光和特效亮度都是真的，没有第二份。试验场的「靶场」按钮打开的就是它。
 
-试验场里还留着一条巷子，叫「测试台」（`?mode=fp`）：给自动测试和测量脚本用，可以逐帧步进、几秒钟打完六十种形态。它的规则和数值与本体是同一份，
+试验场里还留着一条巷子，叫「测试台」（`?mode=fp`）：给自动测试和测量脚本用，可以逐帧步进，几分钟打完 66 种形态（包括本体两把枪的替身）。它的规则和数值与本体是同一份，
 但僵尸只会直线走、命中体积是圆柱加头、光照是亮巷子——不要拿它调手感和特效亮度。
 
 卡片和设计文档上的数值：基础形态的伤害、弹丸数、射程、溅射、弱点倍率、挥砍范围写在 `arsenal/src/data/weapons.js` 的 `fire` 里，`behaviours.js`

@@ -14,6 +14,7 @@
 import * as THREE from "three";
 import { C, P, rand, srand, coneDir, randDir } from "../fx/core.js";
 import { WEAPONS } from "../data/weapons.js";
+import { STOCK_GUNS } from "../../../src/chinatown/stockguns.js";
 
 // the design data of each weapon's fire: F.shotgun.damage, F.lever.range, ...
 const F = Object.fromEntries(WEAPONS.map((w) => [w.id, w.fire]));
@@ -2644,4 +2645,61 @@ export const BEHAVIOURS = {
       });
     },
   },
+
+  // ================================================================ the game's own two guns
+  // LK-9 carbine and LK-4 sidearm, as the test bench fires them. The game fires them with its
+  // own code (src/game.js); this is here only so they can sit the same test as the weapons
+  // above. The numbers are the game's (src/chinatown/stockguns.js), and so is what a round
+  // does: one straight round from the eye, full damage to its range, 2.2 to the head, no
+  // falloff, no pierce, in a cone of fire that sustained fire opens (the game's bloom, kept
+  // here rather than in data/feel.js: that table is the arsenal weapons' handling, which the
+  // range's number editor offers, and these two do not handle by it).
+  rifle: stockGun("rifle"),
+  pistol: stockGun("pistol"),
 };
+
+// One of the game's own guns as a behaviour (see the end of BEHAVIOURS).
+function stockGun(id) {
+  const G = STOCK_GUNS[id];
+  return {
+    spec: () => ({
+      kind: "gun",
+      rpm: G.rpm,
+      mag: G.mag,
+      // (the test empties the magazine before it reloads, so the longer of the two)
+      reload: G.reload.empty,
+      auto: G.auto,
+      // one pull of the trigger, one round: the bench's bot pulls no faster than a hand
+      semi: !G.auto,
+      // no forks: it climbs by the level table's `bare` column, as it does in a run
+      forkless: true,
+      kick: id === "rifle" ? 0.45 : 0.8,
+    }),
+    frame(ctx, dt) {
+      ctx.st.bloom = Math.max(0, (ctx.st.bloom || 0) - dt * G.spread.decay);
+    },
+    fire(ctx) {
+      const st = ctx.st;
+      ctx.E.muzzle(ctx.muzzle(), ctx.aim.dir, {
+        scale: id === "rifle" ? 0.9 : 0.8,
+        sparks: 3,
+        smoke: 1,
+        light: 20,
+      });
+      const dir = coneDir(
+        ctx.aim.dir,
+        G.spread.hip + (st.bloom || 0) * G.spread.bloomHip,
+        V(),
+      );
+      st.bloom = Math.min(1, (st.bloom || 0) + G.spread.shot);
+      ctx.hitscan({
+        dir,
+        range: G.range,
+        damage: G.damage,
+        tracer: { width: 0.018, color: C(0xffd9a0, 3) },
+        impact: { scale: 0.7 },
+      });
+      ctx.kick(id === "rifle" ? 0.45 : 0.8);
+    },
+  };
+}
