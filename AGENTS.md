@@ -98,7 +98,7 @@ Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值
 1. **开工前先 `git fetch origin`**，再从刚拉下来的 `origin/main` 拉分支（`feat/`、`fix/`、`perf/`、`docs/`、`chore/`）。
    不 fetch 的话，`origin/main` 只是上次拉取时的样子，可能已经落后好几个提交。可能有别的会话同时在改这个仓库：
    **用 `git worktree add ../Saltline-<任务> -b <分支> origin/main` 单独开目录**，不要切换主目录的分支，也不要动别人未提交的文件。
-   主目录 `~/Code/Saltline` 只当干净的基准，由定时任务每小时快进到最新 `main`；不要在主目录里改东西，开工以 fetch 下来的 `origin/main` 为准。
+   主目录 `~/Code/Saltline` 只当干净的基准，由 Cindy 定时任务每小时跑 `scripts/sync-main-folder.sh` 快进到最新 `main`（有未提交改动或本地提交时不动它）；不要在主目录里改东西，开工以 fetch 下来的 `origin/main` 为准。
    AGENTS.md 和 docs/ 也以最新的 `origin/main` 为准，在旧分支上读到的可能是旧规则。
 2. **推送或开 PR 前再 `git fetch origin`**，把最新的 `origin/main` 合进自己的分支（`git merge origin/main`；还没推过的分支也可以 rebase），
    解决冲突后重跑 `npm run verify`。直接推 `main` 时同样先 fetch 再 rebase。
