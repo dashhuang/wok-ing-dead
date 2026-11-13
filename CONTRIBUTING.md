@@ -8,7 +8,7 @@
 - **大改动走 Pull Request**：新玩法、改菜单或启动流程、动很多文件。好处是有 Vercel 预览地址可以先玩。
 
 推送前钩子和 CI 都会跑 `npm run check`（语法、格式、武器数据、数值护栏），CI 再确认游戏能构建，一共约 1 分钟。
-不过就推不上去：格式问题用 `npm run format` 修，改了数值后用 `npm run balance` 重新生成报告。浏览器测试不在里面，需要时在本机手动跑。
+不过就推不上去：格式问题用 `npm run format` 修，改了数值后用 `npm run balance` 重新生成报告。浏览器测试现在暂停使用（见下文）。
 
 ## 小改动：直接推 `main`
 
@@ -45,8 +45,8 @@ git push
    npm run dev        # 开发服务器 http://127.0.0.1:5173/
    npm run check      # 语法 + 格式（npm run format 自动修格式）
    npm run build      # 生产构建
-   npm run test:e2e   # 真实点击冒烟测试，需要先 build；首次运行前 npx playwright install chromium
-   npm run verify     # 以上三步一起跑
+   npm test           # 不开浏览器的测试：僵尸导航和游玩日志（几秒）
+   npm run verify     # 以上三步一起跑（约半分钟）
    ```
 
 
@@ -64,8 +64,8 @@ git push
    ```
 
    - CI 跑「Check and build」（约 1 分钟）。
-   - 改了菜单、标题页、启动流程或一局的流程时，合并前在本机跑一下 `npm run test:e2e`（真实点击冒烟测试，约 6 分钟）；
-     改了 `arsenal/` 跑 `npm run arsenal:test`（约 2 分钟）。
+   - 游戏本身在 Vercel 预览地址上自己玩一遍。浏览器里的自动测试（`npm run test:e2e`、`npm run arsenal:test`）暂停使用，
+     代码还在，以后需要时再拿出来跑。
    - Vercel 会在 PR 里贴出预览地址。在预览地址上实际玩一遍受影响的部分，再按模板勾选验证项。
    - 画面、界面、特效改动附上截图或录屏。
 
