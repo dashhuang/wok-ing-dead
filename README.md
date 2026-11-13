@@ -94,7 +94,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `src/chinatown/shopfit.js` | 店铺内景（橱窗和半拉卷闸后面的真实房间，载入时烘焙光照）与帆布遮阳篷 |
 | `src/chinatown/landmarks.js` | 牌楼、关帝庙、检疫关卡、街口围挡、警报器、灯笼 |
 | `src/chinatown/market.js` | 街市大厅：各行档口、玻璃天窗、过道里的灯和杂物 |
-| `src/chinatown/vehicles.js` | 程序化车辆：的士、轿车、面包车、小巴、货车、军车、巴士 |
+| `src/chinatown/vehicles.js` | 程序化车辆：的士、轿车、面包车、小巴、货车、军车、巴士（`node scripts/vehicles/preview.mjs <车型> <输出.png>` 离线出图看形状） |
 | `src/chinatown/dressing.js` | 路灯、灯笼串、电线、停放的车辆、红绿灯与街名牌、摊位杂物、后巷与天井 |
 | `src/chinatown/backdrop.js` | 街口之外的延伸街区、远处高楼、军车与直升机 |
 | `src/chinatown/signs.js` | 用 Canvas 绘制的霓虹招牌、牌匾、橱窗、海报、血迹图集 |

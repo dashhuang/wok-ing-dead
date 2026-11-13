@@ -37358,6 +37358,7 @@ ${ge}`,
         exposure: 1,
         env: y ? y.texture : null,
         interiorEnv: null,
+        streetEnv: null,
         envWarm: null,
         resolution: new We(4, 4),
         depthTextureIsLive: !1,
@@ -37432,6 +37433,13 @@ ${ge}`,
           } catch (G) {
             console.error(
               "[render] interior probe failed: " + ((G && G.stack) || G),
+            );
+          }
+          try {
+            slStreetProbe();
+          } catch (G) {
+            console.error(
+              "[render] street probe failed: " + ((G && G.stack) || G),
             );
           }
           try {
@@ -37571,7 +37579,61 @@ ${ge}`,
           };
         },
       },
-      W = null;
+      W = null,
+      slStreet = null;
+    function slProbeRig() {
+      if (W) return;
+      let q = new Lc(128, { type: ro, generateMipmaps: !1 });
+      ((W = {
+        cubeRT: q,
+        cam: new Dc(0.15, 300, q),
+        pmrem: new Pa(i),
+        out: null,
+      }),
+        W.cam.layers.set(Ia));
+    }
+    // The street as car glass mirrors it (the glass is opaque: see chinatown/vehicles.js).
+    // One cube from the point the level names in level.streetProbe, captured and filtered
+    // like the hall's below, handed to every material flagged userData.streetEnv.
+    function slStreetProbe() {
+      let G = n.level && n.level.streetProbe;
+      if (!G) return;
+      slProbeRig();
+      (W.cam.position.set(G.x, G.y, G.z), W.cam.updateMatrixWorld(!0));
+      let te = i.toneMapping;
+      ((i.toneMapping = Cs),
+        (u.material.uniforms.uEnv.value = 1),
+        (i.shadowMap.needsUpdate = !0));
+      try {
+        W.cam.update(i, r);
+      } finally {
+        ((u.material.uniforms.uEnv.value = 0),
+          (i.toneMapping = te),
+          i.setRenderTarget(null));
+      }
+      (slStreet && slStreet.dispose(),
+        (slStreet = W.pmrem.fromCubemap(W.cubeRT.texture)),
+        (Q.streetEnv = slStreet.texture));
+      let oe = 0,
+        ee = new Set();
+      (r.traverse((le) => {
+        let xe = le.material
+          ? Array.isArray(le.material)
+            ? le.material
+            : [le.material]
+          : null;
+        if (xe)
+          for (let j of xe)
+            !j ||
+              ee.has(j) ||
+              !j.userData ||
+              j.userData.streetEnv !== !0 ||
+              !("envMap" in j) ||
+              (ee.add(j), (j.envMap = Q.streetEnv), (j.needsUpdate = !0), oe++);
+      }),
+        oe &&
+          console.log(`[render] street probe assigned to ${oe} material(s)`));
+    }
     function J() {
       let G = n.level && n.level.interiorBoxes;
       if (!G || !G.length) return;
@@ -37579,16 +37641,7 @@ ${ge}`,
         oe = (te.min.x + te.max.x) / 2,
         ee = (te.min.z + te.max.z) / 2,
         le = te.min.y + Math.min(2.4, (te.max.y - te.min.y) * 0.4);
-      if (!W) {
-        let q = new Lc(128, { type: ro, generateMipmaps: !1 });
-        ((W = {
-          cubeRT: q,
-          cam: new Dc(0.15, 300, q),
-          pmrem: new Pa(i),
-          out: null,
-        }),
-          W.cam.layers.set(Ia));
-      }
+      slProbeRig();
       (W.cam.position.set(oe, le, ee), W.cam.updateMatrixWorld(!0));
       let xe = i.toneMapping;
       ((i.toneMapping = Cs),
