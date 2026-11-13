@@ -189,7 +189,8 @@
 | 每种形态开火做什么，伤害、弹匣、射速、换弹时间 | `arsenal/src/combat/behaviours.js` | 两边 |
 | 输入、后坐、换弹、近战、投掷、范围伤害；调料倍率怎么作用（`setMods`）；换弹从哪里拿子弹（`lab.supply`） | `arsenal/src/combat/combat.js` | 两边用同一个控制器 |
 | 伤害结算、四种状态、四种反应、精英和关底的抗性、附魔调料怎么触发 | `arsenal/src/combat/status.js`，数字在 `arsenal/src/data/status.js` | 本体的 `armtargets.js` 和测试台的 `targets.js` 都只是它的宿主 |
-| 受击和击杀的表现：击退多少、击杀时尸体会不会被打飞（按击退力、重型的抗性和体型算）、霰弹按距离的推力 | 规则在 `arsenal/src/combat/status.js`（`launchOf`），数字在 `arsenal/src/data/status.js` 的 `launch` 和 `data/weapons.js` 霰弹的 `shove`；溅血和暴血在 `arsenal/src/fx/effects.js` 的 `blood` / `gore` | 两边。本体里尸体怎么飞、怎么落地在 `zombies.js`（`kill` / `updateCorpse`）；`armory.js` 听 `impact`、`enemy:killed`、`enemy:landed` 三个事件出血，所以原版两把枪打中也一样 |
+| 受击和击杀的表现：击退多少、击杀时尸体会不会被打飞（按击退力、重型的抗性和体型算）、霰弹按距离的推力 | 规则在 `arsenal/src/combat/fate.js`（`launchOf`），数字在 `arsenal/src/data/status.js` 的 `launch` 和 `data/weapons.js` 霰弹的 `shove`；溅血和暴血在 `arsenal/src/fx/effects.js` 的 `blood` / `gore` | 两边。本体里尸体怎么飞、怎么落地在 `zombies.js`（`kill` / `updateCorpse`）；`armory.js` 听 `impact`、`enemy:killed`、`enemy:landed` 三个事件出血，所以原版两把枪打中也一样 |
+| 断肢：击杀时掉什么（爆炸从根部炸掉手脚、偶尔带头；刀砍头或齐肩一条手臂；被打飞的带走一截；爆头打掉够多血时头直接炸开；精英和关底不掉）| 规则在 `arsenal/src/combat/fate.js`（`limbsOf` / `fateOf`），数字在 `arsenal/src/data/status.js` 的 `sever`；切下来的肢体、断口和落地在 `arsenal/src/fx/limbs.js`（按骨骼权重从模型里切，每种模型切一次） | 两边。本体多一条只有它有的规则：活着的僵尸某条手臂或腿挨够了伤害（`zombietune.js` 的 `limbs`）就从肘或膝断掉，行尸断了腿改为爬行，在 `zombies.js`（`damage` / `sever` / `limbAt`）；`armory.js` 听 `enemy:severed`、`gore:spurt`、`gore:splat` 出血。回对象池时 `mend` 把骨骼还原 |
 | 手感：每发的枪口上跳、后坐、侧倾、镜头上抬和保留多少、连射的散布扩张、持续喷射的抖动、近战命中的顿挫和镜头跟随 | 数字在 `arsenal/src/data/feel.js`，模型在 `arsenal/src/combat/recoil.js`（照原版两把枪的做法：冲量打在阻尼弹簧上，枪绕握把转） | 两边；靶场「数值」里的「手感」能边玩边改，`node arsenal/scripts/feel-report.mjs` 把数字换算成度、毫米和毫秒 |
 | 每级的伤害倍率 | `arsenal/src/data/levels.js` | 两边 |
 | 调料的层数和数值 | `src/chinatown/runtune.js` | `run.js`；测试台的 `combat/meal.js` |
@@ -197,7 +198,7 @@
 | 僵尸的血量、速度、伤害、出手节奏、受击硬直、弱点大小 | `src/chinatown/zombietune.js` | `zombies.js`；测试台的 `targets.js` |
 | 调料和弹药的名字 | `src/i18n/locales/zh-CN.js` | 两边 |
 
-宿主（`status.js` 的 `createStatus(host)`）只需要提供：场上的僵尸列表、`hurt(z, dmg, o, direct)`（扣血、出血、死亡，返回是否击杀），
+宿主（`status.js` 的 `createStatus(host)`）只需要提供：场上的僵尸列表、`hurt(z, dmg, o, direct, fate)`（扣血、出血、死亡，返回是否击杀；`fate` 是这一下如果打死了尸体会怎样：打飞多远、掉哪几截），
 死亡时回调 `rules.died(z)`。僵尸对象上要有 `alive / type / rank / maxHp / radius / pos / chest / headPos / feet / vel / stagger`，
 其余状态字段由 `clearStatus(z)` 建立。
 

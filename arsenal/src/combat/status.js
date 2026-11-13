@@ -16,6 +16,7 @@
 import * as THREE from "three";
 import { C, rand, srand } from "../fx/core.js";
 import { STATUS } from "../data/status.js";
+import { fateOf } from "./fate.js";
 
 export { STATUS };
 
@@ -49,8 +50,9 @@ export function clearStatus(z) {
  * host: {
  *   list            the zombies in play (an array the host keeps up to date)
  *   fx, E           the effects runtime and the named effects
- *   hurt(z, dmg, o, direct, launch) -> true if that killed it. `launch` is how the body is
- *     thrown if it did ({ speed, up } or null). Takes the health off, shows the blood,
+ *   hurt(z, dmg, o, direct, fate) -> true if that killed it. `fate` is what becomes of the
+ *     body if it did (combat/fate.js: how it is thrown, what comes off it), null for a hit
+ *     that is not a blow (a burn). Takes the health off, shows the blood,
  *                   plays the death; on a death it calls rules.died(z).
  *   rng()           optional; Math.random otherwise
  *   onReaction(name, z)   optional
@@ -69,25 +71,6 @@ export function createStatus(host) {
   const rankOf = (z) => S.rank[z.rank] || NO_RANK;
   const brute = (z, k) => (z.type === "brute" ? S.brute[k] : 1);
   const sealed = (z) => z.pin > 0 && z.pinKind === "seal";
-  // What a killing hit does to the body: { speed (m/s along the hit), up (m/s) }, or null if
-  // it only drops (see STATUS.launch).
-  function launchOf(z, o) {
-    const L = S.launch;
-    if (z.pin > 0 || rankOf(z).thrown === false) return null;
-    const size = z.scale || 1;
-    const k =
-      (o.launch ?? o.knock ?? 0) *
-      brute(z, "knock") *
-      Math.max(L.small[0], Math.min(L.small[1], 1 / (size * size * size)));
-    if (!(k >= L.from)) return null;
-    return {
-      speed: Math.min(L.max, k * L.speed),
-      up: Math.min(
-        L.maxUp,
-        (L.up[0] + k * L.up[1]) * (o.kind === "blast" ? L.blast : 1),
-      ),
-    };
-  }
   let dealing = null; // options of the hit being dealt right now, for the death that may follow
   let infusions = []; // the elemental seasonings in force
   let hits = 0;
@@ -141,7 +124,8 @@ export function createStatus(host) {
     },
 
     /**
-     * damage(z, amount, { dir, point, head, element, kind, knock, launch, lift, stagger, noChain, blood, pinBonus })
+     * damage(z, amount, { dir, point, head, element, kind, knock, launch, cut, lift, stagger, noChain, blood, pinBonus })
+     * cut: a blade's stroke (what it kills it takes a piece off).
      * launch: the force the hit throws the body with if it kills (as a knock-back; `knock` if absent).
      * element only colours the number; statuses are applied with apply().
      * kind: "hit" (default) | "stream" | "dot" | "share" | "blast" | "chain" | "react".
@@ -185,7 +169,8 @@ export function createStatus(host) {
       if (chain) z.st.shock = 0;
       dealing = o;
       const killed =
-        host.hurt(z, dmg, o, direct, direct ? launchOf(z, o) : null) === true;
+        host.hurt(z, dmg, o, direct, direct ? fateOf(z, o, dmg, rng) : null) ===
+        true;
       dealing = null;
       if (chain) {
         let from = z;

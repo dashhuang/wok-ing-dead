@@ -22,13 +22,13 @@ export function createGameTargets(G, lab, fx, E, root) {
     fx,
     E,
     rng: G.rng && G.rng.fork ? G.rng.fork() : Math.random,
-    hurt(m, dmg, o, direct, launch) {
+    hurt(m, dmg, o, direct, fate) {
       const gz = m.gz;
       const part = o.head ? "weak" : "body";
       // (a weapon has already done its sums: the zombie only sees a body or a head hit, and,
-      // if this is the hit that kills it, how its body is thrown)
+      // if this is the hit that kills it, what becomes of its body: combat/fate.js)
       const killed =
-        gz.damage(dmg, o.point || null, direct ? o.dir : null, part, launch) ===
+        gz.damage(dmg, o.point || null, direct ? o.dir : null, part, fate) ===
         true;
       // the game's own feedback: hit marker, blood and the sound of it landing
       if (o.kind !== "dot" && o.kind !== "share") {

@@ -28,6 +28,10 @@ export const ZOMBIES = {
     radius: 0.38,
     flinch: null, // heavies walk through it
   },
+  // Shooting a limb off one that is still up: the share of its health an arm or a leg has to
+  // take (hits that land on that limb) before it goes at the elbow or the knee. A walker
+  // that loses a leg crawls; a heavy's legs hold. Losing an arm changes nothing but the look.
+  limbs: { arm: 0.4, leg: 0.5 },
   // the weak spot: a sphere this big (at scale 1), this far above the head bone
   head: { radius: 0.14, above: 0.085 },
   staggerSlow: 0.15, // share of its speed a staggered zombie keeps
