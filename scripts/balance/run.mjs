@@ -48,6 +48,7 @@ import {
   gainXp,
   packWeights,
   eliteStats,
+  timedElite,
 } from "../../src/chinatown/runflow.js";
 
 /**
@@ -278,6 +279,7 @@ export function simulateRun(o = {}) {
     spawnT: 1.2,
     eliteAt: RUN.elite.first,
     eliteN: 0,
+    eliteIdle: 0, // timed elites since the last stove was lit
     boss: null,
     bossSeen: false,
     bossDue: Infinity, // set when the third dish is packed
@@ -742,10 +744,19 @@ export function simulateRun(o = {}) {
         R.spawnT = spawnGap(every, rng());
       }
     }
-    // timed elites, on the street's time: not while a dish is on, and none once the third
-    // is served (the house special is next)
-    if (!R.cook && R.served < stoveCount() && t >= R.eliteAt) {
+    // timed elites, on the street's time: not while a dish is on, none once the third is
+    // served (the house special is next), and only so many between two stoves
+    if (
+      timedElite({
+        t,
+        eliteAt: R.eliteAt,
+        cooking: !!R.cook,
+        served: R.served,
+        idle: R.eliteIdle,
+      })
+    ) {
       riseElite();
+      R.eliteIdle++;
       R.eliteAt += place.eliteEvery || RUN.elite.every;
     }
     if (!R.bossSeen && t >= R.bossDue) {
@@ -821,6 +832,7 @@ export function simulateRun(o = {}) {
       R.stoves.shift();
       R.cook = newDish(R.lit); // in hand at once: the first toss
       R.lit++;
+      R.eliteIdle = 0;
       R.litAt.push(t);
       R.spawnT = 0;
       // every wanderer in the street smells it

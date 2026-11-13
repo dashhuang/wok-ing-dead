@@ -186,6 +186,9 @@ export const RUN = {
     ],
     first: 110,
     every: 65,
+    // Timed elites wait for no stove, but only this many come between one stove and the
+    // next: a player who lights nothing cannot stand in the street collecting envelopes.
+    idle: 2,
     hp: 3,
     hpGrow: 0.4,
     scale: 1.25,
@@ -246,8 +249,10 @@ export const RUN = {
     elite: [false, false, true], // and whether an elite comes with it
     burn: 15, // seconds the wok may wait for its second or third toss before the dish catches
     pack: 2.6, // seconds of packing the finished dish (hands full again)
-    every: 0.5, // while a dish is on: the spawn interval is multiplied by this,
-    alive: 6, // this many more may be up at once,
+    // (a dish is on for the better part of two minutes, not forty seconds as it once was:
+    // the crowd it draws is thinner than it used to be)
+    every: 0.65, // while a dish is on: the spawn interval is multiplied by this,
+    alive: 4, // this many more may be up at once,
     xp: 1, // and a kill pays this many times the wok hei (the crowd is its own reward now)
     hotter: { every: 0.85, alive: 3 }, // and again for every stove lit before this one
     eliteHold: 45, // the next timed elite is put off at least this long after a dish's own

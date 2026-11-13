@@ -44,6 +44,7 @@ import {
   dishStep,
   dishFrac,
   dishGrade,
+  timedElite,
 } from "./runflow.js";
 import {
   RUN,
@@ -88,6 +89,7 @@ export function createRun(G, hooks) {
     spawnT: 0,
     eliteAt: 0,
     eliteN: 0,
+    eliteIdle: 0, // timed elites since the last stove was lit
     newPlace: false,
     elites: [],
     boss: null,
@@ -480,12 +482,24 @@ export function createRun(G, hooks) {
     hooks.refreshMarkers();
     return z;
   }
-  // the timed ones: not while a dish is on (it brings its own), nor once the last is packed
+  // the timed ones: not while a dish is on (it brings its own), nor once the last is packed,
+  // and only so many between one stove and the next (runflow.js, timedElite)
   function eliteTick() {
-    if (S.bossSeen || S.cook || S.served >= stoveCount() || S.t < S.eliteAt)
+    if (
+      S.bossSeen ||
+      !timedElite({
+        t: S.t,
+        eliteAt: S.eliteAt,
+        cooking: !!S.cook,
+        served: S.served,
+        idle: S.eliteIdle,
+      })
+    )
       return;
-    if (spawnElite()) S.eliteAt += place().eliteEvery || RUN.elite.every;
-    else S.eliteAt = S.t + 2;
+    if (spawnElite()) {
+      S.eliteIdle++;
+      S.eliteAt += place().eliteEvery || RUN.elite.every;
+    } else S.eliteAt = S.t + 2;
   }
 
   // ---------- the stoves
@@ -1561,6 +1575,7 @@ export function createRun(G, hooks) {
         spawnT: 1.2,
         eliteAt: RUN.elite.first,
         eliteN: 0,
+        eliteIdle: 0,
         elites: [],
         boss: null,
         bossSeen: false,
@@ -1762,6 +1777,7 @@ export function createRun(G, hooks) {
         beat: 0,
       };
       S.stoves++;
+      S.eliteIdle = 0;
       S.spawnT = 0;
       setStove(relay.o, "toss");
       if (G.player.alive) fillHands("wok");

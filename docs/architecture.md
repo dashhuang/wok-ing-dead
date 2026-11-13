@@ -250,6 +250,8 @@ LK-9 和 LK-4、命中体积、夜街的曝光和特效亮度都是真的，没�
     - 三段守完回灶边按一下 E 打包（`S.hands = "pack"`，`pack` 秒），包完 `serve` 发奖。三种招牌每局洗一次（`S.menu`）。
     - 灶上有菜时不能点别的灶（`RUN.cooking`），灶边的提示条来自 `RUN.stovePrompt()`，目标文字来自 `RUN.objective()`。
     刷怪加码（`spawnPace` 的 `cooking` / `heat`）只在菜还「烫」着的时候（`dishHot`：从起灶到第三段守完）。
+    定时的精英（`runflow.js` 的 `timedElite`）灶上有菜时不来，第三道菜打包后不再来，两口灶之间最多来 `RUN.elite.idle` 只，
+    所以拖着不起灶刷不到更多红包。
     灶的声音在 `audio.js`（听 `stove:state`）；原来的警报声保留代码但关掉了（`SIREN.on`）。
   - 套餐的钟（`S.clock`，`runflow.js` 的 `clockStep`）：`RUN.stages` 是按它读的，不是按街上的时间。灶上有菜时它和街上一样快，
     没有菜时只走 `RUN.simmer` 倍，并且停在每道菜的末尾等下一口灶：点第一、二、三口灶分别进入第二、三、四道菜。

@@ -121,6 +121,17 @@ export function packWeights(kinds, need, short) {
   return kinds.map((t) => (t === need && short ? RUN.ammo.needBoost : 1));
 }
 
+/**
+ * Is a timed elite to come now? t: the street's time; eliteAt: when the next is due;
+ * cooking: a dish is on a stove (it brings its own); served: dishes packed; idle: timed
+ * elites that have come since the last stove was lit.
+ */
+export function timedElite({ t, eliteAt, cooking, served, idle }) {
+  return (
+    !cooking && served < stoveCount() && idle < RUN.elite.idle && t >= eliteAt
+  );
+}
+
 /** Which kind the n-th elite (from 0) is: an entry of RUN.elite.kinds, taken in turn. */
 export function eliteKind(n) {
   const kinds = RUN.elite.kinds || [{ id: "elite" }];

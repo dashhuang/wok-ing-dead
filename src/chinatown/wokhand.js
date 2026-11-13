@@ -46,9 +46,9 @@ const bowlY = (d) =>
   Math.sqrt(Math.max(0, WOK.sphere * WOK.sphere - d * d)) +
   WOK.wall;
 // where it is held: the middle of the rim, and how far it is tipped towards the cook
-const HELD = { at: new V3(0.03, -0.2, -0.68), tip: 0.3 };
+const HELD = { at: new V3(0.04, -0.185, -0.69), tip: 0.28 };
 // the ear the towel is on: an angle round the rim (90 degrees is the point nearest the cook)
-const EAR = (128 * Math.PI) / 180;
+const EAR = (145 * Math.PI) / 180;
 // what is in the wok: [colour, kind]
 const FOOD = [
   [0xc8873f, "cube"], // chicken
@@ -75,13 +75,19 @@ export function createWokHands(armory) {
     rough: 0.38,
     dirt: 0.2,
   });
-  // a wok that has been seasoned for years: black, a little oil on it, no rust
+  // A wok that has been seasoned for years: near black, no rust. Dull, and hardly a metal
+  // to the renderer: with any gloss the inside of the bowl, seen at the shallow angle it is
+  // held at, mirrored the burner and came out the colour of wood.
   const iron = kit.mats.variant("iron_cast", {
-    color: 0x141312,
-    rough: 0.55,
-    dirt: 0.12,
+    color: 0x1f1c19,
+    rough: 0.86,
+    metal: 0.1,
+    env: 0.3,
+    edge: 0x4c4742,
+    edgeAmt: 0.35,
+    dirt: 0.15,
     dirtColor: 0x2a1c12,
-    pAlbedo: 0.25,
+    pAlbedo: 0.3,
   });
   const carton = kit.mats.variant("paper_yellow", {
     color: 0xe6e1d2,
@@ -187,8 +193,10 @@ export function createWokHands(armory) {
       prof.push([bowlY(d), d]);
     }
     const m = kit.M();
+    // (wear 0: the curve of the bowl is not an edge for the seasoning to have rubbed off)
     m.add(kit.lathe(prof, { seg: 40 }), iron, {
       rot: [-Math.PI / 2, 0, 0],
+      wear: 0,
     });
     // two ears, riveted on: one under the towel, one across from it
     for (const a of [EAR, EAR + Math.PI])
@@ -491,8 +499,8 @@ export function createWokHands(armory) {
     // the order ticket, with the kitchen's chop on it
     const ticket = kit.label({
       key: "wok-ticket",
-      w: 0.062,
-      h: 0.084,
+      w: 0.044,
+      h: 0.06,
       px: 256,
       face: "z",
       opaque: true,
@@ -524,17 +532,14 @@ export function createWokHands(armory) {
       },
     });
     const ticketAt = new THREE.Group();
-    ticketAt.position.set(
-      0.012,
-      PAIL.h * 0.62,
-      (PAIL.d0 + PAIL.d1) / 4 + 0.009,
-    );
-    ticketAt.rotation.set(0.14, 0, 0.16);
+    // (on a corner of the front, askew: the pagoda still shows beside it)
+    ticketAt.position.set(0.026, PAIL.h * 0.7, (PAIL.d0 + PAIL.d1) / 4 + 0.011);
+    ticketAt.rotation.set(0.14, 0, 0.22);
     ticketAt.add(ticket);
     pail.add(ticketAt);
     // the bag: white, red print, two loops to carry it by
     const bag = new THREE.Group();
-    const BAG = { w: 0.19, h: 0.2, d: 0.12 };
+    const BAG = { w: 0.19, h: 0.15, d: 0.12 };
     {
       const m = kit.M();
       m.add(kit.box(BAG.w, BAG.h, BAG.d, { r: 0.02 }), plastic, {
@@ -545,9 +550,9 @@ export function createWokHands(armory) {
           kit.sweep(
             [
               [sgn * 0.07, BAG.h - 0.01, 0],
-              [sgn * 0.066, BAG.h + 0.05, 0],
-              [sgn * 0.03, BAG.h + 0.085, 0],
-              [0, BAG.h + 0.09, 0],
+              [sgn * 0.066, BAG.h + 0.035, 0],
+              [sgn * 0.03, BAG.h + 0.056, 0],
+              [0, BAG.h + 0.06, 0],
             ],
             0.006,
           ),
@@ -557,8 +562,8 @@ export function createWokHands(armory) {
       bag.add(
         kit.label({
           key: "wok-bag",
-          w: 0.15,
-          h: 0.16,
+          w: 0.125,
+          h: 0.133,
           px: 256,
           face: "z",
           at: [0, BAG.h * 0.5, BAG.d / 2 + 0.002],
@@ -594,7 +599,7 @@ export function createWokHands(armory) {
     const free = new THREE.Group();
     all.add(free);
 
-    const PAIL_AT = new V3(-0.085, -0.25, -0.5);
+    const PAIL_AT = new V3(-0.07, -0.2, -0.52);
     const model = kit.weapon({
       id: "wok-pack",
       root,
@@ -617,8 +622,9 @@ export function createWokHands(armory) {
             free: {
               parent: free,
               at: [0, 0, 0],
+              // from the right, across the lid: the arm stays out of the way of what it presses
               palm: [0, -1, 0],
-              fingers: [-0.5, 0, -0.87],
+              fingers: [-0.94, 0, -0.34],
               pose: "flat",
             },
           },
@@ -633,7 +639,9 @@ export function createWokHands(armory) {
         // up into view; at the very end down and away to the right, in its bag
         const up = ramp(u, 0, 0.09);
         const off = ramp(u, 0.92, 1);
-        all.position.set(off * 0.2, -(1 - up) * 0.3 - off * 0.36, 0);
+        // (it also sinks a little as the bag takes the weight: the hand on its loops stays low)
+        const sink = ramp(u, 0.72, 0.86) * 0.08;
+        all.position.set(off * 0.2, -(1 - up) * 0.3 - off * 0.36 - sink, 0);
         all.rotation.z = -off * 0.3;
         // three ladlefuls between 0.1 and 0.46
         const sc = clamp((u - 0.1) / 0.36) * 3;
@@ -735,11 +743,11 @@ export function createWokHands(armory) {
             [0.7, 0],
           ]);
         free.position.set(
-          PAIL_AT.x + 0.012 + toBag * 0.03,
-          PAIL_AT.y + PAIL.h + 0.014 - press + toBag * (BAG.h - PAIL.h + 0.05),
+          PAIL_AT.x + 0.034 - toBag * 0.03,
+          PAIL_AT.y + PAIL.h + 0.014 - press + toBag * (BAG.h - PAIL.h + 0.016),
           PAIL_AT.z + 0.004,
         );
-        free.rotation.set(0.2, 0.3 - toBag * 0.9, toBag * 0.5);
+        free.rotation.set(0.2, 0.3, 0);
         // and the left lets go once the bag has it
         model.grips.left.away = ramp(u, 0.86, 0.94);
         pail.visible = bagged < 0.98;

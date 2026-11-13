@@ -348,7 +348,7 @@ export function build() {
     `- 第二、三次颠勺等了超过 ${K.burn} 秒，菜就烧焦：照样出餐，奖励降一档。`,
     `- 打包：${K.pack} 秒，双手同样占着。`,
     `- 菜还在招尸时（到第三段守完为止）：刷怪间隔 ×${K.every}，同屏上限 +${K.alive}，击杀的镬气 ×${K.xp}；之前每起过一口灶，间隔再 ×${K.hotter.every}、上限再 +${K.hotter.alive}。`,
-    `- 定时的精英（街上的时间，第 ${RUN.elite.first} 秒起每 ${RUN.elite.every} 秒一只）在灶上有菜时不来，第 ${stoveCount()} 道菜出餐后也不再来。`,
+    `- 定时的精英（街上的时间，第 ${RUN.elite.first} 秒起每 ${RUN.elite.every} 秒一只）在灶上有菜时不来，第 ${stoveCount()} 道菜出餐后也不再来；两口灶之间最多来 ${RUN.elite.idle} 只，拖着不起灶刷不到更多。`,
   );
 
   say(
