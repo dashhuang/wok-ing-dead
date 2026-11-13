@@ -475,7 +475,8 @@ export async function createKit(G) {
     if (x0 > x1) [x0, x1] = [x1, x0];
     if (y0 > y1) [y0, y1] = [y1, y0];
     if (z0 > z1) [z0, z1] = [z1, z0];
-    const skip = o.skip || "b";
+    // An explicit empty string keeps all six faces (e.g. a beam seen from below).
+    const skip = o.skip ?? "b";
     const b = bucket(mat, (x0 + x1) / 2, (z0 + z1) / 2);
     const ou = o.uo || 0,
       ov = o.vo || 0;

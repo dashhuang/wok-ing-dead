@@ -507,11 +507,10 @@ export const BEHAVIOURS = {
       casingAt: 0.35,
       kick: 1.4,
     }),
-    hint: { a: "按住右键开镜" },
     fire(ctx) {
       const { E, fx } = ctx;
       const m = ctx.muzzle();
-      const dir = ctx.spread(ctx.zoomed ? 0.0004 : 0.0015);
+      const dir = ctx.spread(0.0015);
       if (ctx.b === "b") {
         const charged = ctx.shots % 3 === 2;
         E.muzzle(m, dir, {
@@ -607,10 +606,6 @@ export const BEHAVIOURS = {
       }
       ctx.kick(1.4);
       ctx.shake(0.2);
-    },
-    alt(ctx, phase) {
-      if (ctx.b !== "a") return;
-      ctx.setZoom(phase === "up" ? 1 : 3.2);
     },
   },
 
