@@ -1,6 +1,8 @@
 // Original line drawings, shared by the touch controls, ammunition HUD and world markers.
 // Keep silhouettes distinct at 18px; colour is a second cue, never the only one.
 const drawings = {
+  wok: '<path d="M5 15a11 11 0 0 0 22 0ZM5 15l-4-4M27 15l4-4M12 10l-1-4m9 4 1-4"/>',
+  pack: '<path d="M5 11h22v16H5ZM3 6h26v5H3ZM12 16h8"/>',
   fire: '<path d="m12 24-4-4 10-10c3-3 7-3 7-3s0 4-3 7Z"/><path d="m15 13 5 5M4 27l4-4M3 19l4-4M13 29l4-4"/>',
   secondary: '<path d="M18 3 6 18h9l-1 11 12-15h-9Z"/>',
   reload: '<path d="M25 12a10 10 0 1 0 1 8M25 5v7h-7"/>',

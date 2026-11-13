@@ -322,6 +322,7 @@ export default {
   "run.obj.bossDue": "三袋齊了　牠聞著味來了",
   "run.prompt.toss": "顛鍋",
   "run.prompt.pack": "打包",
+  "run.cook.light": "鍋就在這兒，起火炒菜！",
   "run.cook.back": "夠了夠了　放回灶上",
   "run.cook.due": "該顛了！{s} 秒內不回來就糊",
   "run.cook.ready": "出鍋！回來打包　{s} 秒後糊",

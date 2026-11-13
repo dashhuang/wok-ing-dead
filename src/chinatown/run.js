@@ -654,12 +654,10 @@ export function createRun(G, hooks) {
         setStove(c.o, "ready");
         play("run_bell", { gain: 1 });
       } else if (ev === "scorched") {
-        hud.toast(L10N.t("run.toast.scorched"), "warn");
         play("run_bell", { gain: 0.7, pitch: 0.55 });
       } else if (ev === "charred") {
         // (whatever it was waiting for, it can only be packed now)
         setStove(c.o, "ready");
-        hud.toast(L10N.t("run.toast.charred"), "warn");
         play("run_bell", { gain: 0.8, pitch: 0.4 });
       } else if (ev === "served") serve(c);
       if (ev !== "flip" && ev !== "served") {
@@ -705,8 +703,7 @@ export function createRun(G, hooks) {
       tmp.set(c.pos.x, (c.pos.y || 0) + 1.1, c.pos.z);
       wokHands.smoke(tmp, dt, c.charred);
     }
-    // the line under the course name: what to do now. It is the only place that says it:
-    // the radio does not repeat it, and the mark on the stove only shows the way back
+    // Cooking owns the dialogue while a dish is active; markers only point home.
     const waits = c.phase === "due" || c.phase === "ready";
     const last = K.fry.length - 1;
     let key = c.phase;
@@ -788,16 +785,12 @@ export function createRun(G, hooks) {
       } catch {}
       dropEnvelope(tmp);
     }
-    if (c.charred) hud.toast(L10N.t("run.dish.charred"), "warn");
-    else {
-      hud.toast(
-        L10N.t("run.dish." + dish, {
+    const result = c.charred
+      ? L10N.t("run.dish.charred")
+      : L10N.t("run.dish." + dish, {
           n: d.health || Math.round(d.cap * 100) || d.envelopes,
-        }),
-        "gold",
-      );
-      if (c.late) hud.toast(L10N.t("run.dish.scorched"), "warn");
-    }
+        }) + (c.late ? " · " + L10N.t("run.dish.scorched") : "");
+    hooks.radio(result, 5);
     play("complete", { gain: 0.5, pitch: c.charred ? 0.7 : 1.2 });
     G.events.emit("run:dish", {
       n: S.served,
@@ -810,7 +803,7 @@ export function createRun(G, hooks) {
       // the last one: the smell of all three brings the house special
       S.bossDue = S.t + RUN.boss.after;
       hooks.radio(L10N.t("radio.lastDish"), 4);
-    } else hooks.radio(L10N.t("radio.served"), 3.6);
+    }
     hooks.refreshObjective();
     hooks.refreshMarkers();
   }
@@ -1813,9 +1806,8 @@ export function createRun(G, hooks) {
       if (S.bossSeen) return L10N.t("run.obj.boss");
       const left = stoveCount() - S.served;
       if (left <= 0) return L10N.t("run.obj.bossDue");
-      // (what to do with the dish that is on is said under the course name; how many are
-      // packed, by the bags beside it)
-      return L10N.t(S.cook ? "run.obj.dish" : "run.obj.light");
+      // Cooking instructions live in the dialogue; the course still counts packed bags.
+      return "";
     },
     // extra compass and world markers; pos objects are live, so elites are tracked as they move
     markers() {
