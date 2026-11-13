@@ -392,8 +392,15 @@ export async function createCombat(lab) {
       lightUsed[slot] = true;
     },
     /** Area that hurts for a while: { pos, radius, life, dps, status, every, element } */
+    /**
+     * Ground that hurts: { pos, radius, life, dps, status, every, element }. Returns the
+     * zone as it is kept (age counts up to life; `done` once it is gone, however it went),
+     * so a weapon can keep one burning or ask who stands in it.
+     */
     zone(o) {
-      zones.push({ ...o, age: 0, acc: new Map(), next: 0 });
+      const z = { ...o, age: 0, acc: new Map(), next: 0, done: false };
+      zones.push(z);
+      return z;
     },
     /** A sound from the shooter's hands. */
     sfx(name, o) {
@@ -664,6 +671,7 @@ export async function createCombat(lab) {
       const z = zones[i];
       z.age += dt;
       if (z.age >= z.life) {
+        z.done = true;
         zones.splice(i, 1);
         continue;
       }
@@ -1358,6 +1366,7 @@ export async function createCombat(lab) {
       fx.clear();
       proj.clear();
       targets.limbs?.clear(); // (the bench's own dead: the game's street clears its own)
+      for (const z of zones) z.done = true;
       zones.length = 0;
       lights[0] = lights[1] = null;
     },

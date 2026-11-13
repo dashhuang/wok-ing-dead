@@ -13,8 +13,10 @@ export const STATUS = {
     爆燃: { radius: 3, damage: 70, knock: 1 },
     导电雾: { radius: 3, cloud: { radius: 2.6, life: 1.6 } },
     // share: of the target's full health; burn: stacks of 灼烧 left on a survivor
-    焚符: { share: 0.3, burn: 2 },
-    引雷: { radius: 5, self: 150, others: 90, knock: 0.8 },
+    // every: seconds before the same target can set off another of the two reactions a
+    // seal makes (焚符, 引雷); until then fire and shock land on it as on anyone else
+    焚符: { share: 0.3, burn: 2, every: 3 },
+    引雷: { radius: 5, self: 150, others: 90, knock: 0.8, every: 3 },
   },
   // knock-back, lift and stagger a heavy takes, as a share of what a walker would
   brute: { knock: 0.35, lift: 0.5, stagger: 0.4 },

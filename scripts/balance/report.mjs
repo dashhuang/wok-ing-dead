@@ -19,11 +19,13 @@ import {
   LEVELS,
   WEAPON_IDS,
   MEASURED,
+  LINE,
   model,
   power,
   betterFork,
+  scoreOf,
+  poolKills,
   zombieStats,
-  ammoPer,
 } from "./data.mjs";
 import { calibrate, factors } from "./lab.mjs";
 import { PROFILES, simulateMany, simulateRun, BUCKET, LIMIT } from "./run.mjs";
@@ -171,13 +173,6 @@ function weaponRows(prof) {
     const fork = betterFork(id);
     const s1 = sustained(id, "base", 1, prof);
     const s5 = sustained(id, fork, 5, prof);
-    const per = ARMS[id].ammo ? ammoPer(id, "base", 1) : 0;
-    const pool = ARMS[id].ammo ? AMMO[ARMS[id].ammo].cap : 0;
-    // rounds a full pool holds, and the walkers that is worth
-    const roundsPerUnit = m.kind === "stream" ? m.rate / m.drain : 1;
-    const damagePerPool = per
-      ? (pool / per) * roundsPerUnit * s1.perRound
-      : Infinity;
     return {
       id,
       ammo: ARMS[id].ammo,
@@ -187,8 +182,17 @@ function weaponRows(prof) {
       fork,
       walker: Math.max(1 / s1.rate, walker / s1.dps),
       brute: brute / s1.dps,
-      pool: damagePerPool / walker,
       measured: m.measured,
+      // the lab's test: the score of each form against the standard line, and what a
+      // full pool of its ammunition is worth at level one
+      score: {
+        base: scoreOf(id, "base", 1),
+        a3: scoreOf(id, "a", 3),
+        b3: scoreOf(id, "b", 3),
+        a5: scoreOf(id, "a", 5),
+        b5: scoreOf(id, "b", 5),
+      },
+      pool: poolKills(id, "base", 1),
     };
   });
 }
@@ -375,12 +379,51 @@ export function build() {
     "行尸和重型的血量、伤害全程不变；只有精英一只比一只强。",
   );
 
+  const S = MEASURED.scene;
+  const tot = (s) => (s ? num(s.total, 2) : "—");
   say(
     "## 4. 武器",
     "",
+    "### 对着标准线的总分（实测）",
+    "",
+    `每个形态用真实的武器代码考同一场试（\`arsenal/tools/balance.mjs\`，${MEASURED.date}）：`,
+    "",
+    `- **清群**：十六只（十三只行尸、三只重型）在 ${S.from}–${S.from + S.span} 米外冒出来、倒下就补，${pct(S.runners)} 的行尸会跑；机器人瞄最近的一只，够得着才开火，够不着就迎上去。` +
+      `每分钟打倒 ${LINE.crowd} 只记 1 分。`,
+    `- **单体**：面前站一只精英（${S.elite} 只重型的血量），倒下立刻换一只；每秒 ${LINE.single} 伤害记 1 分，含换弹。`,
+    `- 机器人不会打偏身体；瞄头的三把（判官、更夫、诸葛）有 ${pct(S.head)} 的时间瞄在头上。两项相加是**总分**，1 级的标准是 2。`,
+    "",
+    "「一池弹药」是这种弹药装满时，1 级的这把枪在清群那场里能打倒多少只。",
+    "",
+    table(
+      [
+        "武器",
+        "弹药",
+        "1 级 清群",
+        "1 级 单体",
+        "1 级 总分",
+        "3 级 甲 / 乙",
+        "5 级 甲 / 乙",
+        "一池弹药",
+      ],
+      WR.filter((r) => r.measured).map((r) => [
+        t("weapon." + r.id),
+        r.ammo ? t("run.ammo." + r.ammo) : "不用",
+        num(r.score.base.crowd, 2),
+        num(r.score.base.single, 2),
+        tot(r.score.base),
+        `${tot(r.score.a3)} / ${tot(r.score.b3)}`,
+        `${tot(r.score.a5)} / ${tot(r.score.b5)}`,
+        r.pool == null ? "—" : num(r.pool) + " 只",
+      ]),
+    ),
+    "",
+    "游戏自带的卡宾枪和手枪不在试验场里，量不了：卡宾枪每发伤害和耗弹与蜂巢相当（每单位子弹 26 对 28 点伤害），手枪不用弹药。",
+    "",
+    "### 普通玩家手里（模型）",
+    "",
     `按「${prof.name}」的命中（${pct(prof.hit)}，其中爆头 ${pct(prof.head)}）计算，含换弹时间。`,
-    "5 级取两条岔路里实测更强的一条；「成长」是 5 级输出 ÷ 1 级输出，不含调料。",
-    "「一池弹药」是这种弹药装满时，1 级的这把枪能打倒多少只行尸。",
+    "5 级取两条岔路里实测总分更高的一条；「成长」是 5 级输出 ÷ 1 级输出，不含调料。",
     "",
     table(
       [
@@ -391,7 +434,6 @@ export function build() {
         "成长",
         "打倒行尸（秒）",
         "打倒重型（秒）",
-        "一池弹药",
       ],
       WR.map((r) => [
         t("weapon." + r.id) + (r.measured ? "" : " \\*"),
@@ -401,7 +443,6 @@ export function build() {
         "×" + num(r.grow, 1),
         num(r.walker, 1),
         num(r.brute, 1),
-        r.pool === Infinity ? "—" : num(r.pool) + " 只",
       ]),
     ),
     "",
@@ -575,7 +616,7 @@ export function build() {
   say(
     "## 6. 模型和实测对得上吗",
     "",
-    `试验场用真实的武器代码实测过每把武器对尸群一分钟的表现（\`arsenal/scripts/balance.json\`，${MEASURED.date}）。`,
+    `试验场用真实的武器代码实测过每把武器在清群那场里的表现（\`arsenal/scripts/balance.json\`，${MEASURED.date}，见第 4 节）。`,
     "模拟器在同样的场景里跑一遍，两者之比就是校准系数：模型没描述到的机制（持续燃烧、跳电、定身……）都折在这一个数里。",
     "系数离 1 越远，说明模型对这把武器漏掉的东西越多。",
     "",
@@ -648,7 +689,7 @@ export function build() {
     "",
     "- 没有地图：敌人只有「离玩家多远」，不会被墙挡住，玩家也不会被堵在墙角。最多 5 只能同时贴身。",
     "- 瞄准是一个命中率，不是手感；爆头是命中里的一个比例。",
-    "- 岔路和 5 级的强度取自试验场的实测倍率，不逐条模拟每个岔路的机制；元素之间的反应（爆燃、引雷等）没有模拟。",
+    "- 岔路和 5 级的强度取自试验场的实测总分（这个形态的总分 ÷ 1 级的总分），不逐条模拟每个岔路的机制；元素之间的反应（爆燃、引雷等）没有模拟。",
     "- 调料里的四种附魔按简化规则算：点燃折成一次性伤害，感电跳给最近两只，蚀骨只叠加伤害，贴符只算定身。",
     "- 捡弹药包、去补给箱、起灶、开武器箱都按上表的概率和时间点发生，不模拟走路。",
     `- 起灶：到了「起灶的时间」就去起；上一道菜那时还没出餐，就在它出餐后歇够「出餐后歇」再起。每种玩家都起满 ${stoveCount()} 口，不起就见不到关底。`,
