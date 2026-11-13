@@ -432,6 +432,7 @@ export function createRun(G, hooks) {
     const { every, cap } = spawnPace(st, diff(), {
       cooking: dishHot(S.cook),
       heat: S.cook ? S.cook.n : 0,
+      step: S.cook ? S.cook.k : 0,
       crowd,
       room: poolRoom,
     });
@@ -612,6 +613,7 @@ export function createRun(G, hooks) {
       if (c.phase === "due" && dishTake(c)) {
         fillHands("wok");
         setStove(c.o, "toss");
+        smell(c);
       } else if (dishPack(c)) {
         fillHands("pack");
         setStove(c.o, "served");
@@ -700,6 +702,19 @@ export function createRun(G, hooks) {
                 : 1,
       whole: dishFrac(c),
     });
+  }
+  // The dead already in the street get wind of the dish: those within RUN.stove.smell of the
+  // stove at this toss stop wandering and come. Further with every toss: the street does not
+  // empty itself onto the cook the moment the wok is first in hand.
+  function smell(c) {
+    const reach = RUN.stove.smell;
+    const r = reach[Math.min(c.k, reach.length - 1)];
+    try {
+      for (const z of G.enemies.list)
+        if (z.alive && Math.hypot(z.pos.x - c.pos.x, z.pos.z - c.pos.z) < r)
+          z.dull = false;
+      G.enemies.alert(c.pos, r);
+    } catch {}
   }
   // what the interact prompt should say by the stove: { text } or null (game.js asks)
   function stovePrompt() {
@@ -1784,11 +1799,7 @@ export function createRun(G, hooks) {
       S.spawnT = 0;
       setStove(relay.o, "toss");
       if (G.player.alive) fillHands("wok");
-      // every wanderer in the street smells it and comes
-      try {
-        for (const z of G.enemies.list) if (z.alive) z.dull = false;
-        G.enemies.alert(relay.o.pos, 400);
-      } catch {}
+      smell(S.cook);
     },
     /** What the objective line says now. */
     objective() {

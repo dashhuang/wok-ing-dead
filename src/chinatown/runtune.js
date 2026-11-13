@@ -255,6 +255,13 @@ export const RUN = {
     alive: 4, // this many more may be up at once,
     xp: 1, // and a kill pays this many times the wok hei (the crowd is its own reward now)
     hotter: { every: 0.85, alive: 3 }, // and again for every stove lit before this one
+    // The crowd builds with the dish instead of arriving all at once. swell: the share of
+    // that crowd (how many may be up, and how fast they rise) during the first, second and
+    // third toss and the hold after each: a few while the wok is first in the cook's hands,
+    // the most once the last toss is made. smell: how far (metres) the dead already in the
+    // street get wind of it at each of the three.
+    swell: [0.3, 0.65, 1],
+    smell: [14, 32, 400],
     eliteHold: 45, // the next timed elite is put off at least this long after a dish's own
     eliteAfter: 20, // and at least this long after a dish is packed
     // What every dish gives. Lists are by its grade: which stove it is (0-2), one better

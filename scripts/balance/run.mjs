@@ -720,6 +720,7 @@ export function simulateRun(o = {}) {
       const { every, cap: most } = spawnPace(st, diff, {
         cooking: dishHot(R.cook),
         heat: R.cook ? R.cook.n : 0,
+        step: R.cook ? R.cook.k : 0,
         crowd,
         room,
       });

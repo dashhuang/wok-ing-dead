@@ -47,19 +47,27 @@ export function crowdOf(walkers) {
 /**
  * The pace of spawning at this moment: { every, cap }. stage: from stageAt; diff: an entry of
  * RUN.difficulty; cooking: a dish is on a stove and still drawing the dead (dishHot); heat:
- * how many stoves were lit before that one; crowd, room: from crowdOf.
+ * how many stoves were lit before that one; step: which toss the dish is at (its `k`: the
+ * crowd swells with it, RUN.stove.swell; left out, the full crowd); crowd, room: from crowdOf.
  */
 export function spawnPace(
   stage,
   diff,
-  { cooking = false, heat = 0, crowd = 1, room = Infinity } = {},
+  {
+    cooking = false,
+    heat = 0,
+    step = Infinity,
+    crowd = 1,
+    room = Infinity,
+  } = {},
 ) {
   let every = stage.every * diff.every;
   let cap = Math.round(stage.alive * diff.alive * crowd);
   if (cooking) {
     const S = RUN.stove;
-    every *= S.every * Math.pow(S.hotter.every, heat);
-    cap += S.alive + S.hotter.alive * heat;
+    const swell = S.swell[Math.max(0, Math.min(step, S.swell.length - 1))];
+    every *= (S.every * Math.pow(S.hotter.every, heat)) / swell;
+    cap = Math.round((cap + S.alive + S.hotter.alive * heat) * swell);
   }
   return { every, cap: Math.min(cap, room) };
 }
