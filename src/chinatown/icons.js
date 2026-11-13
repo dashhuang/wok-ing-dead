@@ -2,7 +2,7 @@
 // Keep silhouettes distinct at 18px; colour is a second cue, never the only one.
 const drawings = {
   fire: '<path d="m12 24-4-4 10-10c3-3 7-3 7-3s0 4-3 7Z"/><path d="m15 13 5 5M4 27l4-4M3 19l4-4M13 29l4-4"/>',
-  aim: '<circle cx="16" cy="16" r="8"/><path d="M16 3v6m0 14v6M3 16h6m14 0h6"/><circle cx="16" cy="16" r="1" fill="currentColor" stroke="none"/>',
+  secondary: '<path d="M18 3 6 18h9l-1 11 12-15h-9Z"/>',
   reload: '<path d="M25 12a10 10 0 1 0 1 8M25 5v7h-7"/>',
   swap: '<path d="M5 10h22l-5-5m5 5-5 5M27 22H5l5 5m-5-5 5-5"/>',
   jump: '<path d="M16 25V7m-7 7 7-7 7 7"/>',

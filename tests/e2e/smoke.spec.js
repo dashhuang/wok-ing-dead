@@ -578,7 +578,7 @@ test("the firing range sets a run up by hand", async ({ page }) => {
 
 test.describe("secondary fire on touch screens", () => {
   test.use({ hasTouch: true });
-  test("press and release work in portrait and landscape without zoom", async ({
+  test("only unlocked secondary attacks show a hold-and-release button", async ({
     page,
     context,
   }) => {
@@ -586,14 +586,44 @@ test.describe("secondary fire on touch screens", () => {
     await waitForTitle(page);
     await page.locator('[data-act="deploy"]').tap();
     await expect.poll(() => state(page)).toBe("playing");
-    const cdp = await context.newCDPSession(page);
-    for (const viewport of [
-      { width: 390, height: 844 },
-      { width: 844, height: 390 },
+    await page.evaluate(() => (window.__G.player.invulnerable = true));
+    const button = page.locator(".t-ads");
+    await expect(button).toBeHidden();
+    await expect(button).toHaveAttribute("aria-label", "副攻击");
+    await expect(button).toHaveText("");
+    await expect(button.locator('[data-icon="secondary"]')).toHaveCount(1);
+
+    // A behaviour can have a secondary attack on just one upgraded branch. A primary
+    // charge hint (firework B) must not make the secondary button appear either.
+    for (const [id, level, branch, visible] of [
+      ["pistol", 1, "base", false],
+      ["rifle", 5, "a", false],
+      ["revolver", 2, "a", false],
+      ["revolver", 3, "a", true],
+      ["revolver", 3, "b", false],
+      ["flamer", 3, "a", false],
+      ["flamer", 3, "b", true],
+      ["firework", 3, "b", false],
+      ["arc", 3, "a", false],
+      ["arc", 3, "b", true],
+      ["coinsword", 3, "a", false],
+      ["coinsword", 3, "b", true],
+      ["guandao", 2, "a", false],
+      ["guandao", 3, "a", true],
+      ["guandao", 3, "b", true],
     ]) {
-      await page.setViewportSize(viewport);
-      const button = page.locator(".t-ads");
-      await expect(button).toHaveText("副攻击");
+      await page.evaluate(
+        ([id, level, branch]) => window.__G.run.debug.set(id, level, branch),
+        [id, level, branch],
+      );
+      if (visible) {
+        await expect(button).toBeVisible();
+        await expect(button).toHaveAccessibleName("副攻击");
+      } else await expect(button).toBeHidden();
+    }
+
+    const cdp = await context.newCDPSession(page);
+    const press = async () => {
       const box = await button.boundingBox();
       await cdp.send("Input.dispatchTouchEvent", {
         type: "touchStart",
@@ -602,16 +632,61 @@ test.describe("secondary fire on touch screens", () => {
       await expect
         .poll(() => page.evaluate(() => window.__G.input.ads))
         .toBe(true);
-      await page.waitForTimeout(600);
+    };
+    const release = (type = "touchEnd") =>
+      cdp.send("Input.dispatchTouchEvent", { type, touchPoints: [] });
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 844, height: 390 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.evaluate(() => window.__G.run.debug.set("arc", 3, "b"));
+      await expect(button).toBeVisible();
+      const rounds = await page.evaluate(() => window.__G.weapon.ammo);
+      await press();
+      await expect
+        .poll(() => page.evaluate(() => window.__G.run.armory.weapon.charge))
+        .toBeGreaterThan(0.5);
+      expect(await page.evaluate(() => window.__G.weapon.ammo)).toBe(rounds);
       expect(await page.evaluate(() => window.__G.weapon.ads)).toBe(0);
-      await cdp.send("Input.dispatchTouchEvent", {
-        type: "touchEnd",
-        touchPoints: [],
-      });
+      expect(await page.evaluate(() => window.__G.player.ads)).toBe(0);
+      await release();
       await expect
         .poll(() => page.evaluate(() => window.__G.input.ads))
         .toBe(false);
       await expect(button).not.toHaveClass(/active/);
+      await expect
+        .poll(() => page.evaluate(() => window.__G.weapon.ammo))
+        .toBeLessThan(rounds);
+      await expect
+        .poll(() => page.evaluate(() => window.__G.run.armory.weapon.charge))
+        .toBe(0);
+
+      // Regrading a held weapon or changing guns while pressed cannot leave a hidden
+      // secondary button latched. The old touch must not activate a newly equipped gun.
+      await press();
+      await page.evaluate(() => window.__G.run.debug.set("arc", 3, "a"));
+      await expect(button).toBeHidden();
+      await expect
+        .poll(() => page.evaluate(() => window.__G.input.ads))
+        .toBe(false);
+      await release();
+      await page.evaluate(() => window.__G.run.debug.set("arc", 3, "b"));
+      await press();
+      await release("touchCancel");
+      await expect
+        .poll(() => page.evaluate(() => window.__G.input.ads))
+        .toBe(false);
+      await expect(button).not.toHaveClass(/active/);
+      await press();
+      await page.evaluate(() => window.__G.run.debug.wield("pistol"));
+      await expect(button).toBeHidden();
+      await expect
+        .poll(() => page.evaluate(() => window.__G.input.ads))
+        .toBe(false);
+      await release();
     }
+    expect(await page.evaluate(() => window.__fatal)).toBeNull();
+    expect(await page.evaluate(() => window.__errors)).toEqual([]);
   });
 });

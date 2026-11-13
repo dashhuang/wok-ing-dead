@@ -1314,6 +1314,7 @@ export function createRun(G, hooks) {
     },
     reset() {
       const pre = preset();
+      G.input.setSecondary(false);
       Object.assign(S, {
         active: true,
         range: !!range,
@@ -1372,6 +1373,7 @@ export function createRun(G, hooks) {
     // back to the title or into the other mode: undo everything we changed
     stop() {
       wheel.hide();
+      G.input.setSecondary(false);
       if (range) range.end();
       hud.setRunLayout(false);
       hud.setNoMag(false);
@@ -1474,6 +1476,7 @@ export function createRun(G, hooks) {
       hud.setWeaponLevel(it ? it.level : 1, MAX_LEVEL);
       // blades and other things without a magazine show no round count
       const arm = loadout.armory;
+      G.input.setSecondary(!!arm && arm.hasSecondary);
       hud.setNoMag(!!arm && arm.held && !arm.mag);
       hud.setWeapons(
         loadout.owned().map((id) => ({

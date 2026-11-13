@@ -2126,6 +2126,9 @@ kbd {
   width: 28px;
   height: 28px;
 }
+.t-btn[hidden] {
+  display: none;
+}
 .t-btn.active {
   background: var(--jade);
   color: var(--ink);

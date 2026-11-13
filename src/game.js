@@ -67861,7 +67861,8 @@ void main() {
       u = 0,
       f = [],
       h = new Set(),
-      p = !1;
+      p = !1,
+      secondary = !1;
     function d(ne) {
       if (m.device !== ne) {
         m.device = ne;
@@ -67910,6 +67911,14 @@ void main() {
       },
       setPrompt(ne) {
         ((p = !!ne), R && R.btn.interact.classList.toggle("on", !!ne));
+      },
+      setSecondary(on) {
+        secondary = !!on;
+        if (R && R.btn.ads.hidden === secondary) R.btn.ads.hidden = !secondary;
+        if (!secondary) {
+          R && R.btn.ads.classList.remove("active");
+          v("touch", "ads", false);
+        }
       },
       onModeChange(ne) {
         f.push(ne);
@@ -68108,7 +68117,7 @@ void main() {
           ]
             .map(
               ([a, k]) =>
-                `<button class="t-btn t-${a}" data-a="${a}" data-i18n-aria="touch.${k}" aria-label="${L10N.t("touch." + k)}">${uiIcon(a === "ads" ? "aim" : a)}</button>`,
+                `<button class="t-btn t-${a}" data-a="${a}" data-i18n-aria="touch.${k}" aria-label="${L10N.t("touch." + k)}">${uiIcon(a === "ads" ? "secondary" : a)}</button>`,
             )
             .join("") +
           `<button class="t-btn t-pause" data-a="pause" data-i18n-aria="touch.pause" aria-label="${L10N.t("touch.pause")}">${uiIcon("pause")}</button>`),
@@ -68128,6 +68137,7 @@ void main() {
             pause: ye(".t-pause"),
           },
         };
+      Te.btn.ads.hidden = !secondary;
       for (let Re in Te.btn) {
         let Ue = Te.btn[Re];
         Ue.addEventListener(
