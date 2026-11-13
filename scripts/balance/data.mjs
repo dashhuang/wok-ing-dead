@@ -42,13 +42,6 @@ export const POOL = {
   desktop:
     ZOMBIES.poolLarge.romero + ZOMBIES.poolLarge.girl + ZOMBIES.poolLarge.cop,
 };
-// the game's own two guns: reload is the empty-magazine time in game.js; a hand does not
-// pull a semi-automatic trigger at the pistol's full 420 rpm
-const STOCK = {
-  rifle: { reload: 2.72, auto: true },
-  pistol: { reload: 1.9, handRpm: 300 },
-};
-
 // ---------- how a weapon reaches more than one of the dead (assumptions of the model)
 // reach: how far away the bot opens fire (metres); more: how many others one shot or tick can
 // also hurt, and what share of the damage they take; precise: aimed at the head.
@@ -82,6 +75,8 @@ export const MEASURED = JSON.parse(
     "utf8",
   ),
 );
+// a weapon that fires one round a pull (the sidearm) is fired as fast as the test's bot pulls
+const HAND_RPM = (MEASURED.scene.hand || 5) * 60;
 const measured = (id, b, lv) =>
   MEASURED.rows.find((r) => r.id === id && r.b === b && r.lv === lv);
 
@@ -119,8 +114,9 @@ function baseModel(id) {
   if (!w) throw new Error("no such weapon: " + id);
   const f = w.fire;
   const shape = SHAPE[id] || {};
-  const beh = BEHAVIOURS[id];
-  const spec = beh ? beh.spec("base", 1) : null;
+  // (every weapon a run carries has a behaviour: the game's own two guns too, as the test
+  // bench fires them, with the game's numbers)
+  const spec = BEHAVIOURS[id].spec("base", 1);
   const m = {
     id,
     ammo: ARMS[id].ammo,
@@ -132,18 +128,6 @@ function baseModel(id) {
     knock: f.knock || 0, // how far a hit throws a walker back, in the weapon's own units
     measured: !!measured(id, "base", 1),
   };
-  if (!spec) {
-    // rifle, pistol: the game's own rigs
-    const rpm = Math.min(f.rpm, STOCK[id].handRpm || f.rpm);
-    return {
-      ...m,
-      kind: "gun",
-      damage: f.damage,
-      rate: rpm / 60,
-      mag: w.mag,
-      reload: STOCK[id].reload,
-    };
-  }
   if (spec.kind === "stream")
     return {
       ...m,
@@ -170,7 +154,7 @@ function baseModel(id) {
     pellets: f.pellets || 0,
     spread: f.spread || 0,
     splash: f.splash ? { damage: f.splash, radius: f.radius } : null,
-    rate: spec.rpm / 60,
+    rate: (spec.semi ? Math.min(spec.rpm, HAND_RPM) : spec.rpm) / 60,
     mag: spec.mag,
     reload: spec.reload || 0,
     regen: spec.regen || 0, // seconds for one round to come back by itself
@@ -181,29 +165,38 @@ export const WEAPON_IDS = Object.keys(ARMS);
 const MODELS = Object.fromEntries(WEAPON_IDS.map((id) => [id, baseModel(id)]));
 export const model = (id) => MODELS[id];
 
+/** A weapon with no forks (the game's own two guns): measured at levels 3 and 5 as it is. */
+export const forkless = (id) => !!measured(id, "base", 3);
+
 /**
  * How much more a form does than the weapon as picked up (base form, level 1), as a
  * multiplier on damage. Levels 3 and 5 are the lab's measurements of that form: its score
  * over the base form's, so a fork's change of mechanics counts for what it was measured to
- * be worth; levels 2 and 4 are the level table applied to the measurement below them. The
- * game's own two guns have no forks and no measurements: the level table alone.
+ * be worth; levels 2 and 4 are the level table applied to the measurement below them. A
+ * weapon with no forks has one form, measured at levels 3 and 5 too, and climbs by the level
+ * table's `bare` column in between.
  */
 export function power(id, branch = "base", level = 1) {
   const lv = Math.max(1, Math.min(LEVELS.length, level));
-  const table = LEVELS[lv - 1].dmg;
+  const col = forkless(id) ? "bare" : "dmg";
+  const table = LEVELS[lv - 1][col];
   const base = measured(id, "base", 1);
   if (!base || lv < 3) return table;
-  const b = branch === "b" ? "b" : "a";
+  const b = forkless(id) ? "base" : branch === "b" ? "b" : "a";
   const at3 = measured(id, b, 3);
   const at5 = measured(id, b, 5);
   if (!at3 || !at5) return table;
   if (lv === 3) return score(at3) / score(base);
   if (lv === 4)
-    return (score(at3) / score(base)) * (LEVELS[3].dmg / LEVELS[2].dmg);
+    return (score(at3) / score(base)) * (LEVELS[3][col] / LEVELS[2][col]);
   return score(at5) / score(base);
 }
-/** The better fork of a weapon by the lab's level-five measurement ("a" when unmeasured). */
+/**
+ * The better fork of a weapon by the lab's level-five measurement ("a" when unmeasured;
+ * "base" for a weapon with no forks).
+ */
 export function betterFork(id) {
+  if (forkless(id)) return "base";
   const a = measured(id, "a", 5);
   const b = measured(id, "b", 5);
   return a && b && score(b) > score(a) ? "b" : "a";

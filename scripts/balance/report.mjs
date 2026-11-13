@@ -25,11 +25,12 @@ import {
   betterFork,
   scoreOf,
   poolKills,
+  forkless,
   zombieStats,
 } from "./data.mjs";
 import { calibrate, factors } from "./lab.mjs";
 import { PROFILES, simulateMany, simulateRun, BUCKET, LIMIT } from "./run.mjs";
-import { guards } from "./guards.mjs";
+import { guards, WEAPON_BANDS } from "./guards.mjs";
 import {
   stageAt,
   crowdOf,
@@ -185,12 +186,16 @@ function weaponRows(prof) {
       measured: m.measured,
       // the lab's test: the score of each form against the standard line, and what a
       // full pool of its ammunition is worth at level one
+      // (a weapon with no forks: base3 and base5 are the one form at those levels)
+      forkless: forkless(id),
       score: {
         base: scoreOf(id, "base", 1),
         a3: scoreOf(id, "a", 3),
         b3: scoreOf(id, "b", 3),
         a5: scoreOf(id, "a", 5),
         b5: scoreOf(id, "b", 5),
+        base3: scoreOf(id, "base", 3),
+        base5: scoreOf(id, "base", 5),
       },
       pool: poolKills(id, "base", 1),
     };
@@ -380,49 +385,57 @@ export function build() {
   );
 
   const S = MEASURED.scene;
+  const B = WEAPON_BANDS;
   const tot = (s) => (s ? num(s.total, 2) : "—");
+  // a level's cell: both forks, or the one form of a weapon that has none
+  const atLevel = (r, lv) =>
+    r.forkless
+      ? `${tot(r.score["base" + lv])}（没有岔路）`
+      : `甲 ${tot(r.score["a" + lv])} / 乙 ${tot(r.score["b" + lv])}`;
   say(
     "## 4. 武器",
     "",
-    "### 对着标准线的总分（实测）",
+    "### 每把武器对着标准线（实测）",
     "",
-    `每个形态用真实的武器代码考同一场试（\`arsenal/tools/balance.mjs\`，${MEASURED.date}）：`,
-    "",
-    `- **清群**：十六只（十三只行尸、三只重型）在 ${S.from}–${S.from + S.span} 米外冒出来、倒下就补，${pct(S.runners)} 的行尸会跑；机器人瞄最近的一只，够得着才开火，够不着就迎上去。` +
-      `每分钟打倒 ${LINE.crowd} 只记 1 分。`,
-    `- **单体**：面前站一只精英（${S.elite} 只重型的血量），倒下立刻换一只；每秒 ${LINE.single} 伤害记 1 分，含换弹。`,
-    `- 机器人不会打偏身体；瞄头的三把（判官、更夫、诸葛）有 ${pct(S.head)} 的时间瞄在头上。两项相加是**总分**，1 级的标准是 2。`,
-    "",
-    "「一池弹药」是这种弹药装满时，1 级的这把枪在清群那场里能打倒多少只。",
+    `十四把武器的每个形态，都用游戏里真正的武器代码考同样两场（\`arsenal/tools/balance.mjs\`，${MEASURED.date}），不带调料：`,
     "",
     table(
+      ["考什么", "怎么考", "怎么记分"],
       [
-        "武器",
-        "弹药",
-        "1 级 清群",
-        "1 级 单体",
-        "1 级 总分",
-        "3 级 甲 / 乙",
-        "5 级 甲 / 乙",
-        "一池弹药",
+        [
+          "清群",
+          `十六只（十三只行尸、三只重型）在 ${S.from}–${S.from + S.span} 米外冒出来，倒下就补，${pct(S.runners)} 的行尸会跑。机器人打最近的一只，够不着就迎上去`,
+          `每分钟打倒 ${LINE.crowd} 只 = 1 分`,
+        ],
+        [
+          "单体",
+          `面前站一只精英（${S.elite} 只重型的血量），倒下立刻换一只`,
+          `每秒 ${LINE.single} 伤害 = 1 分（含换弹）`,
+        ],
       ],
+    ),
+    "",
+    `两项相加是**总分**。标准线是 1 级的枪：两项各 1 分，总分 2。机器人不会打偏身体；瞄头的三把（判官、更夫、诸葛）有 ${pct(S.head)} 的时间瞄在头上；` +
+      `扣一下打一发的手枪，每秒最多扣 ${S.hand} 下。`,
+    "",
+    `目标带：1 级吃弹药的枪 ${B.gun1.join("–")}，3 级每个形态 ${B.fork3.join("–")}，5 级 ${B.fork5.join("–")}；` +
+      `「一池弹药」（这种弹药装满时，1 级的这把枪在清群那场能打倒多少只）${B.pool.join("–")} 只。为什么是这些数，见 [balance.md](balance.md)「武器的统一标准」。`,
+    "",
+    table(
+      ["武器", "弹药", "1 级（清群 + 单体）", "3 级", "5 级", "一池弹药"],
       WR.filter((r) => r.measured).map((r) => [
         t("weapon." + r.id),
         r.ammo ? t("run.ammo." + r.ammo) : "不用",
-        num(r.score.base.crowd, 2),
-        num(r.score.base.single, 2),
-        tot(r.score.base),
-        `${tot(r.score.a3)} / ${tot(r.score.b3)}`,
-        `${tot(r.score.a5)} / ${tot(r.score.b5)}`,
+        `**${tot(r.score.base)}**（${num(r.score.base.crowd, 2)} + ${num(r.score.base.single, 2)}）`,
+        atLevel(r, 3),
+        atLevel(r, 5),
         r.pool == null ? "—" : num(r.pool) + " 只",
       ]),
     ),
     "",
-    "游戏自带的卡宾枪和手枪不在试验场里，量不了：卡宾枪每发伤害和耗弹与蜂巢相当（每单位子弹 26 对 28 点伤害），手枪不用弹药。",
-    "",
     "### 普通玩家手里（模型）",
     "",
-    `按「${prof.name}」的命中（${pct(prof.hit)}，其中爆头 ${pct(prof.head)}）计算，含换弹时间。`,
+    `整局模拟用的简化模型，按「${prof.name}」的命中（${pct(prof.hit)}，其中爆头 ${pct(prof.head)}）计算，含换弹时间；它按上表的实测校准过（第 6 节）。`,
     "5 级取两条岔路里实测总分更高的一条；「成长」是 5 级输出 ÷ 1 级输出，不含调料。",
     "",
     table(
@@ -436,17 +449,15 @@ export function build() {
         "打倒重型（秒）",
       ],
       WR.map((r) => [
-        t("weapon." + r.id) + (r.measured ? "" : " \\*"),
+        t("weapon." + r.id),
         r.ammo ? t("run.ammo." + r.ammo) : "不用",
         num(r.dps1),
-        `${num(r.dps5)}（${r.fork === "a" ? "甲" : "乙"}）`,
+        `${num(r.dps5)}（${r.forkless ? "没有岔路" : r.fork === "a" ? "甲" : "乙"}）`,
         "×" + num(r.grow, 1),
         num(r.walker, 1),
         num(r.brute, 1),
       ]),
     ),
-    "",
-    "\\* 游戏自带的两把枪没有岔路，也不在试验场的实测表里：只按等级表成长，没有校准系数。",
     "",
     "调料能再叠加的倍率：" +
       RUN.spices

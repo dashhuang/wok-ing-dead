@@ -1,4 +1,6 @@
-// How each weapon form does, measured with the real weapon code. Two tests per form:
+// How each weapon form does, measured with the real weapon code. Two tests per form. Every
+// weapon a run can carry sits them: the arsenal's twelve, and the game's own carbine and
+// sidearm on a stand-in (they have no forks: level 1, 3 and 5 of the one form).
 //
 //   the street   the range's sixteen dead (thirteen walkers, three heavies) rising at street
 //                distance and coming on; a bot aims at the nearest, opens fire once the form
@@ -22,6 +24,14 @@
 import fs from "node:fs";
 import { openLab, parseArgs, FORMS } from "./lab.mjs";
 import { RUN } from "../../src/chinatown/runtune.js";
+import { STOCK_GUNS } from "../../src/chinatown/stockguns.js";
+
+// The game's own two guns have one form: it grows with the level table alone.
+const STOCK_FORMS = [
+  ["base", 1],
+  ["base", 3],
+  ["base", 5],
+];
 
 // The test, in numbers. Written into balance.json so the simulator replays the same one.
 //   from, span   the dead rise this far away (metres): from .. from + span
@@ -30,6 +40,8 @@ import { RUN } from "../../src/chinatown/runtune.js";
 //   head         share of the time a weapon aimed at the head is on it
 //   solo         seconds the test against the elite lasts
 //   elite        its health in heavies (the run's first elite: RUN.elite.hp)
+//   hand         trigger pulls a second at most, for a weapon that fires one round a pull
+//                (the sidearm: the game makes the player click for every round)
 export const SCENE = {
   from: 16,
   span: 14,
@@ -38,12 +50,14 @@ export const SCENE = {
   head: 0.6,
   solo: 30,
   elite: RUN.elite.hp,
+  hand: 5,
 };
 
 // The standard line every form is scored against: what a level-one gun does in this test,
 // the street's dead felled a minute and the damage a second on the elite. They are the
-// medians of the nine guns here that take ammunition as they stood when the line was drawn
-// (2026-11-13), and they stay put: the weapons are tuned to the line, not the line to them.
+// medians of the arsenal's nine guns that take ammunition, as they stood when the line was
+// drawn (2026-11-13), and they stay put: the weapons are tuned to the line, not the line to
+// them.
 export const LINE = { crowd: 69, single: 138 };
 
 // A player does not open fire before the weapon can reach: effective range (metres).
@@ -62,6 +76,8 @@ const REACH = {
   arc: 19,
   crossbow: 60,
   talisman: 40,
+  rifle: 55,
+  pistol: 40,
   "coinsword:base": 3.0,
   "coinsword:a": 14,
   "coinsword:b": 3.0,
@@ -95,10 +111,11 @@ async function main() {
     window.__lab.manual = true;
     return window.__lab.weapons.map((w) => w.id);
   });
+  ids.push(...Object.keys(STOCK_GUNS));
   const rows = [];
   for (const id of ids) {
     if (only && !only.includes(id)) continue;
-    for (const [b, lv] of FORMS) {
+    for (const [b, lv] of STOCK_GUNS[id] ? STOCK_FORMS : FORMS) {
       const key = id + ":" + b;
       const reach = REACH[key] ?? REACH[id] ?? 40;
       const r = await page.evaluate(measure, {
@@ -170,7 +187,20 @@ async function measure({ id, b, lv, seconds, reach, altReach, precise, S }) {
     alt = false,
     clock = 0,
     drag = 0;
+  // one round a pull: the bot pulls no faster than a hand does (S.hand a second)
+  let pull = 0;
   const set = (name, on) => {
+    if (name === "fire" && c.weapon.spec.semi) {
+      if (fire) {
+        fire = false;
+        c.release("fire");
+      } else if (on && pull <= 0) {
+        fire = true;
+        c.press("fire");
+        pull = 1 / S.hand;
+      }
+      return;
+    }
     if (name === "fire" && on !== fire) {
       fire = on;
       on ? c.press("fire") : c.release("fire");
@@ -286,6 +316,7 @@ async function measure({ id, b, lv, seconds, reach, altReach, precise, S }) {
     }
     if (best) aim(best);
     clock += dt;
+    pull -= dt;
     play(bd);
     // nothing in reach: walk in (the dead that are up come that much closer)
     if (best && bd > reach)
@@ -349,6 +380,7 @@ async function measure({ id, b, lv, seconds, reach, altReach, precise, S }) {
       play(at);
     }
     clock += dt;
+    pull -= dt;
     lab.advance(dt, dt, false);
   }
   rest();

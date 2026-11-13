@@ -4,6 +4,7 @@ import { createSettingsStore } from "./settings.js";
 import { presetToBoot } from "./bootguard.js";
 import * as L10N from "./i18n/index.js";
 import { createRun } from "./chinatown/run.js";
+import { STOCK_GUNS } from "./chinatown/stockguns.js";
 import { createComms } from "./chinatown/comms.js";
 import { uiIcon } from "./chinatown/icons.js";
 import { createTelemetry } from "./telemetry/index.js";
@@ -65051,8 +65052,9 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
       },
     },
     ft = {
-      tac: 2.24,
-      empty: 2.72,
+      // (the carbine's reload: its two lengths are in chinatown/stockguns.js, the keys below are timed to them)
+      tac: STOCK_GUNS.rifle.reload.tac,
+      empty: STOCK_GUNS.rifle.reload.empty,
       atMag: 0.36,
       magout: 0.4,
       clear: 0.52,
@@ -65083,8 +65085,9 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
       partial: 0.32,
     },
     It = {
-      tac: 1.5,
-      empty: 1.9,
+      // (the sidearm's reload, as above)
+      tac: STOCK_GUNS.pistol.reload.tac,
+      empty: STOCK_GUNS.pistol.reload.empty,
       release: 0.12,
       magout: 0.18,
       swap: 0.48,
@@ -67179,9 +67182,9 @@ vec3 armSurface(vec4 hc, vec4 rs, float gD, out float rough, out float h, out fl
   float A = hc.x, F = hc.y, D = hc.z, S = hc.w, x = rs.x, y = rs.y, z = rs.z; vec3 col; h = 0.0;
   if (rs.w > 0.5) {
     // bare skin: paler and pinker on the inside of the arm, a breath of colour at the elbow
-    col = mix(${Ui(ys.skin)}, ${Ui(ys.skinIn)}, smoothstep(0.35, -0.75, D)); rough = 0.50; kind = 6.0;
+    col = mix(${Ui(ys.skin)}, ${Ui(ys.skinIn)}, smoothstep(0.35, -0.75, D)); rough = 0.68; kind = 6.0;
     float elbow = exp(-pow((A - 0.275) / 0.035, 2.0)) * smoothstep(-0.2, 0.7, D);
-    col *= mix(vec3(1.0), vec3(1.0, 0.92, 0.9), 0.4 * elbow); rough = mix(rough, 0.6, elbow);
+    col *= mix(vec3(1.0), vec3(1.0, 0.92, 0.9), 0.4 * elbow); rough = mix(rough, 0.74, elbow);
     col *= 0.98 + 0.04 * aNoise(rs.xyz * vec3(60.0, 60.0, 22.0));
   } else {
     float j1 = ${Sy(0)}, j2 = ${Sy(1)}, j3 = ${Sy(2)};
@@ -67257,21 +67260,22 @@ vec3 armMicro(vec3 col, vec4 hc, vec4 rs, vec3 rn, float kind, float wet, inout 
   h += fine * (kFab * 0.00005 * weave + kLea * 0.00011 * (n1 * 0.7 + n2 * 0.3 - 0.5) + kRub * 0.00003 * (n2 - 0.5) + kRib * 0.00006 * weave + kShell * 0.000035 * weave + kRefl * 0.00004 * (n2 - 0.5) + kSkin * 0.000018 * (n1 * 0.6 + n2 * 0.4 - 0.5));
   col *= 1.0 + fine * (kFab * 0.06 * weave + kLea * 0.16 * (n1 - 0.5) + kRib * 0.08 * weave + kShell * 0.04 * weave) + (big - 0.5) * (0.16 * kLea + 0.10 * kFab + 0.10 * kShell + 0.06 * kRub);
   rough += (big - 0.5) * (0.10 * kLea + 0.10 * kShell + 0.12 * kRub) + fine * (n1 - 0.5) * 0.10 * kLea;
-  // wet skin shines
-  rough = mix(rough, 0.34, 0.6 * wet * kSkin);
+  // wet skin has a sheen, not a shine: it is the beads that catch the light
+  rough = mix(rough, 0.52, 0.4 * wet * kSkin);
   // rain beads on the arm (laid out in its own angle / length coordinates) and, sparser, on the rubber
   if (wet > 0.01 && (kShell + kRefl + kRub + kSkin) > 0.3) {
-    vec2 q = rs.w > 0.5 ? vec2(atan(hc.z, hc.w) * 0.046, hc.x) : vec2(dot(p, vec3(0.8, 0.0, 0.6)), dot(p, vec3(-0.42, 0.7, 0.57)));
-    float bead = 0.0, wetR = 0.0;
+    vec2 q = rs.w > 0.5 ? vec2(atan(hc.z, hc.w) * 0.032, hc.x) : vec2(dot(p, vec3(0.8, 0.0, 0.6)), dot(p, vec3(-0.42, 0.7, 0.57)));
+    // (rain stands on skin in drops a good deal bigger than the beads on a waxed cloth or on rubber)
+    float bead = 0.0, wetR = 0.0, big = 1.0 + 1.9 * kSkin;
     for (int o = 0; o < 2; o++) {
-      float cell = o == 0 ? 0.0085 : 0.0041; vec2 g = q / cell + float(o) * 13.7, id = floor(g), fr = fract(g);
+      float cell = (o == 0 ? 0.0085 : 0.0041) * big; vec2 g = q / cell + float(o) * 13.7, id = floor(g), fr = fract(g);
       float r1 = aHash(vec3(id, 1.0 + float(o))), r2 = aHash(vec3(id, 5.0)), r3 = aHash(vec3(id, 9.0));
-      float rad = (o == 0 ? 0.0019 : 0.0010) * (0.55 + 0.6 * r3), on = step(r1, (o == 0 ? 0.42 : 0.5) * wet * (rs.w > 0.5 ? 1.0 - 0.72 * kSkin : 0.5));
+      float rad = (o == 0 ? 0.0019 : 0.0010) * big * (0.55 + 0.6 * r3), on = step(r1, (o == 0 ? 0.42 : 0.5) * wet * (rs.w > 0.5 ? 1.0 - 0.3 * kSkin : 0.5));
       float d = length((fr - (0.25 + 0.5 * vec2(r2, r3))) * cell) / rad;
       bead = max(bead, on * sqrt(max(0.0, 1.0 - d * d)) * rad * 0.55); wetR = max(wetR, on * (1.0 - smoothstep(0.85, 1.0, d)));
     }
     // (a bead on cloth darkens it; on skin it only catches the light)
-    h += bead * (1.0 - 0.45 * kSkin); rough = mix(rough, 0.07, wetR); col *= 1.0 - 0.18 * wetR * (1.0 - kSkin);
+    h += bead * (1.0 - 0.66 * kSkin); rough = mix(rough, 0.07, wetR); col *= 1.0 - 0.18 * wetR * (1.0 - kSkin);
   }
   rough = clamp(rough, 0.05, 1.0);
   return col;
@@ -67348,9 +67352,18 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
               "#include <normal_fragment_maps>",
               `#include <normal_fragment_maps>
   normal = armBump(normal, -vViewPosition, armH);`,
+            )
+            .replace(
+              "#include <aomap_fragment>",
+              `#include <aomap_fragment>
+  // Skin is not a polished thing: under a street lamp it gives back a soft sheen, where a
+  // smooth surface of the same roughness would carry a bright streak the length of the arm.
+  // (The beads of rain on it are water, and keep all of theirs.)
+  float armSheen = mix(1.0 - 0.62 * (1.0 - min(1.0, abs(armKind - 6.0))), 1.0, 1.0 - smoothstep(0.1, 0.3, armRough));
+  reflectedLight.directSpecular *= armSheen; reflectedLight.indirectSpecular *= armSheen;`,
             )));
       }),
-      (e.customProgramCacheKey = () => "saltline-arm-3"),
+      (e.customProgramCacheKey = () => "saltline-arm-4"),
       e
     );
   }
@@ -68986,31 +68999,27 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       eject: wn.eject,
       sight: [0, wn.sightY, -wn.lensF],
       info: { tris: Math.round(ce), meshes: P },
-      slot: { id: "rifle", name: wn.name, ammo: 30, magSize: 30, reserve: 150 },
+      slot: {
+        id: "rifle",
+        name: wn.name,
+        ammo: STOCK_GUNS.rifle.mag,
+        magSize: STOCK_GUNS.rifle.mag,
+        reserve: STOCK_GUNS.rifle.reserve,
+      },
+      // (what it plays by is in chinatown/stockguns.js, shared with the weapon lab's test bench)
       def: {
-        magSize: 30,
-        reserve: 150,
-        rpm: 720,
-        damage: 26,
-        range: 300,
-        auto: !0,
+        magSize: STOCK_GUNS.rifle.mag,
+        reserve: STOCK_GUNS.rifle.reserve,
+        rpm: STOCK_GUNS.rifle.rpm,
+        damage: STOCK_GUNS.rifle.damage,
+        range: STOCK_GUNS.rifle.range,
+        auto: STOCK_GUNS.rifle.auto,
         adsTime: 0.18,
         inspect: !0,
         flashLight: 45,
         flashScale: 1,
         smoke: !0,
-        spread: {
-          hip: 0.0125,
-          ads: 0.0012,
-          moveHip: 0.013,
-          moveAds: 0.004,
-          bloomHip: 0.0065,
-          bloomAds: 0.0022,
-          air: 0.022,
-          crouch: 0.002,
-          shot: 0.17,
-          decay: 1.5,
-        },
+        spread: { ...STOCK_GUNS.rifle.spread },
       },
       views: Uy,
       view: 0,
@@ -70647,34 +70656,24 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       slot: {
         id: "pistol",
         name: G0.name,
-        ammo: 15,
-        magSize: 15,
-        reserve: 1 / 0,
+        ammo: STOCK_GUNS.pistol.mag,
+        magSize: STOCK_GUNS.pistol.mag,
+        reserve: STOCK_GUNS.pistol.reserve,
       },
+      // (as the carbine's: chinatown/stockguns.js)
       def: {
-        magSize: 15,
-        reserve: 1 / 0,
-        rpm: 420,
-        damage: 34,
-        range: 120,
-        auto: !1,
+        magSize: STOCK_GUNS.pistol.mag,
+        reserve: STOCK_GUNS.pistol.reserve,
+        rpm: STOCK_GUNS.pistol.rpm,
+        damage: STOCK_GUNS.pistol.damage,
+        range: STOCK_GUNS.pistol.range,
+        auto: STOCK_GUNS.pistol.auto,
         adsTime: 0.14,
         inspect: !1,
         flashLight: 30,
         flashScale: 0.55,
         smoke: !1,
-        spread: {
-          hip: 0.0105,
-          ads: 0.0017,
-          moveHip: 0.0065,
-          moveAds: 0.003,
-          bloomHip: 0.0085,
-          bloomAds: 0.003,
-          air: 0.018,
-          crouch: 0.002,
-          shot: 0.3,
-          decay: 2.8,
-        },
+        spread: { ...STOCK_GUNS.pistol.spread },
       },
       views: Xy,
       view: 0,
@@ -71163,9 +71162,14 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         addAmmo(B) {
           b.slot.reserve += B;
         },
+        // B: 1 out in the rain, falling to 0.3 under a roof (the loop below). The weapon keeps
+        // a film of it indoors; bare arms dry off: no drops left on them, and none new.
         setWetness(B) {
-          iy.value = kh.value = Math.max(0, Math.min(1, +B || 0));
+          ((iy.value = Math.max(0, Math.min(1, +B || 0))),
+            (kh.value = Math.max(0, iy.value - 0.3)));
         },
+        /** How wet the arms are now, 0 to 0.7 (for the armoury's arms: chinatown/armory.js). */
+        armWetness: () => kh.value,
         snap() {
           let B = n.player,
             X = (!!B.sprinting || l.sprint) && !n.input.fire && !a.reload;

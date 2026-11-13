@@ -73,7 +73,8 @@ Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值
 - **素材**：新增外部素材要在 docs/assets.md 写清来源和许可，只用 CC0 / OFL。僵尸来自 Mixamo（非 CC0），是已知的待解决问题。
 - **试验场和本体是同一份规则**（对照表在 docs/architecture.md「试验场和本体共用的规则」）。本体通过 `src/chinatown/armory.js`
   导入 `arsenal/` 的武器模型、特效、战斗控制器和双手；伤害、四种状态、反应和附魔调料的规则只有一份，在 `arsenal/src/combat/status.js`；
-  试验场读本体的三张纯数据表：`src/chinatown/runtune.js`、`loadout.js`（`AMMO` / `ARMS`）、`zombietune.js`。
+  试验场读本体的四张纯数据表：`src/chinatown/runtune.js`、`loadout.js`（`AMMO` / `ARMS`）、`zombietune.js`，
+  以及本体两把枪（LK-9、LK-4）的 `stockguns.js`（`src/game.js` 也读它；测试台用替身模型按它开火，只为把它们放进同一场测量）。
   - **靶场在游戏里**：`/?range=1`（`src/chinatown/range.js`），是关掉时间线的套餐加一块调试面板，街道、僵尸、画面都是真的。
     调武器手感、调料、状态、僵尸数值、特效亮度都在这里做；面板状态记在地址里，开发服务器存盘刷新后回到同一个场面，
     「数值」一栏可以边玩边改共用数值表，再用「复制改动」把结果写回文件。面板是调试工具：只有中文、用系统字体、不进语言包。
@@ -81,21 +82,22 @@ Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值
     `arsenal/scripts/showcase.mjs`）；首页顶栏有两个入口，三个页面互相跳转的地址在 `src/chinatown/doors.js`。
     试验场（`arsenal/`）只用来看模型和握法；它里面的「测试台」（`?mode=fp`）是给自动测试和测量脚本用的简化巷子，不要拿它调手感。
   - **不要在任何一边再写一份规则或数字**。测试台缺什么，就把本体那部分抽成两边共用的代码，而不是在 `arsenal/` 里照抄。
-  - 这三张表所在的文件不能导入游戏对象或 DOM（试验场和 node 脚本都要能直接导入）。试验场不引用 `src/game.js`。
-  - 改 `arsenal/src/combat/`、`arsenal/src/data/` 或这三张表的结构、或改接口（`createCombat(lab)`、`lab` 舞台对象、`createStatus(host)`、
+  - 这几张表所在的文件不能导入游戏对象或 DOM（试验场和 node 脚本都要能直接导入）。试验场不引用 `src/game.js`。
+  - 改 `arsenal/src/combat/`、`arsenal/src/data/` 或这几张表的结构、或改接口（`createCombat(lab)`、`lab` 舞台对象、`createStatus(host)`、
     `kit/hands.js`、`data/weapons.js` 的字段）时，浏览器测试（`npm run arsenal:test`、`npm run test:e2e`）暂停使用，交付时说明“没跑浏览器测试”。
   - 武器基础形态的伤害、弹丸数、射程、溅射、弱点倍率、挥砍范围只写在 `arsenal/src/data/weapons.js` 的 `fire` 里，`behaviours.js` 读它（`F.<武器>`），
     不要在 `behaviours.js` 里再写一遍。射速、弹匣、换弹时间写在 `behaviours.js` 的 `spec()` 里，数据里的那份由 `npm run check` 核对。
     岔路说明文字里的数字是手写的，改岔路的数值时一起改。
   - `docs/weapons-roguelike.md` 由 `node arsenal/scripts/design-doc.mjs` 生成，改数据不改文档；改了武器数据或这几张表之后重新生成。
 - **套餐的数值**只改 `src/chinatown/runtune.js` 的 `RUN` 和 `loadout.js` 的 `AMMO` / `ARMS`；僵尸的数值改 `zombietune.js`；
+  LK-9、LK-4 的伤害、射速、弹匣、换弹时间、散布改 `stockguns.js`（换弹时间连着本体的换弹动画，改了要重新对动画）；
   每级伤害倍率改 `arsenal/src/data/levels.js`；状态和反应的数字改 `arsenal/src/data/status.js`；
   后坐力、镜头上抬、散布扩张、近战顿挫这些手感改 `arsenal/src/data/feel.js`（`node arsenal/scripts/feel-report.mjs` 看换算后的幅度）。用户定下的四条不要动：
   弹药必须捡、弹药分四种、武器不限数量、红包只升手上那把。
 - **调数值看 [docs/balance.md](docs/balance.md)**：现在只调微辣（中辣和变态辣在菜单上锁着，`src/settings.js` 的 `openDifficulties`）。
   改了上面任何一张数值表或 `runflow.js` 的规则，运行 `npm run balance` 并把 `docs/balance-report.md` 一起提交，
   否则 `npm run check` 不过。目标写成了护栏（`scripts/balance/guards.mjs`）；达到了哪条，就在那次改动里把它启用。
-  **武器对同一条标准线**（docs/balance.md「武器的统一标准」）：改了武器的伤害、射速、弹匣或岔路的效果，
+  **武器对同一条标准线**（docs/balance.md「武器的统一标准」，LK-9、LK-4 也在内）：改了武器的伤害、射速、弹匣或岔路的效果，
   先重新实测（`node arsenal/tools/balance.mjs --seconds 120 --write`，约 2 分钟，开的是不显示窗口的试验场测试台，不是游戏），
   再 `npm run balance` 和 `node arsenal/scripts/design-doc.mjs`；出了目标带的形态护栏会拦。
 

@@ -12,10 +12,15 @@ import { createKit } from "./kit/index.js";
 import { createStage } from "./render/stage.js";
 import { createArms } from "./kit/hands.js";
 import { createAudio } from "./audio/audio.js";
-import { WEAPONS, byId } from "./data/weapons.js";
+import { WEAPONS, EXISTING, byId } from "./data/weapons.js";
+import { standIn } from "./kit/standin.js";
 import { createMeal } from "./combat/meal.js";
 
 const builders = import.meta.glob("./weapons/*.js");
+// The game's own two guns: the test bench can take them up (on a stand-in, see kit/standin.js)
+// so that they sit the same test as the rest; the showcase does not list them.
+const STOCK = Object.fromEntries(EXISTING.map((w) => [w.id, w]));
+const defOf = (id) => byId[id] || STOCK[id];
 const q = new URLSearchParams(location.search);
 const canvas = document.getElementById("view");
 const errors = [];
@@ -78,9 +83,8 @@ const lab = {
   async load(id) {
     if (models.has(id)) return models.get(id);
     const imp = builders[`./weapons/${id}.js`];
-    if (!imp) throw new Error(`no model for "${id}"`);
-    const mod = await imp();
-    const model = mod.default(kit);
+    if (!imp && !STOCK[id]) throw new Error(`no model for "${id}"`);
+    const model = imp ? (await imp()).default(kit) : standIn(kit, id);
     console.log(
       `[lab] ${id}: ${model.info.tris} tris, ${model.info.meshes} meshes`,
     );
@@ -95,7 +99,7 @@ const lab = {
     lab.applyBranch();
     stage.mount(model);
     litForMode();
-    lab.combat && lab.combat.equip(model, byId[id]);
+    lab.combat && lab.combat.equip(model, defOf(id));
     lab.emit();
     return model;
   },
@@ -124,7 +128,7 @@ const lab = {
     }
     lab.combat &&
       lab.model &&
-      lab.combat.equip(lab.model, byId[lab.state.weapon]);
+      lab.combat.equip(lab.model, defOf(lab.state.weapon));
     lab.emit();
   },
   setLevel(lv) {
@@ -134,7 +138,7 @@ const lab = {
     lab.applyBranch();
     lab.combat &&
       lab.model &&
-      lab.combat.equip(lab.model, byId[lab.state.weapon]);
+      lab.combat.equip(lab.model, defOf(lab.state.weapon));
     lab.emit();
   },
   setMode(mode) {

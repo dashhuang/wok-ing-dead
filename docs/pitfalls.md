@@ -13,6 +13,10 @@
 - 无头软件渲染分辨率太低，看不出细小的火星。要用显卡渲染截图，用 Playwright 的 `chromium.launch({ channel: "chromium" })`，
   并注入 `tests/support/fake-pointer-lock.js`，不然系统光标会被锁定拉走。逐帧看特效用 `arsenal/tools/shots.mjs play`，或者 `openLab` 加 `lab.advance`。
 
+- **第一人称的手臂是为画面摆的，不是为人摆的**：为了不让大臂和手肘进画面，肩膀会沉到比手腕低三十多厘米、手肘可以翻到手的上方。
+  第一人称里看不出来，一旦把大臂露出来（展柜、陈列馆、将来的第三人称或过场）就是「大臂角度不对」。展柜因此有自己的一套站姿
+  （`hands.js` 里所有 `fp ?` 的分支）；改其中一边时用 `arsenal/tools/posture.mjs`（加 `--fp` 量第一人称）确认另一边没动。
+
 ## 数值
 
 - `scripts/balance/data.mjs` 把每把武器的 `fire.knock` 当作一个数字读（用来模拟击退距离）。有一次把它改成对象，平衡报告的通关率从 91% 掉到 69%（读出 NaN）。

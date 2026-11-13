@@ -16,7 +16,7 @@ import { createEffects } from "../fx/effects.js";
 import { createTargets } from "./targets.js";
 import { createProjectiles } from "./projectiles.js";
 import { BEHAVIOURS } from "./behaviours.js";
-import { LEVELS } from "../data/weapons.js";
+import { levelMul } from "../data/levels.js";
 import { createRecoil } from "./recoil.js";
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -116,7 +116,8 @@ export async function createCombat(lab) {
   };
   // the run's seasonings as multipliers; 1 = none (see setMods)
   const mods = { damage: 1, rate: 1, reload: 1 };
-  const mulOf = (level) => LEVELS[level - 1].dmg * mods.damage;
+  // (a weapon that never forks climbs by the level table's `bare` column)
+  const mulOf = (level, spec) => levelMul(level, !!spec.forkless) * mods.damage;
   // seconds a reload takes right now
   const reloadTime = () => (W.spec.reload || 0) / mods.reload;
   let thrown = null;
@@ -477,7 +478,7 @@ export async function createCombat(lab) {
       spec,
       branch,
       level,
-      mul: mulOf(level),
+      mul: mulOf(level, spec),
       rounds: spec.mag ?? 0,
       cooldown: 0.3,
       draw: 0,
@@ -1263,7 +1264,7 @@ export async function createCombat(lab) {
      */
     setMods(m) {
       Object.assign(mods, m);
-      if (W) W.mul = mulOf(W.level);
+      if (W) W.mul = mulOf(W.level, W.spec);
     },
     get locked() {
       return locked;
