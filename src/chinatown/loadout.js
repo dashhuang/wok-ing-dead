@@ -167,11 +167,6 @@ export function createLoadout(G, on = {}) {
         a.combat.setMods(mods);
         a.targets.setInfusions(infusions);
         G.weapon.ext = driver;
-        // draw every weapon once, tiny, while nothing much is going on: the first time each
-        // is taken in hand must not cost a frame (the game's own two rigs included)
-        a.warmAll(Object.values(G.weapon.rigs).map((r) => r.root)).catch(
-          () => {},
-        );
         return a;
       })
       .catch((e) => {

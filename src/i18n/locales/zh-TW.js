@@ -15,6 +15,9 @@ export default {
   "boot.weapon": "檢查步槍",
   "boot.dead": "喚醒死者",
   "boot.light": "等待最後一盞燈",
+  "boot.warmup": "擦亮傢伙",
+  "boot.calibrate": "調好火候",
+  "boot.prepareError": "開場準備未完成，請重新載入或降低畫質",
   "boot.ready": "就緒",
   "boot.fatal": "守護夜排檔無法啟動：{error}",
 
