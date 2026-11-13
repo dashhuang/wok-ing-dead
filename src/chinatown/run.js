@@ -943,7 +943,6 @@ export function createRun(G, hooks) {
       kind: kinds[i],
       stocked: true,
       timer: 0,
-      known: false,
     }));
     pickups.setLamps(S.caches);
   }
@@ -1101,23 +1100,6 @@ export function createRun(G, hooks) {
         }
       }
       const d = Math.hypot(P.pos.x - c.site.pos.x, P.pos.z - c.site.pos.z);
-      // marked on screen only from close by: from further off its lamp shows the way
-      if (look && c.near !== d < A.cacheMark) {
-        c.near = d < A.cacheMark;
-        marks = marks || c.known;
-      }
-      if (look && !c.known && d < A.cacheSpot) {
-        tmp.copy(c.site.pos);
-        tmp.y = c.site.top + 0.4;
-        let seen = d < 4;
-        try {
-          seen = seen || G.physics.lineOfSight(P.eye, tmp);
-        } catch {}
-        if (seen) {
-          c.known = true;
-          marks = true;
-        }
-      }
       if (
         c.stocked &&
         d < A.cacheReach &&
@@ -1125,12 +1107,11 @@ export function createRun(G, hooks) {
       ) {
         const got = loadout.add(c.kind, loadout.cap(c.kind) * A.cacheGive);
         c.stocked = false;
-        c.known = true;
         c.timer = A.cacheEvery;
         if (lamp) lamp.stocked = false;
         lamps = true;
         hud.toast(
-          L10N.t("run.toast.cache", {
+          L10N.t("run.toast.ammo", {
             n: Math.round(got),
             a: L10N.t("run.ammo." + c.kind),
           }),
@@ -1141,7 +1122,7 @@ export function createRun(G, hooks) {
       }
     });
     if (lamps) pickups.refreshLamps();
-    if (lamps || marks) hooks.refreshMarkers();
+    if (marks) hooks.refreshMarkers();
   }
   function lowTick(real) {
     S.lowHintT = Math.max(0, S.lowHintT - real);
@@ -1558,15 +1539,6 @@ export function createRun(G, hooks) {
             short: L10N.t("run.mark.case"),
             pos: c.pos,
             kind: "loot",
-          });
-      });
-      S.caches.forEach((c, i) => {
-        if (c.known && c.near)
-          out.push({
-            id: "cache" + i,
-            short: L10N.t("run.ammo." + c.kind + ".s"),
-            pos: c.site.pos,
-            kind: "cache a-" + c.kind + (c.stocked ? "" : " empty"),
           });
       });
       for (const z of S.elites)

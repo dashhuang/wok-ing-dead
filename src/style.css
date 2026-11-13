@@ -1001,10 +1001,6 @@ kbd {
 .a-none {
   --ammo: var(--paper-dim);
 }
-.h-cm.cache,
-.h-wm.cache {
-  color: var(--ammo, var(--jade));
-}
 /* the game's "other weapon" line: a run shows every weapon carried instead */
 .hud.in-run .h-alt {
   display: none;
@@ -1024,12 +1020,7 @@ kbd {
 .h-wm.elite {
   color: var(--cinnabar-hot);
 }
-.h-cm.cache.empty,
-.h-wm.cache.empty {
-  color: var(--paper-mute);
-}
-.h-wm.loot i,
-.h-wm.cache i {
+.h-wm.loot i {
   border-radius: 2px;
   box-shadow: 0 0 8px currentColor;
 }
@@ -1039,10 +1030,8 @@ kbd {
   box-shadow: 0 0 8px rgba(226, 65, 44, 0.6);
 }
 .h-wm.loot b,
-.h-wm.cache b,
 .h-wm.elite b,
 .h-cm.loot b,
-.h-cm.cache b,
 .h-cm.elite b {
   font-family: var(--f-ui);
   font-size: 11px;
