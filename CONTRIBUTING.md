@@ -13,11 +13,13 @@
 ## 小改动：直接推 `main`
 
 ```sh
-git switch main && git pull
+git fetch origin
+git worktree add ../Saltline-timer -b fix/timer origin/main   # 或在自己的 main 上：git switch main && git pull
 # 改完
-npm run check && npm run build
+npm run verify
 git commit -am "Fix the pause menu overlapping the timer"
-git push
+git fetch origin && git rebase origin/main   # 推之前再拉一次，别人可能刚推过
+git push origin HEAD:main
 ```
 
 推上去后 CI 会再检查和构建一次，变红就马上修或回滚（见下文）。
@@ -27,8 +29,8 @@ git push
 1. **从最新的 `main` 拉分支**
 
    ```sh
-   git switch main && git pull
-   git switch -c fix/pause-menu-overlap
+   git fetch origin
+   git switch -c fix/pause-menu-overlap origin/main
    ```
 
    分支名用 `feat/`（新内容、新玩法）、`fix/`（修问题）、`perf/`（性能）、`docs/`、`chore/`（工具、依赖、仓库维护）开头。
@@ -36,8 +38,11 @@ git push
    同时有几件事在做（或几个 AI 会话同时在改）时，每件事用一个独立的 worktree，不要在同一个目录里同时改：
 
    ```sh
+   git fetch origin
    git worktree add ../Saltline-pause-menu -b fix/pause-menu-overlap origin/main
    ```
+
+   不先 `git fetch`，`origin/main` 只是上次拉取时的样子。主目录 `~/Code/Saltline` 只当干净的基准（定时任务每小时把它快进到最新），不在里面改东西。
 
 2. **开发和自查**
 
@@ -59,6 +64,8 @@ git push
 4. **开 Pull Request**
 
    ```sh
+   git fetch origin && git merge origin/main   # 先把这段时间别人合进来的东西合进来，有冲突在这里解决
+   npm run verify
    git push -u origin HEAD
    gh pr create --fill
    ```
