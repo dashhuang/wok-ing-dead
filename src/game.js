@@ -84988,8 +84988,9 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     }
     function J() {
       if (!o.setMarkers) return;
+      // (a run cooks one dish at a time: the other stoves are not marked while one is on)
       let Y = g.relays
-        .filter((he) => !he.cut)
+        .filter((he) => !he.cut && !(runOn() && RUN.cooking))
         .map((he) => ({
           id: he.id,
           short: he.short,
@@ -85055,7 +85056,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         return L10N.t(
           g.waveOn ? "obj.hold" : g.wave ? "obj.breathe" : "obj.coming",
         );
-      if (runOn()) return L10N.t(RUN.objectiveKey());
+      if (runOn()) return RUN.objective();
       if (g.allCut) return L10N.t("obj.extract");
       let Y = g.relays.length - g.cut;
       return g.cut === 0
@@ -85311,6 +85312,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     function me() {
       let Y = null,
         he = xi.interactRange;
+      // (in a run no stove can be lit while a dish is on another)
+      if (runOn() && RUN.cooking) return null;
       for (let V of g.relays) {
         if (V.cut) continue;
         let ne = V.o.pos.x - i.pos.x,
@@ -85344,10 +85347,14 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
                 ((ne.cutting = !1),
                 W(ne.o, "live"),
                 n.events.emit("objective:progress", { id: ne.id, t: 0 }))));
+      // (a run's dish has its own things to do at the stove: taking the wok up, packing)
+      let sp = !he && runOn() && i.alive ? RUN.stovePrompt() : null;
       he && !he.cut
         ? o.setPrompt &&
           o.setPrompt(L10N.t("obj.prompt", { id: he.short }), Is(he.t))
-        : o.setPrompt && o.setPrompt(null);
+        : sp
+          ? o.setPrompt && o.setPrompt(sp.text, sp.t)
+          : o.setPrompt && o.setPrompt(null);
       let V = s.extraction;
       if (V && V.pos) {
         let ne = Math.hypot(V.pos.x - i.pos.x, V.pos.z - i.pos.z),

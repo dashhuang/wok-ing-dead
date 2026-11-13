@@ -6,12 +6,15 @@
 // differently) and decides what to do with the light.
 //
 // States, set through userData.setState (the game's objective code calls it with the first
-// three, run.js with the last two):
+// three, run.js with the rest):
 //   "live"    cold: nothing burns
 //   "cutting" being lit: the burner catches and sputters
 //   "cut"     lit and left to itself: a low flame
-//   "cook"    a dish is on: flames over the rim of the wok
-//   "served"  the same low flame as "cut"
+//   "toss"    the wok is off the stove, in the cook's hands: the open burner roars
+//   "cook"    the wok is back with the dish in it: flames over its rim
+//   "due"     it wants tossing again: the flames stand taller and gutter
+//   "ready"   the dish is done and waits to be packed: a low flame under it
+//   "served"  the same low flame, the wok empty
 
 /**
  * mats: { steel, dark, darkOpen (double-sided, for the inside of the wok), paint (the gas
@@ -65,14 +68,29 @@ export function buildStove(THREE, mats, rnd = Math.random) {
     0,
   );
   wok.scale.y = 0.5;
-  const handle = mesh(
-    new THREE.BoxGeometry(0.34, 0.035, 0.05),
-    mats.dark,
-    0.66,
-    1.07,
-    0,
+  // a Cantonese wok: two ears and no handle (it is lifted with a towel)
+  for (const sx of [-1, 1]) {
+    const ear = new THREE.Mesh(
+      new THREE.TorusGeometry(0.07, 0.012, 6, 10, Math.PI),
+      mats.dark,
+    );
+    ear.position.set(sx * 0.53, 0, 0);
+    ear.rotation.set(-0.5 * sx, Math.PI / 2, 0);
+    ear.scale.y = 2; // (the wok's own squash, undone)
+    ear.castShadow = ear.receiveShadow = true;
+    wok.add(ear);
+  }
+  // what is in it while a dish is on: a heap of fried rice
+  const dish = new THREE.Mesh(
+    new THREE.SphereGeometry(0.3, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+    mats.paint,
   );
-  handle.rotation.z = 0.12;
+  dish.position.y = -0.4;
+  dish.scale.y = 0.75;
+  dish.castShadow = false;
+  dish.receiveShadow = true;
+  dish.visible = false;
+  wok.add(dish);
   // the gas bottle
   mesh(
     new THREE.CylinderGeometry(0.13, 0.13, 0.46, 12),
@@ -133,17 +151,21 @@ export function buildStove(THREE, mats, rnd = Math.random) {
     state = s;
     const lit = s !== "live";
     light.off = !lit;
+    wok.visible = s !== "toss";
+    dish.visible = s === "cook" || s === "due" || s === "ready";
   }
   function update(dt) {
     t += dt;
     const want =
-      state === "cook"
+      state === "cook" || state === "toss"
         ? 1
-        : state === "live"
-          ? 0
-          : state === "cutting"
-            ? 0.3
-            : 0.25;
+        : state === "due"
+          ? 1.25 + 0.2 * Math.sin(t * 11)
+          : state === "live"
+            ? 0
+            : state === "cutting"
+              ? 0.3
+              : 0.25;
     heat += (want - heat) * Math.min(1, dt * (want > heat ? 2.2 : 1.2));
     const flick = 0.75 + 0.25 * Math.sin(t * 17) * Math.sin(t * 7.3 + 1);
     // being lit: it catches and goes out again
@@ -155,7 +177,7 @@ export function buildStove(THREE, mats, rnd = Math.random) {
     // nothing over the rim until a dish is on; the low flame stays under the wok
     const over = Math.max(0, (heat - 0.3) / 0.7);
     fire.uniforms.uTime.value = t;
-    fire.uniforms.uHeat.value = over;
+    fire.uniforms.uHeat.value = Math.min(1.4, over);
     for (const m of tongues) m.visible = over > 0.02;
     light.gain = low * (0.25 + 0.75 * heat) * (0.7 + 0.3 * flick);
   }

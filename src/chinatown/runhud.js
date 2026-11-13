@@ -1,4 +1,5 @@
-// Run interface: the clock and course name, the wok-hei (experience) bar, seasoning chips,
+// Run interface: the course name and the dishes packed so far, what the dish on the stove
+// wants next, the wok-hei (experience) bar, seasoning chips,
 // the boss bar, pickup toasts, the weapons carried and the four pools of ammunition, and the
 // order tickets shown on a level-up (seasonings, a new weapon, or the fork of a weapon).
 // Plain DOM next to the game's own HUD; all wording comes from the locale files.
@@ -9,14 +10,6 @@ const el = (tag, cls, html) => {
   if (cls) e.className = cls;
   if (html !== undefined) e.innerHTML = html;
   return e;
-};
-const mmss = (s) => {
-  s = Math.max(0, Math.ceil(s));
-  return (
-    String(Math.floor(s / 60)).padStart(2, "0") +
-    ":" +
-    String(s % 60).padStart(2, "0")
-  );
 };
 const PIPS = (n, max) =>
   "<i></i>".repeat(Math.max(0, n)) +
@@ -30,11 +23,10 @@ export function createRunHud(G) {
   const clock = el(
     "div",
     "rl-clock",
-    '<span class="rl-stage"></span><b class="rl-time">00:00</b><em class="rl-surge"></em>',
+    '<span class="rl-stage"></span><span class="rl-bags"></span>',
   );
   const stageEl = clock.querySelector(".rl-stage");
-  const timeEl = clock.querySelector(".rl-time");
-  const surgeEl = clock.querySelector(".rl-surge");
+  const bagsEl = clock.querySelector(".rl-bags");
 
   const boss = el(
     "div",
@@ -44,8 +36,9 @@ export function createRunHud(G) {
   const cook = el(
     "div",
     "rl-cook",
-    '<span class="rl-cook-n"></span><div class="rl-cook-bar"><i></i></div>',
+    '<span class="rl-cook-n"></span><div class="rl-cook-bar"><i></i></div><div class="rl-cook-w"><i></i></div>',
   );
+  const cookWhole = cook.querySelector(".rl-cook-w i");
   const cookName = cook.querySelector(".rl-cook-n");
   const cookFill = cook.querySelector(".rl-cook-bar i");
   const bossName = boss.querySelector(".rl-boss-n");
@@ -101,9 +94,9 @@ export function createRunHud(G) {
   if (ammoBlock) ammoBlock.insertBefore(wlv, altLine || null);
 
   const last = {
-    time: "",
+    bags: "",
     stage: "",
-    surge: "",
+    cookWhole: -1,
     xp: -1,
     level: -1,
     wlv: "",
@@ -119,6 +112,7 @@ export function createRunHud(G) {
   let live = []; // toasts: { el, life }
   let open = null; // { cards, onPick }
   let stageKey = "";
+  let cookInfo = null;
   let spiceList = [];
   let bossKey = "";
   let weaponList = [];
@@ -256,28 +250,34 @@ export function createRunHud(G) {
     show(on) {
       root.classList.toggle("on", !!on);
     },
-    // secondsLeft < 0 hides the clock (boss fight and after)
-    setClock(secondsLeft, stage, surgeLeft) {
-      const t = secondsLeft >= 0 ? mmss(secondsLeft) : "";
-      if (t !== last.time) {
-        last.time = t;
-        timeEl.textContent = t;
-        clock.classList.toggle("late", secondsLeft >= 0 && secondsLeft < 30);
-      }
-      if (stage !== last.stage) {
-        last.stage = stage;
-        stageKey = stage;
-        stageEl.textContent = stage ? L10N.t("run.stage." + stage) : "";
-        clock.classList.remove("flash");
-        void clock.offsetWidth;
-        clock.classList.add("flash");
-      }
-      const s = surgeLeft > 0 ? String(Math.ceil(surgeLeft)) : "";
-      if (s !== last.surge) {
-        last.surge = s;
-        surgeEl.textContent = s ? L10N.t("run.surge.badge", { s }) : "";
-        clock.classList.toggle("surge", !!s);
-      }
+    // the course the meal is at ("" hides it: the boss fight and after)
+    setCourse(stage) {
+      if (stage === last.stage) return;
+      last.stage = stage;
+      stageKey = stage;
+      stageEl.textContent = stage ? L10N.t("run.stage." + stage) : "";
+      clock.classList.remove("flash");
+      void clock.offsetWidth;
+      clock.classList.add("flash");
+    },
+    // dishes packed so far, as takeaway bags: n of total (n < 0 hides them)
+    setBags(n, total) {
+      const key = n + "/" + total;
+      if (key === last.bags) return;
+      const more = last.bags && n > +last.bags.split("/")[0];
+      last.bags = key;
+      bagsEl.innerHTML =
+        n < 0
+          ? ""
+          : Array.from(
+              { length: total },
+              (_, i) =>
+                `<i class="${i < n ? "on" : ""}${more && i === n - 1 ? " new" : ""}"></i>`,
+            ).join("");
+      bagsEl.setAttribute(
+        "aria-label",
+        n < 0 ? "" : L10N.t("run.bags", { n, of: total }),
+      );
     },
     setXp(frac, level) {
       const f = Math.round(Math.max(0, Math.min(1, frac)) * 200) / 200;
@@ -315,24 +315,36 @@ export function createRunHud(G) {
       last.wlv = key;
       wlv.innerHTML = level > 0 ? PIPS(level, max) : "";
     },
-    // a dish on a stove: null, or { frac: how far along, away: the player has wandered off }
+    // The dish on a stove: null, or { phase, k, of, frac, whole, scorched }.
+    // phase: "toss" | "back" (tossed: the wok goes back on its stove) | "hold" | "away"
+    // (the stove is not being held) | "due" (it wants its next toss) | "ready" | "pack";
+    // k of `of`: which toss or hold; frac: how far through this step; whole: through the dish.
     setCook(info) {
       const on = !!info;
+      cookInfo = info;
       if (on !== last.cookOn) {
         last.cookOn = on;
         cook.classList.toggle("on", on);
       }
       if (!on) return;
-      const key = info.away ? "run.cook.away" : "run.cook.bar";
+      const key =
+        info.phase + ":" + info.k + (info.scorched ? "s" : "") + L10N.locale();
       if (key !== last.cookKey) {
         last.cookKey = key;
-        cookName.textContent = L10N.t(key);
-        cook.classList.toggle("away", !!info.away);
+        cookName.textContent =
+          L10N.t("run.cook." + info.phase, { k: info.k + 1, of: info.of }) +
+          (info.scorched ? "　" + L10N.t("run.cook.scorched") : "");
+        cook.className = "rl-cook on p-" + info.phase;
       }
       const f = Math.round(Math.max(0, Math.min(1, info.frac)) * 250) / 250;
       if (f !== last.cook) {
         last.cook = f;
         cookFill.style.transform = `scaleX(${f})`;
+      }
+      const w = Math.round(Math.max(0, Math.min(1, info.whole)) * 250) / 250;
+      if (w !== last.cookWhole) {
+        last.cookWhole = w;
+        cookWhole.style.transform = `scaleX(${w})`;
       }
     },
     // info: null or { key, frac }
@@ -399,7 +411,7 @@ export function createRunHud(G) {
       api.setWeapons([]);
       api.setPools([]);
       last.stage = "";
-      last.time = "";
+      last.bags = "";
       last.level = -1;
       last.xp = -1;
       last.wlv = "";
@@ -422,7 +434,8 @@ export function createRunHud(G) {
       stageEl.textContent = stageKey ? L10N.t("run.stage." + stageKey) : "";
       xpLabel.textContent = L10N.t("run.xp");
       if (bossKey) bossName.textContent = L10N.t(bossKey);
-      last.surge = "";
+      last.cookKey = "";
+      if (cookInfo) api.setCook(cookInfo);
       last.spices = "";
       last.weapons = "";
       last.pools = "";

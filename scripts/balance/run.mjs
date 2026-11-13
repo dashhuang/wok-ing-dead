@@ -1,5 +1,6 @@
-// A whole run of the set meal on the model: the timeline, the tickets, the envelopes, the
-// four pools of ammunition, the crates, the stoves and the house special, played by a
+// A whole run of the set meal on the model: the meal's clock and its courses, the tickets,
+// the envelopes, the four pools of ammunition, the crates, the three stoves (every dish
+// tossed, held and packed) and the house special that the third dish brings, played by a
 // simulated player. Thousands of them in a few seconds, each repeatable from its seed.
 //
 // The rules are the game's own (src/chinatown/runflow.js and runtune.js); what is assumed is
@@ -33,7 +34,15 @@ import {
   spawnKind,
   spawnGap,
   foodChance,
-  courseAt,
+  clockStep,
+  stoveCount,
+  newDish,
+  dishTake,
+  dishPack,
+  dishTossed,
+  dishHot,
+  dishStep,
+  dishGrade,
   dishOf,
   killXp,
   gainXp,
@@ -50,9 +59,18 @@ import {
  *   kite     share of walking speed spent keeping the dead at a distance
  *   tempo    share of the weapon's rate kept up (looking around, repositioning)
  *   collect  share of dropped packs picked up      crates   chance to go to a crate when short
- *   trip     seconds a trip to a crate takes       stoves   when a stove is lit (seconds)
- *   cases    when a weapon case is opened          build    "focus", "spread" or "random"
+ *   trip     seconds a trip to a crate takes       build    "focus", "spread" or "random"
+ *   cases    when a weapon case is opened (second of the street's time)
  *   fleeAt   share of health below which the player turns and runs to open the distance
+ * and how they cook. The house special only comes once the third dish is packed, so every
+ * profile lights all three stoves; one that did not would never finish (see LIMIT).
+ *   stoves   second of the street's time at which the player goes and lights each stove; when
+ *            the dish before it is still on by then, `rest` seconds after that one is served
+ *   rest     the breather between a dish served and the next stove lit
+ *   react    [a, b] seconds from the wok wanting its next toss (or the dish being ready to
+ *            pack) to the player being at the stove with it in hand
+ *   lapse    chance a toss is not noticed until the dish has caught (RUN.stove.burn)
+ *   carry    [a, b] seconds to walk the tossed wok back to its stove and set it down
  */
 export const PROFILES = {
   novice: {
@@ -66,7 +84,11 @@ export const PROFILES = {
     collect: 0.5,
     crates: 0.3,
     trip: 18,
-    stoves: [],
+    stoves: [180, 380, 580],
+    rest: 30,
+    react: [3, 8],
+    lapse: 0.2,
+    carry: [1.5, 3],
     cases: [240],
     fleeAt: 0.25,
     build: "random",
@@ -82,7 +104,11 @@ export const PROFILES = {
     collect: 0.7,
     crates: 0.7,
     trip: 14,
-    stoves: [150, 330],
+    stoves: [150, 330, 500],
+    rest: 20,
+    react: [2, 5],
+    lapse: 0.06,
+    carry: [1, 2],
     cases: [150],
     fleeAt: 0.35,
     build: "focus",
@@ -98,7 +124,11 @@ export const PROFILES = {
     collect: 0.7,
     crates: 0.7,
     trip: 14,
-    stoves: [150, 330],
+    stoves: [150, 330, 500],
+    rest: 20,
+    react: [2, 5],
+    lapse: 0.06,
+    carry: [1, 2],
     cases: [70, 150, 230, 310, 400],
     fleeAt: 0.35,
     build: "spread",
@@ -115,6 +145,10 @@ export const PROFILES = {
     crates: 0.95,
     trip: 11,
     stoves: [90, 250, 400],
+    rest: 12,
+    react: [1.5, 3],
+    lapse: 0,
+    carry: [0.5, 1.5],
     cases: [120],
     fleeAt: 0.4,
     build: "focus",
@@ -131,6 +165,10 @@ export const PROFILES = {
     crates: 0.95,
     trip: 11,
     stoves: [90, 250, 400],
+    rest: 12,
+    react: [1.5, 3],
+    lapse: 0,
+    carry: [0.5, 1.5],
     cases: [60, 130, 200, 280, 360],
     fleeAt: 0.4,
     build: "spread",
@@ -169,14 +207,21 @@ const WANT = {
   ],
 };
 const BUCKET = 30; // seconds per column of the pressure curves
-const LIMIT = 900; // a run that has not ended by now is counted as lost
+// The hard stop. Nothing on the street's own time ends a run any more: the house special
+// waits for the third dish, so a player who never packs it would go on for ever. A run still
+// going at twenty minutes, twice the length one is meant to have, is a "timeout" and
+// counted as lost.
+const LIMIT = 1200;
 
 /**
  * One run. o: { seed, profile (a key of PROFILES or an object), place, difficulty, device
  * ("desktop" | "phone"), unlocked ("start" | "all"), dt }.
- * Returns what happened: { outcome: "clear" | "dead" | "timeout", time, level, levelAt[],
- * picks, kills, weapons[], dry, pistol, hurt, packs: { dropped, taken, wasted }, curve: {
- * alive[], near[], hurt[] } by BUCKET seconds, boss: { at, health, seconds } }.
+ * Returns what happened: { outcome: "clear" | "dead" | "timeout", time (of the street),
+ * clock (of the meal), where (what was going on when it ended: "street", "dish" or "boss"),
+ * level, levelAt[], picks, kills, elites, weapons[], dry, pistol, hurt,
+ * packs: { dropped, taken, wasted }, stoves: { lit[], served[] (seconds), scorched (of the
+ * dishes served) }, curve: { alive[], near[], hurt[] } by BUCKET seconds, boss: { at,
+ * health, seconds, levels (level-ups before it arrived) } or null }.
  */
 export function simulateRun(o = {}) {
   const prof =
@@ -199,7 +244,8 @@ export function simulateRun(o = {}) {
     regenRate: PLAYER.regenRate * RUN.heal.regen,
   });
   const R = {
-    t: 0,
+    t: 0, // the street's time
+    clock: 0, // the meal's: the courses are read at this one (runflow.js, clockStep)
     xp: 0,
     level: 0,
     pending: 0,
@@ -226,7 +272,6 @@ export function simulateRun(o = {}) {
     ),
     trip: null,
     asked: false, // already decided about a crate for this shortage
-    busy: 0, // seconds spent on a siren's switch
     flee: false, // running to get away
     fleeT: 0,
     fleeCool: 0,
@@ -235,16 +280,24 @@ export function simulateRun(o = {}) {
     eliteN: 0,
     boss: null,
     bossSeen: false,
+    bossDue: Infinity, // set when the third dish is packed
     bossAt: 0,
     bossHealth: 0,
+    bossLevel: 0,
     summonT: 0,
-    cook: null, // the dish on a stove: { t, course, heat, elite }
+    cook: null, // the dish on a stove (runflow.js, newDish)
     lit: 0,
     served: 0,
+    scorched: 0, // of the dishes served
+    litAt: [],
+    servedAt: [],
+    handAt: 0, // when the player is at the stove for the toss that is due, or to pack
+    homeAt: 0, // when the tossed wok is back at its stove
+    restUntil: 0, // no stove is lit before this
     menu: [], // dealt below, once the helpers exist
     bonusHealth: 0,
     bonusCap: 0,
-    stoves: prof.stoves.slice(),
+    stoves: prof.stoves.slice(0, stoveCount()),
     cases: prof.cases.slice(0, RUN.cases.count),
     dry: 0,
     pistol: 0,
@@ -569,7 +622,7 @@ export function simulateRun(o = {}) {
     return null;
   }
   F.onKill = (z) => {
-    R.pending += gainXp(R, killXp(z.rank, z.type, !!R.cook));
+    R.pending += gainXp(R, killXp(z.rank, z.type, dishHot(R.cook)));
     const A = RUN.ammo;
     const boost = 1 + spiceValue("takeout", R.spice.takeout);
     if (z.rank === "elite") {
@@ -620,6 +673,21 @@ export function simulateRun(o = {}) {
   };
   let hurtNow = 0;
   F.onHurt = (d) => (hurtNow += d);
+  // A flip of the wok: fire out in front of the cook. The model has no directions, so the
+  // dead within range are taken to be spread over the half-circle the cook is facing, and
+  // the cone catches its share of that. As in the game the "fire" seasoning counts and the
+  // weapon in hand does not; what is left standing burns, paid at once as the seasonings' is.
+  function flare() {
+    const L = RUN.stove.toss.flare;
+    const share = Math.min(1, (2 * L.half) / Math.PI);
+    const dmg = L.damage * (1 + spiceValue("fire", R.spice.fire));
+    const burn = L.burn * STATUS.burn.dps * STATUS.burn.time;
+    for (const z of F.zombies.slice())
+      if (z.alive && !(z.sleep > 0) && z.d <= L.range && rng() < share) {
+        F.shove(z, L.knock);
+        if (!F.damage(z, dmg)) F.damage(z, burn);
+      }
+  }
 
   // ---------- the run
   take("pistol");
@@ -638,13 +706,18 @@ export function simulateRun(o = {}) {
   while (!R.outcome && R.t < LIMIT) {
     R.t += dt;
     const t = R.t;
-    // ---- the timeline
+    // ---- the meal's clock, and what it brings
+    R.clock = clockStep(R.clock, dt, {
+      lit: R.lit,
+      served: R.served,
+      cooking: dishHot(R.cook),
+    });
     R.spawnT -= dt;
     if (R.spawnT <= 0) {
-      const st = stageAt(t, place);
+      const st = stageAt(R.clock, place);
       const { every, cap: most } = spawnPace(st, diff, {
-        cooking: !!R.cook,
-        heat: R.cook ? R.cook.heat : 0,
+        cooking: dishHot(R.cook),
+        heat: R.cook ? R.cook.n : 0,
         crowd,
         room,
       });
@@ -669,11 +742,13 @@ export function simulateRun(o = {}) {
         R.spawnT = spawnGap(every, rng());
       }
     }
-    if (!R.bossSeen && t >= R.eliteAt && t <= RUN.bossAt - 20) {
+    // timed elites, on the street's time: not while a dish is on, and none once the third
+    // is served (the house special is next)
+    if (!R.cook && R.served < stoveCount() && t >= R.eliteAt) {
       riseElite();
       R.eliteAt += place.eliteEvery || RUN.elite.every;
     }
-    if (!R.bossSeen && t >= RUN.bossAt) {
+    if (!R.bossSeen && t >= R.bossDue) {
       const B = RUN.boss;
       const s = zombieStats("brute", true);
       R.boss = F.add({
@@ -687,6 +762,7 @@ export function simulateRun(o = {}) {
       });
       R.bossSeen = true;
       R.bossAt = t;
+      R.bossLevel = R.level;
       R.bossHealth = F.player.hp / F.player.maxHp;
       if (B.heal) F.player.hp = F.player.maxHp;
       R.summonT = B.summonEvery * 0.6;
@@ -733,48 +809,76 @@ export function simulateRun(o = {}) {
         );
       else envelope();
     }
-    // ---- the stoves: light one, hold the place until the dish is up
-    if (R.stoves.length && t >= R.stoves[0] && !R.bossSeen && !R.cook) {
+    // ---- the stoves: light one, toss, hold the place, toss again, pack
+    // not where the stoves are: off to a crate, or running to open the distance
+    const gone = !!R.trip || R.flee;
+    if (
+      R.stoves.length &&
+      !R.cook &&
+      !gone &&
+      t >= Math.max(R.stoves[0], R.restUntil)
+    ) {
       R.stoves.shift();
-      R.cook = {
-        t: 0,
-        course: Math.min(courseAt(t), RUN.stove.heal.length - 1),
-        heat: R.lit,
-        elite: false,
-      };
+      R.cook = newDish(R.lit); // in hand at once: the first toss
       R.lit++;
+      R.litAt.push(t);
       R.spawnT = 0;
-      R.busy = 3;
       // every wanderer in the street smells it
       for (const z of F.zombies) if (z.alive) z.dull = false;
     }
     if (R.cook) {
       const c = R.cook;
       const K = RUN.stove;
-      c.t += dt;
-      if (
-        !c.elite &&
-        c.course >= K.eliteFrom &&
-        c.t >= K.seconds / 2 &&
-        !R.bossSeen
-      ) {
-        c.elite = true;
-        riseElite();
-        R.eliteAt = Math.max(R.eliteAt, t + K.eliteHold);
+      if (!gone && t >= R.handAt) {
+        if (c.phase === "due") dishTake(c);
+        else if (c.phase === "ready") dishPack(c);
       }
-      if (c.t >= K.seconds) {
-        R.cook = null;
-        R.served++;
-        const d = dishOf(R.menu.shift() || RUN.dishes[0], c.course);
-        const P = F.player;
-        R.bonusHealth += d.health;
-        R.bonusCap += d.cap;
-        applySpice();
-        P.hp = d.full ? P.maxHp : Math.min(P.maxHp, P.hp + P.maxHp * d.heal);
-        if (d.refill) for (const k of AMMO_TYPES) R.pools[k] = cap(k);
-        for (let i = 0; i < d.envelopes; i++) R.envelopes.push(t + 2 + i);
+      const events = dishStep(c, dt, {
+        // a trip to a crate is out of the stove's radius; running a few seconds from the
+        // dead is taken to stay inside it (thirteen metres is most of the crossing)
+        near: !R.trip,
+        home: dishTossed(c) && !gone && t >= R.homeAt,
+      });
+      for (const e of events) {
+        if (e === "flip") flare();
+        else if (e === "tossed") R.homeAt = t + rand(...prof.carry);
+        else if (e === "down") R.spawnT = 0;
+        else if (e === "packs")
+          for (let n = 0; n < K.packs[c.k]; n++) {
+            const d = far();
+            for (let i = 0; i < RUN.pack.size; i++)
+              rise("pack", { d: d + i * 0.6 });
+          }
+        else if (e === "elite") {
+          riseElite();
+          R.eliteAt = Math.max(R.eliteAt, t + K.eliteHold);
+        } else if (e === "due")
+          R.handAt =
+            t +
+            (rng() < prof.lapse ? K.burn + rand(0, 8) : rand(...prof.react));
+        else if (e === "ready") R.handAt = t + rand(...prof.react);
+        else if (e === "served") {
+          R.cook = null;
+          R.served++;
+          R.servedAt.push(t);
+          if (c.scorched) R.scorched++;
+          const d = dishOf(R.menu.shift() || RUN.dishes[0], dishGrade(c));
+          const P = F.player;
+          R.bonusHealth += d.health;
+          R.bonusCap += d.cap;
+          applySpice();
+          P.hp = d.full ? P.maxHp : Math.min(P.maxHp, P.hp + P.maxHp * d.heal);
+          if (d.refill) for (const k of AMMO_TYPES) R.pools[k] = cap(k);
+          for (let i = 0; i < d.envelopes; i++) R.envelopes.push(t + 2 + i);
+          R.eliteAt = Math.max(R.eliteAt, t + RUN.stove.eliteAfter);
+          R.restUntil = t + prof.rest;
+          if (R.served >= stoveCount()) R.bossDue = t + RUN.boss.after;
+        }
       }
     }
+    // the wok is in both hands (a toss, the walk back) or the dish is being packed
+    const wok =
+      !!R.cook && (R.cook.phase === "toss" || R.cook.phase === "pack");
     // ---- the tickets
     while (R.pending > 0) {
       serve(pickCard(rollCards()));
@@ -784,7 +888,6 @@ export function simulateRun(o = {}) {
     // ---- which weapon, and whether to go for a crate
     R.hold = Math.max(0, R.hold - dt);
     R.stick = Math.max(0, R.stick - dt);
-    R.busy = Math.max(0, R.busy - dt);
     const M = main();
     const kind = M && ARMS[M.id].ammo;
     const short = !!kind && R.pools[kind] < cap(kind) * RUN.ammo.lowAt;
@@ -800,18 +903,18 @@ export function simulateRun(o = {}) {
         }
         R.trip = null;
       }
-    } else if (short && !R.asked) {
+    } else if (short && !R.asked && !wok) {
       R.asked = true;
       const c = R.crates.find((x) => x.stocked && x.kind === kind);
       if (c && rng() < prof.crates) R.trip = { crate: c, left: prof.trip };
     }
-    if (R.hold <= 0) choose();
+    if (R.hold <= 0 && !wok) choose();
     if (M && !usable(M.id)) R.dry += dt;
     if (R.cur === "pistol" && carried().length) R.pistol += dt;
     // ---- the fight
     let near = null;
     for (const z of F.zombies) if (z.alive && (!near || z.d < near.d)) near = z;
-    const blade = model(R.cur).kind === "melee";
+    const blade = model(R.cur).kind === "melee" && !wok;
     const speed = PLAYER.walk * (1 + spiceValue("runner", R.spice.runner));
     // a dish on a stove ties the player to the spot: less room to back away
     const away = R.trip ? 1 : prof.kite * (R.cook ? 0.6 : 1);
@@ -836,7 +939,11 @@ export function simulateRun(o = {}) {
     let awake = false;
     for (const z of F.zombies) if (z.alive && !z.dull) awake = true;
     const stroll =
-      !awake && near && near.dull && near.d > model(R.cur).reach * 0.8;
+      !awake &&
+      !R.cook &&
+      near &&
+      near.dull &&
+      near.d > model(R.cur).reach * 0.8;
     const ctx = {
       skill: prof,
       mods: mods(),
@@ -855,7 +962,8 @@ export function simulateRun(o = {}) {
               : 0,
       flee,
       fire: R.hold <= 0,
-      tempo: prof.tempo * (flee ? 0.2 : R.trip ? 0.35 : R.busy > 0 ? 0.3 : 1),
+      hands: !wok,
+      tempo: prof.tempo * (flee ? 0.2 : R.trip ? 0.35 : 1),
     };
     F.step(dt, ctx);
     if (!F.player.alive) R.outcome = "dead";
@@ -883,10 +991,13 @@ export function simulateRun(o = {}) {
   return {
     outcome: R.outcome,
     time: R.t,
+    clock: R.clock,
+    where: R.bossSeen ? "boss" : R.cook ? "dish" : "street",
     level: R.level,
     levelAt: R.levelAt,
     picks: R.picks,
     kills: F.stats.kills,
+    elites: R.eliteN,
     spice: { ...R.spice },
     weapons: R.order.map((id) => {
       const it = R.inv.get(id);
@@ -897,6 +1008,7 @@ export function simulateRun(o = {}) {
     hurt: F.stats.taken,
     eaten: R.eaten,
     served: R.served,
+    stoves: { lit: R.litAt, served: R.servedAt, scorched: R.scorched },
     health: F.player.hp / F.player.maxHp,
     packs: { dropped: R.dropped, taken: R.taken, wasted: R.wasted },
     curve: {
@@ -909,6 +1021,7 @@ export function simulateRun(o = {}) {
           at: R.bossAt,
           health: R.bossHealth,
           seconds: R.outcome === "clear" ? R.t - R.bossAt : null,
+          levels: R.bossLevel,
         }
       : null,
   };
@@ -930,8 +1043,12 @@ const mean = (list) =>
  * (median second of those who died), clearAt, level (median at the end), levelAt[] (median
  * second of each level-up among runs that got there), picks, kills, dry, pistol, hurt,
  * wasted (share of rolls that came to nothing), curve: { alive[], near[], hurt[] } means,
- * deaths[] (share of all runs that died in each BUCKET), weapons (mean number carried),
- * top (mean highest weapon level), bossSeconds }.
+ * deaths[] (share of all runs that died in each BUCKET), running[] (share still going in
+ * it), deadIn: { street, dish, boss } (share of all runs that died there), weapons (mean number carried), top (mean highest weapon level), bossSeconds, and of
+ * the meal: litAt[], servedAt[] (median second of each stove among runs that got there),
+ * lit[], dished[] (share of runs that did), scorched (share of the dishes served), elites
+ * (mean number met), and among the runs that saw the house special: bossAt (median second
+ * of the street's time), bossLevels (median level-ups before it), bossElites }.
  */
 export function simulateMany(o = {}, n = 200) {
   const runs = [];
@@ -947,6 +1064,9 @@ export function simulateMany(o = {}, n = 200) {
         .map((r) => r.curve[key][i]),
     );
   const levels = Math.max(...runs.map((r) => r.levelAt.length));
+  const seen = runs.filter((r) => r.boss);
+  const stoves = Array.from({ length: stoveCount() }, (_, i) => i);
+  const dishes = runs.reduce((a, r) => a + r.served, 0);
   return {
     n,
     clear: share("clear"),
@@ -971,6 +1091,27 @@ export function simulateMany(o = {}, n = 200) {
     hurt: mean(runs.map((r) => (r.hurt * 60) / r.time)),
     eaten: mean(runs.map((r) => r.eaten)),
     served: mean(runs.map((r) => r.served)),
+    litAt: stoves.map((i) =>
+      median(runs.map((r) => r.stoves.lit[i]).filter((v) => v !== undefined)),
+    ),
+    lit: stoves.map(
+      (i) => runs.filter((r) => r.stoves.lit[i] !== undefined).length / n,
+    ),
+    servedAt: stoves.map((i) =>
+      median(
+        runs.map((r) => r.stoves.served[i]).filter((v) => v !== undefined),
+      ),
+    ),
+    dished: stoves.map(
+      (i) => runs.filter((r) => r.stoves.served[i] !== undefined).length / n,
+    ),
+    scorched: dishes
+      ? runs.reduce((a, r) => a + r.stoves.scorched, 0) / dishes
+      : null,
+    elites: mean(runs.map((r) => r.elites)),
+    bossAt: median(seen.map((r) => r.boss.at)),
+    bossLevels: median(seen.map((r) => r.boss.levels)),
+    bossElites: median(seen.map((r) => r.elites)),
     healthAtEnd: mean(cleared.map((r) => r.health)),
     wasted: mean(
       runs.map(
@@ -980,7 +1121,7 @@ export function simulateMany(o = {}, n = 200) {
     weapons: mean(runs.map((r) => r.weapons.length - 1)),
     top: mean(runs.map((r) => Math.max(...r.weapons.map((w) => w.level)))),
     bossSeconds: median(cleared.map((r) => r.boss.seconds)),
-    bossReached: runs.filter((r) => r.boss).length / n,
+    bossReached: seen.length / n,
     curve: {
       alive: Array.from({ length: cols }, (_, i) => col("alive", i)),
       near: Array.from({ length: cols }, (_, i) => col("near", i)),
@@ -991,17 +1132,34 @@ export function simulateMany(o = {}, n = 200) {
       (_, i) =>
         dead.filter((r) => Math.floor(r.time / BUCKET) === i).length / n,
     ),
+    deadIn: Object.fromEntries(
+      ["street", "dish", "boss"].map((w) => [
+        w,
+        dead.filter((r) => r.where === w).length / n,
+      ]),
+    ),
+    running: Array.from(
+      { length: cols },
+      (_, i) => runs.filter((r) => r.curve.alive[i] !== undefined).length / n,
+    ),
   };
 }
-export { BUCKET };
+export { BUCKET, LIMIT };
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const n = +(process.argv[2] || 200);
   const t0 = Date.now();
+  const sec = (v) => (v == null ? "-" : v.toFixed(0));
   for (const key of Object.keys(PROFILES)) {
     const r = simulateMany({ profile: key }, n);
     console.log(
-      `${PROFILES[key].name.padEnd(10)} clear ${(r.clear * 100).toFixed(0).padStart(3)}%  dead ${(r.dead * 100).toFixed(0).padStart(3)}% @${r.deathAt ? r.deathAt.toFixed(0) : "-"}s  level ${r.level}  picks ${r.picks.toFixed(1)}  kills ${r.kills.toFixed(0)}  dry ${(r.dry * 100).toFixed(0)}%  pistol ${(r.pistol * 100).toFixed(0)}%  hurt/min ${r.hurt.toFixed(0)}  weapons ${r.weapons.toFixed(1)} top ${r.top.toFixed(1)}  boss ${r.bossSeconds ? r.bossSeconds.toFixed(0) + "s" : "-"}`,
+      `${PROFILES[key].name.padEnd(10)} clear ${(r.clear * 100).toFixed(0).padStart(3)}%  dead ${(r.dead * 100).toFixed(0).padStart(3)}% @${sec(r.deathAt)}s  timeout ${(r.timeout * 100).toFixed(0)}%  level ${r.level}  picks ${r.picks.toFixed(1)}  kills ${r.kills.toFixed(0)}  dry ${(r.dry * 100).toFixed(0)}%  pistol ${(r.pistol * 100).toFixed(0)}%  hurt/min ${r.hurt.toFixed(0)}  weapons ${r.weapons.toFixed(1)} top ${r.top.toFixed(1)}`,
+    );
+    console.log(
+      `   stoves lit ${r.litAt.map(sec).join(" ")}  served ${r.servedAt.map(sec).join(" ")} (${r.dished.map((v) => (v * 100).toFixed(0) + "%").join(" ")})  scorched ${r.scorched == null ? "-" : (r.scorched * 100).toFixed(0) + "%"}  elites ${r.elites.toFixed(1)}`,
+    );
+    console.log(
+      `   boss seen ${(r.bossReached * 100).toFixed(0)}% @${sec(r.bossAt)}s after ${r.bossLevels ?? "-"} level-ups, fight ${sec(r.bossSeconds)}s, clear @${sec(r.clearAt)}s`,
     );
     console.log("   alive", r.curve.alive.map((v) => v.toFixed(0)).join(" "));
     console.log("   levelAt", r.levelAt.join(" "));

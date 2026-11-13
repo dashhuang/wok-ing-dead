@@ -22,7 +22,7 @@ export default {
 
   "title.unit": "Open all night",
   "title.premise":
-    "The dead have taken Chinatown and your truck is nine minutes out. Kills build wok hei and add to your order; rounds have to be scavenged, red envelopes fought for. Last until the House Special is served, put it down, then get out through the east checkpoint.",
+    "The dead have taken Chinatown and your truck will not come until three takeaway orders are packed. Kills build wok hei and add to your order; rounds have to be scavenged, red envelopes fought for. Light the three stoves, cook and pack all three dishes and the House Special is served. Put it down, then get out through the east checkpoint.",
   "title.note": "Best served hot. Headphones recommended.",
   "title.mode": "Your order",
   "title.difficulty": "Spice level",
@@ -39,7 +39,7 @@ export default {
   "mode.mission": "Set menu",
   "mode.holdout": "All-you-can-eat",
   "modeNote.mission":
-    "A ten-minute sitting. Keep adding to the order until the House Special arrives.",
+    "Three stoves, three bags to go. Cook, pack, then the House Special.",
   "modeNote.holdout":
     "Waves keep coming until you can't. Refills between rounds.",
   "diff.standard": "Mild",
@@ -228,11 +228,11 @@ export default {
   "compass.315": "NW",
 
   "radio.intro":
-    "Night Watch, this is Lantern. Chinatown is lost; the truck reaches the checkpoint in nine minutes. The dead in the street have not noticed you yet. Three street stoves still work: light one and the smell brings them all. Hold out until the dish is up and it is yours. Ammo is in the lit supply crates.",
+    "Night Watch, this is Lantern. Chinatown is lost; the truck is holding outside the checkpoint and moves in once you have three takeaway orders. The dead in the street have not noticed you yet. Three street stoves still work: light one and the smell brings them all. Each dish takes three tosses of the wok, and you cannot shoot with it in your hands. Set it back, hold the stove, and after the third toss pack it up. Ammo is in the lit supply crates.",
   "radio.contact":
     "They have your scent. Head shots put them down. Do not let them close.",
   "radio.cut1":
-    "The stove is lit. The whole street can smell it — here they come. Stay by it, don't let the dish go cold.",
+    "The stove is lit and the wok is in your hands. Toss it, set it back, hold the stove. The whole street can smell it — here they come.",
   "radio.cut2": "Second stove. Every doorway is spilling them out.",
   "radio.all":
     "All three silent. The truck is at the east checkpoint, engine running. Move.",
@@ -277,9 +277,8 @@ export default {
   "run.elite.warn": "Heavy plate — {dir}",
   "run.boss.warn": "House Special — {dir}",
   "run.boss.name": "The House Special",
-  "run.obj.survive": "Hold out until the truck arrives",
   "run.obj.boss": "Put down the House Special",
-  "run.obj.locked": "The truck is not here yet — hold on",
+  "run.obj.locked": "The orders are not ready — cook all three dishes first",
   "run.cards.title": "Add to order",
   "run.cards.rec": "Chef's pick",
   "run.cards.hint.keys": "Click a ticket, or press 1 2 3",
@@ -311,8 +310,32 @@ export default {
   "run.card.ammo.d": "Full ammo",
   "run.toast.ammo": "+{n} {a}",
   "radio.served": "Order up! While it's hot.",
-  "run.cook.bar": "Cooking — stay by the stove",
   "run.cook.away": "Back to the stove — it's going cold",
+  "run.obj.light": "Light a stove — {n} orders to go",
+  "run.obj.tossing": "Toss the wok — no weapon, keep moving",
+  "run.obj.back": "Set the wok back on its stove",
+  "run.obj.hold": "Hold the stove",
+  "run.obj.toss": "Back to the stove — toss it before it burns",
+  "run.obj.pack": "Back to the stove — pack the order",
+  "run.obj.bossDue": "Three orders up — it has caught the smell",
+  "run.prompt.toss": "Toss the wok",
+  "run.prompt.pack": "Pack the order",
+  "run.cook.toss": "Toss {k}/{of}",
+  "run.cook.back": "Tossed — set it back on the stove",
+  "run.cook.hold": "Hold the stove {k}/{of}",
+  "run.cook.due": "Toss {k} is due — it will burn",
+  "run.cook.ready": "Done — pack it at the stove",
+  "run.cook.pack": "Packing",
+  "run.cook.scorched": "scorched",
+  "run.toast.tossed": "Tossed — set the wok back on its stove",
+  "run.toast.due": "Time to toss the wok",
+  "run.toast.scorched": "Scorched — this order drops a grade",
+  "run.dish.scorched": "A little scorched — this order paid less",
+  "run.mark.wok": "WOK",
+  "run.bags": "Orders {n}/{of}",
+  "radio.ready": "That's three tosses. Back to the stove and pack it up.",
+  "radio.lastDish":
+    "That's all three. The big one has caught the smell and is on its way. Get ready.",
   "run.dish.soup": "Order up — slow broth — full health, max +{n}",
   "run.dish.stock": "Order up — stock — ammo full, capacity +{n}%",
   "run.dish.lucky": "Order up — lucky money — {n} red envelopes",
@@ -458,11 +481,11 @@ export default {
     "Serve one full set meal on Golden Dragon St. and the docks branch opens.",
   "stage.loading": "Moving the kitchen…",
   "title.premise@docks":
-    "The dead came in off the boats and the docks are theirs. Your boat is nine minutes out. Same menu, more open ground: they see you from further and more of them run. Last until the House Special is served, put it down, then get to the mooring at the south-east quay.",
+    "The dead came in off the boats and the docks are theirs. Your boat will not come until three takeaway orders are packed. Same menu, more open ground: they see you from further and more of them run. Light the three stoves, cook and pack all three dishes and the House Special is served. Put it down, then get to the mooring at the south-east quay.",
   "radio.intro@docks":
-    "Warden, this is Lantern Control. The docks are lost. Your boat reaches the south-east quay in nine minutes. Stay alive until then — count your rounds; lit supply crates are stocked, and the colour of the lamp is the kind of ammunition.",
+    "Warden, this is Lantern Control. The docks are lost. Your boat will not put in at the south-east quay until you have three takeaway orders. There are three stoves in the yard: toss each dish three times, hold the stove, pack it up. Count your rounds; lit supply crates are stocked, and the colour of the lamp is the kind of ammunition.",
   "radio.cut1@docks":
-    "The stove is lit. The whole yard can smell it — here they come. Stay by it, don't let the dish go cold.",
+    "The stove is lit and the wok is in your hands. Toss it, set it back, hold the stove. The whole yard can smell it — here they come.",
   "radio.cut2@docks":
     "Second stove. They're pouring out from behind every stack.",
   "radio.all@docks":
@@ -472,6 +495,4 @@ export default {
     "The boat is here — and so is the big one that followed it. Put it down and the mooring is yours.",
   "radio.bossDown@docks":
     "It is down. The boat is at the south-east quay. Move.",
-  "run.obj.survive@docks": "Hold out until the boat arrives",
-  "run.obj.locked@docks": "The boat is not here yet — hold on",
 };

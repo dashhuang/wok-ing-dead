@@ -1066,26 +1066,53 @@ kbd {
   text-transform: var(--caps);
   color: var(--jade);
 }
-.rl-time {
-  font: 800 26px/1 var(--f-num);
-  font-stretch: 75%;
-  font-variant-numeric: tabular-nums;
+/* the dishes packed so far: three takeaway bags, filled in as each is carried off */
+.rl-bags {
+  display: flex;
+  gap: 7px;
+  align-items: flex-end;
 }
-.rl-time:empty {
+.rl-bags:empty {
   display: none;
 }
-.rl-clock.late .rl-time {
-  color: var(--brass);
+.rl-bags i {
+  position: relative;
+  display: block;
+  width: 17px;
+  height: 15px;
+  margin-top: 7px;
+  border: 1.5px solid var(--line-2);
+  border-radius: 2px 2px 4px 4px;
+  background: rgba(7, 8, 10, 0.45);
 }
-.rl-surge {
-  font: 700 11px/1 var(--f-ui);
-  font-style: normal;
-  letter-spacing: var(--trk-s);
-  text-transform: var(--caps);
-  color: var(--cinnabar-hot);
+/* the two loops it is carried by */
+.rl-bags i::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: -7px;
+  height: 6px;
+  border: 1.5px solid var(--line-2);
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
 }
-.rl-surge:empty {
-  display: none;
+.rl-bags i.on {
+  border-color: var(--brass);
+  background: var(--brass);
+  box-shadow: 0 0 8px rgba(232, 195, 124, 0.55);
+}
+.rl-bags i.on::before {
+  border-color: var(--brass);
+}
+.rl-bags i.new {
+  animation: bag-in 0.7s var(--ease-out);
+}
+@keyframes bag-in {
+  from {
+    transform: translateY(-14px) scale(1.7) rotate(-14deg);
+    opacity: 0;
+  }
 }
 .rl-clock.flash .rl-stage {
   animation: objflash 0.6s var(--ease-out);
@@ -1163,7 +1190,23 @@ kbd {
   transform-origin: 0 50%;
   transition: transform 0.12s linear;
 }
-.rl-cook.away .rl-cook-n {
+/* under it, thin: how far through the whole dish */
+.rl-cook-w {
+  height: 2px;
+  margin-top: 3px;
+  background: rgba(7, 8, 10, 0.45);
+  overflow: hidden;
+}
+.rl-cook-w i {
+  display: block;
+  height: 100%;
+  background: var(--jade);
+  transform-origin: 0 50%;
+  transition: transform 0.2s linear;
+}
+/* the stove is not being held, or the wok has waited too long: it wants the cook back */
+.rl-cook.p-away .rl-cook-n,
+.rl-cook.p-due .rl-cook-n {
   color: var(--cinnabar-hot);
   animation: cook-away 0.7s ease-in-out infinite alternate;
 }
@@ -1172,10 +1215,24 @@ kbd {
     opacity: 0.45;
   }
 }
-.rl-cook.away .rl-cook-bar i {
+.rl-cook.p-away .rl-cook-bar i,
+.rl-cook.p-due .rl-cook-bar i {
   background: var(--cinnabar-hot);
   box-shadow: none;
+}
+.rl-cook.p-away .rl-cook-bar i {
   opacity: 0.6;
+}
+/* tossed, or done: something to carry back or to pack */
+.rl-cook.p-back .rl-cook-n,
+.rl-cook.p-ready .rl-cook-n {
+  color: var(--jade);
+  animation: cook-away 0.9s ease-in-out infinite alternate;
+}
+.rl-cook.p-back .rl-cook-bar i,
+.rl-cook.p-ready .rl-cook-bar i {
+  background: var(--jade);
+  box-shadow: 0 0 8px rgba(120, 200, 160, 0.6);
 }
 .rl.pick .rl-cook,
 .rl.wheel .rl-cook {

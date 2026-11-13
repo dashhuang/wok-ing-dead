@@ -7,9 +7,9 @@
 // only the weapon in hand.
 
 export const RUN = {
-  bossAt: 540,
-  // Courses of the meal. Between one entry and the next the numbers slide from the first
-  // value to the second: alive = how many may be up at once, every = seconds between spawns,
+  bossAt: 540, // on the meal's clock (see `simmer` below): where the last course begins
+  // Courses of the meal, by the meal's clock. Between one entry and the next the numbers
+  // slide from the first value to the second: alive = how many may be up at once, every = seconds between spawns,
   // runner = share of walkers that sprint, brute = share of heavies, bloater = share that burst.
   // quiet: what rises does not come for the player; it wanders the street (ZOMBIES.wander)
   // until someone comes close, hurts it or fires nearby.
@@ -196,6 +196,7 @@ export const RUN = {
     packs: 2,
   },
   boss: {
+    after: 5, // seconds between the third dish being packed and its arrival
     heal: true, // full health when it arrives
     scale: 1.6,
     damage: 1.6,
@@ -215,20 +216,44 @@ export const RUN = {
     // ends the run.
     hurt: 22,
   },
-  // The three street stoves. Lighting one puts a dish on: wok hei fills the street and the
-  // dead come for it until the dish is served. All three can be lit from the start, in any
-  // order; the later the course a dish is started in, the larger the crowd it draws and the
-  // better it is.
+  // The three street stoves, and the meal's clock.
+  //
+  // The courses above are read at the meal's clock, not the street's. It keeps the street's
+  // time while a dish is on a stove and runs at `simmer` of it otherwise, and at the end of
+  // a course it waits for the stove that begins the next: lighting the first, second and
+  // third stove begins the second, third and fourth course, and the house special (the last
+  // course, at `bossAt`) comes `boss.after` seconds after the third dish is packed. So the
+  // street gets hotter with every stove, and only slowly for a player who lights none.
+  simmer: 0.5,
+  // One dish is three tosses of the wok, a spell of holding the stove after each, then
+  // packing. To toss, the wok is taken off the fire in both hands (through a towel): no
+  // weapon while it is up, but the cook may walk, and every flip throws fire out in front.
+  // Once tossed it has to go back on its stove, and the dead come for the smell of it until
+  // the hold is over. Left waiting for its second or third toss too long, the dish catches:
+  // it is still served, one grade worse.
   stove: {
-    seconds: 40, // of cooking, counted only while the player stays within `radius` of it
-    radius: 13,
+    radius: 13, // a hold counts only while the player is within this of the stove
+    toss: {
+      seconds: 3, // of tossing, wok in hands
+      flips: 3, // flips in that time
+      reach: 2.6, // how near the stove the wok is taken up, and set down again once tossed
+      // what a flip does to the dead in front of the cook: within `range` metres and `half`
+      // radians of where the cook looks, `damage`, `burn` stacks of fire and a shove
+      flare: { range: 4.2, half: 0.8, damage: 45, burn: 2, knock: 0.7 },
+    },
+    hold: [20, 25, 30], // seconds of holding the place after the first, second, third toss
+    packs: [0, 2, 0], // packs of the fast dead a hold opens with,
+    elite: [false, false, true], // and whether an elite comes with it
+    burn: 15, // seconds the wok may wait for its second or third toss before the dish catches
+    pack: 2.6, // seconds of packing the finished dish (hands full again)
     every: 0.5, // while a dish is on: the spawn interval is multiplied by this,
     alive: 6, // this many more may be up at once,
-    xp: 2, // and a kill pays this many times the wok hei
+    xp: 1, // and a kill pays this many times the wok hei (the crowd is its own reward now)
     hotter: { every: 0.85, alive: 3 }, // and again for every stove lit before this one
-    eliteFrom: 1, // from this course on (0 is the first) an elite turns up half-way through
-    eliteHold: 45, // the next timed elite is put off at least this long after it
-    // What every dish gives. Lists are by the course the dish was started in.
+    eliteHold: 45, // the next timed elite is put off at least this long after a dish's own
+    eliteAfter: 20, // and at least this long after a dish is packed
+    // What every dish gives. Lists are by its grade: which stove it is (0-2), one better
+    // when it never caught.
     heal: [0.3, 0.4, 0.5, 0.6], // share of full health
     envelopes: 1,
     // The three specials: one to a stove, dealt at random every run and not shown beforehand.

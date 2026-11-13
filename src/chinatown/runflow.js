@@ -8,7 +8,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const pair = (v, t) => (Array.isArray(v) ? lerp(v[0], v[1], t) : v);
 
 /**
- * The course at second t of a run, with its sliding numbers worked out:
+ * The course at second t of the meal's clock (see clockStep), with its sliding numbers worked out:
  * { id, quiet, alive, every, runner, brute, bloater, pack }. place: an entry of RUN.places.
  */
 export function stageAt(t, place = {}) {
@@ -46,8 +46,8 @@ export function crowdOf(walkers) {
 
 /**
  * The pace of spawning at this moment: { every, cap }. stage: from stageAt; diff: an entry of
- * RUN.difficulty; cooking: a dish is on a stove; heat: how many stoves were lit before that
- * one; crowd, room: from crowdOf.
+ * RUN.difficulty; cooking: a dish is on a stove and still drawing the dead (dishHot); heat:
+ * how many stoves were lit before that one; crowd, room: from crowdOf.
  */
 export function spawnPace(
   stage,
@@ -152,7 +152,7 @@ export function foodChance(type, health, boost = 1) {
   return base * boost * (health < H.lowAt ? H.hurtBoost : 1);
 }
 
-/** Which course second t falls in, counted from 0 (the house special's own is the last). */
+/** Which course second t of the meal's clock falls in, counted from 0 (the house special's own is the last). */
 export function courseAt(t) {
   const st = RUN.stages;
   let i = st.length - 1;
@@ -160,14 +160,176 @@ export function courseAt(t) {
   return i;
 }
 
+// ---------- the meal's clock
+// The courses are read at this clock, not at the street's. Every stove lit begins the next
+// course; between stoves the clock only simmers, and it never runs into a course whose
+// stove has not been lit. The third dish packed puts it at the house special.
+
+/** How many stoves a run has: every course between the first and the last begins with one. */
+export const stoveCount = () => RUN.stages.length - 2;
+
 /**
- * What a dish served from a stove gives. dish: one of RUN.dishes; course: the course it was
- * started in. Returns { heal (share of full health), envelopes, health (added to the
+ * The clock dt seconds on. lit: stoves lit so far; served: dishes packed; cooking: a dish is
+ * on a stove.
+ */
+export function clockStep(
+  clock,
+  dt,
+  { lit = 0, served = 0, cooking = false } = {},
+) {
+  const st = RUN.stages;
+  const last = st.length - 1;
+  if (served >= stoveCount()) return Math.max(clock, st[last].at) + dt;
+  const from = st[Math.min(lit, last - 1)].at;
+  const until = st[Math.min(lit + 1, last)].at - 0.01;
+  return Math.min(
+    until,
+    Math.max(clock, from) + dt * (cooking ? 1 : RUN.simmer),
+  );
+}
+
+// ---------- a dish on a stove
+// Three tosses, a hold after each, then packing. The phases, in order:
+//   "due"   the wok waits on the stove for toss k (after too long the dish catches)
+//   "toss"  the wok is in the cook's hands; once tossed it has to be set down on its stove
+//   "hold"  it is back on the fire and the place has to be held
+//   "ready" three tosses done: waiting to be packed
+//   "pack"  being packed            "done" served
+// dishStep moves it on and says what happened; taking the wok up and starting to pack are
+// the cook's to do (dishTake, dishPack).
+
+/** A dish just put on. n: which stove of the run this is (0 the first). It starts in hand. */
+export function newDish(n = 0) {
+  return {
+    n,
+    phase: "toss",
+    k: 0, // which toss (0-2) is due, in hand or being held after
+    t: 0, // seconds into the phase
+    wait: 0, // seconds the wok has waited for its toss
+    flips: 0, // flips made in this toss
+    scorched: false,
+    away: false, // the place is not being held: the cook has wandered off
+  };
+}
+
+/** The cook takes the wok up for the toss that is due. */
+export function dishTake(c) {
+  if (c.phase !== "due") return false;
+  c.phase = "toss";
+  c.t = 0;
+  c.flips = 0;
+  return true;
+}
+
+/** The cook starts packing a finished dish. */
+export function dishPack(c) {
+  if (c.phase !== "ready") return false;
+  c.phase = "pack";
+  c.t = 0;
+  return true;
+}
+
+/** The wok has had its toss and waits to be set down on its stove. */
+export const dishTossed = (c) =>
+  c.phase === "toss" && c.t >= RUN.stove.toss.seconds;
+
+/** The dish draws the dead (the stove's extra crowd, the doubled wok hei): until its last hold is over. */
+export const dishHot = (c) =>
+  !!c && (c.phase === "due" || c.phase === "toss" || c.phase === "hold");
+
+/**
+ * One step of a dish. near: the cook is within RUN.stove.radius of the stove; home: within
+ * RUN.stove.toss.reach of it. Returns what happened, in order:
+ *   "flip"      the wok was flipped (fire goes out in front of the cook)
+ *   "tossed"    the toss is done: the wok can go back
+ *   "down"      it is back on the stove and the hold begins; with it "packs" and "elite" when
+ *               that hold opens with them
+ *   "due"       the hold is over: the next toss is wanted
+ *   "scorched"  it waited too long
+ *   "ready"     the last hold is over: it can be packed
+ *   "served"    packed
+ */
+export function dishStep(c, dt, { near = true, home = true } = {}) {
+  const K = RUN.stove;
+  const ev = [];
+  c.away = false;
+  if (c.phase === "due") {
+    c.wait += dt;
+    if (c.k > 0 && !c.scorched && c.wait >= K.burn) {
+      c.scorched = true;
+      ev.push("scorched");
+    }
+  } else if (c.phase === "toss") {
+    const T = K.toss;
+    if (c.t < T.seconds) {
+      c.t = Math.min(T.seconds, c.t + dt);
+      // each flip lands a little before the middle of its share of the toss
+      const due = Math.min(
+        T.flips,
+        Math.max(0, Math.floor((c.t / T.seconds) * T.flips + 0.55)),
+      );
+      while (c.flips < due) {
+        c.flips++;
+        ev.push("flip");
+      }
+      if (c.t >= T.seconds) ev.push("tossed");
+    }
+    if (c.t >= T.seconds && home) {
+      c.phase = "hold";
+      c.t = 0;
+      ev.push("down");
+      if (K.packs[c.k]) ev.push("packs");
+      if (K.elite[c.k]) ev.push("elite");
+    }
+  } else if (c.phase === "hold") {
+    if (near) c.t += dt;
+    else c.away = true;
+    if (c.t >= K.hold[c.k]) {
+      c.k++;
+      c.t = 0;
+      c.wait = 0;
+      if (c.k < K.hold.length) {
+        c.phase = "due";
+        ev.push("due");
+      } else {
+        c.phase = "ready";
+        ev.push("ready");
+      }
+    }
+  } else if (c.phase === "pack") {
+    c.t += dt;
+    if (c.t >= K.pack) {
+      c.phase = "done";
+      ev.push("served");
+    }
+  }
+  return ev;
+}
+
+/** How far along a dish is, 0-1, over its tosses and holds (packing is not counted). */
+export function dishFrac(c) {
+  const K = RUN.stove;
+  const total = K.hold.reduce((a, b) => a + b + K.toss.seconds, 0);
+  let done = 0;
+  for (let i = 0; i < Math.min(c.k, K.hold.length); i++)
+    done += K.hold[i] + K.toss.seconds;
+  if (c.phase === "toss") done += Math.min(c.t, K.toss.seconds);
+  else if (c.phase === "hold") done += K.toss.seconds + c.t;
+  return Math.min(1, done / total);
+}
+
+/** The grade of a dish (0-3): which stove it is, one better when it never caught. */
+export const dishGrade = (c) =>
+  Math.min(RUN.stove.heal.length - 1, c.n + (c.scorched ? 0 : 1));
+
+/**
+ * What a dish gives when it is packed. dish: one of RUN.dishes; grade: from dishGrade.
+ * Returns { heal (share of full health), envelopes, health (added to the
  * maximum), cap (added to the room in every pool, as a share), refill, full }.
  */
-export function dishOf(dish, course) {
+export function dishOf(dish, grade) {
   const S = RUN.stove;
-  const at = (list) => list[Math.min(course, list.length - 1)];
+  const at = (list) => list[Math.max(0, Math.min(grade, list.length - 1))];
   const out = {
     heal: at(S.heal),
     envelopes: S.envelopes,
