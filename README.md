@@ -8,7 +8,7 @@
 
 本项目基于从 https://claude.ai/artifact/BGY1SztrAYcJQHSsnHHGmp 提取的浏览器 FPS「Saltline」（下载日期 2026-11-11），
 保留原版的渲染、武器、输入和任务框架，把场景从集装箱码头换成唐人街，把敌人从机器人换成僵尸，并重做了名称、界面和文案。
-目前只有金龙街地图；旧的 `?lvl=harbor` 链接也会进入唐人街。
+目前只有金龙街地图；旧的 `?lvl=harbor` 链接也会进入唐人街。港区场景的[可读参考代码](references/saltline-harbor/README.md)和 `upstream/artifact.html` 原始发布包均保留。
 
 ## 开始开发
 

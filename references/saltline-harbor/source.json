@@ -1,0 +1,12 @@
+{
+  "artifact": "https://claude.ai/artifact/BGY1SztrAYcJQHSsnHHGmp",
+  "original": "../../upstream/artifact.html",
+  "originalSha256": "b346ad3a5f4ee697a95439c3f9ba1a4d4b600719e3918e72147883541b7c0883",
+  "snapshotCommit": "cd2a4b4acc64e08b81b415c34dc5a0792500e814",
+  "snapshotFile": "src/game.js",
+  "sections": [
+    "Level: playable layout, objectives and spawn points",
+    "Backdrop: cranes, ships and skyline"
+  ],
+  "note": "Readable snapshot of the game harbor scene before removal; includes project adaptations. The original published artifact remains unchanged in upstream."
+}
