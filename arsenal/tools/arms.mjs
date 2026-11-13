@@ -1,5 +1,6 @@
-// How comfortably the arms hold each weapon form: how far past its limits the wrist is bent
-// (radians), at rest and at the worst moment while firing, using the special move and reloading.
+// How comfortably the arms hold each weapon form: how far the wrist is bent at rest (degrees:
+// the support hand's should be under 40), how far past its limits it is (radians) at rest and
+// at the worst moment while firing, using the special move and reloading.
 //
 //   node arsenal/tools/arms.mjs [--only id,id]
 //
@@ -58,8 +59,11 @@ for (const id of ids) {
         };
         lab.advance(0.6, 1 / 60, false);
         const hold = {};
-        for (const s of ["right", "left"])
+        const bend = {};
+        for (const s of ["right", "left"]) {
           hold[s] = A[s].group.visible ? A[s].ik.violation : -1;
+          bend[s] = Math.hypot(A[s].ik.wristFlex, A[s].ik.wristDeviation);
+        }
         note("hold");
         c.press("fire");
         step(40, "fire");
@@ -75,14 +79,14 @@ for (const id of ids) {
             ? "reload " + c.weapon.reload.toFixed(2)
             : "idle",
         );
-        return { hold, worst };
+        return { hold, bend, worst };
       },
       [id, b],
     );
     const hand = (s) => {
       const w = r.worst[s];
       return (
-        `${s[0].toUpperCase()} hold ${r.hold[s] < 0 ? "  - " : r.hold[s].toFixed(2)} worst ${w.v.toFixed(2)}` +
+        `${s[0].toUpperCase()} hold ${r.hold[s] < 0 ? "  - " : r.hold[s].toFixed(2)}${r.hold[s] < 0 ? "" : ` bent ${String(Math.round((r.bend[s] * 180) / Math.PI)).padStart(2)}°`} worst ${w.v.toFixed(2)}` +
         (w.v > 0.02
           ? ` @${w.at} (flex ${w.flex.toFixed(2)} dev ${w.dev.toFixed(2)} twist ${w.twist.toFixed(2)})`
           : "") +

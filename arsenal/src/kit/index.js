@@ -139,6 +139,8 @@ export function createKit() {
    *                pose: "pistol" | "cradle" | "wrap" | { base, r, index, thumb, ... },  // see kit/hands.js
    *                trigger: true,      // index finger follows the trigger
    *                parent: node,       // ride a moving part (pump, lever, bolt handle)
+   *                give: [a, b],       // optional: how far the hand may turn on this grip to keep
+   *                                    // its wrist straight (rad): about the palm, round the handle
    *                elbow: [x,y,z] }    // optional elbow position in view space
    *     view: { hip: { pos, rot }, ads: { pos, rot } },   // camera-space pose of the gun origin
    *     show: { yaw, pitch, dist, target: [x,y,z] },      // default showcase framing
@@ -207,6 +209,7 @@ export function createKit() {
           anchor: o,
           pose: g.pose || "wrap",
           trigger: !!g.trigger,
+          give: g.give || null,
           elbow: g.elbow || null,
           away: 0,
           alts,

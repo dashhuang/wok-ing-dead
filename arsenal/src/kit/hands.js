@@ -36,6 +36,32 @@ const LEAN_ANGLE = 0.9,
 const POLE_STEPS = 24,
   POLE_BIAS = 0.12,
   POLE_STICK = 0.05;
+// A wrist inside its limits is not yet a comfortable wrist: the game's limits let it bend
+// seventy or eighty degrees, and a hand at a right angle to its forearm looks broken long
+// before it is. So the bend itself is a strain, free up to a relaxed angle and growing with
+// the square of what is past it: [free (rad), weight] for bending forward or back, for
+// tilting to the thumb or little-finger side (a wrist has far less of that), and for the
+// forearm's twist.
+const EASE = { flex: [0.3, 1.1], dev: [0.14, 2.2], twist: [0.9, 0.6] };
+// (and what is past the limits counts double: easing the bend must not be paid for by
+// wringing the forearm round further than it goes)
+const PAST = 2;
+// This is the support hand's: the trigger hand is where the weapon's grip puts it, with a
+// finger on the trigger, and its arm is judged by its limits alone as before.
+const EASED = { left: true, right: false };
+// An elbow that has found its place should not leave it for a little gain somewhere far
+// round the circle (it would swing through worse on the way): what a new place costs, per
+// unit of 1 - cos of the angle from where the elbow is now.
+const POLE_TRAVEL = 0.2;
+// And a hand on a weapon is not bolted to it. It may turn a little where it lies to take the
+// kink out of the wrist: about the palm (the fingers cross the fore-end at more or less of a
+// slant) and round the thing it holds (the palm slides from under it towards its side).
+// [turn about the palm, slide round the handle] in radians, at most, for each hand: the
+// trigger hand stays exactly where the weapon put it. A grip can set its own with `give`.
+const GIVE = { left: [0.3, 0.45], right: [0, 0] };
+const GIVE_STEP = 0.06, // how far it looks to either side each frame
+  GIVE_COST = [0.6, 0.3], // what turning away from the grip as drawn costs (per rad squared)
+  HANDLE = 0.022; // palm to the middle of what it holds (m): what the slide goes round
 
 // ---------------------------------------------------------------- poses
 // fingers: [knuckle, middle joint, end joint, spread] in radians (0 = straight, ~1.5 = fully bent)
@@ -233,7 +259,26 @@ const _m = new THREE.Matrix4(),
   _base = new V3(),
   _perp = new V3(),
   _eyeInv = new THREE.Matrix4(),
-  _e = new THREE.Euler();
+  _e = new THREE.Euler(),
+  _qg = new THREE.Quaternion(),
+  _qt = new THREE.Quaternion(),
+  _core = new V3(),
+  _off = new V3();
+const AXIS_X = new V3(1, 0, 0),
+  AXIS_Y = new V3(0, 1, 0);
+const over = (v, free) => Math.max(0, Math.abs(v) - free);
+/** How hard a solved arm is on its wrist: past its limits, and how far from relaxed inside them. */
+function strain(ik) {
+  const f = over(ik.wristFlex, EASE.flex[0]),
+    d = over(ik.wristDeviation, EASE.dev[0]),
+    t = over(ik.twist, EASE.twist[0]);
+  return (
+    PAST * ik.violation +
+    EASE.flex[1] * f * f +
+    EASE.dev[1] * d * d +
+    EASE.twist[1] * t * t
+  );
+}
 // where a hand goes when it lets go of the weapon (reloading, weapon thrown): eye space
 const AWAY_VIEW = {
   right: new V3(0.3, -0.52, -0.16),
@@ -316,6 +361,8 @@ export function createArms(kit) {
   const away = { right: 0, left: 0 };
   const joints = { right: new Float32Array(20), left: new Float32Array(20) };
   const poles = { right: new V3(), left: new V3() };
+  // how far each hand has turned on its grip to ease its wrist: [about the palm, round the handle]
+  const gives = { right: [0, 0], left: [0, 0] };
   let last = null;
 
   const mixPose = (a, b, e) => {
@@ -380,73 +427,153 @@ export function createArms(kit) {
       _p.lerp(AWAY_VIEW[side], e);
       _q.slerp(AWAY_TURN[side], e);
     }
-    // the hand bone: turned round from grip space, its wrist behind the palm
-    _qh.copy(_q).multiply(GRIP_TO_BONE);
-    _wrist.copy(PALM_BONE).applyQuaternion(_qh).negate().add(_p);
+    const hurt = EASED[side] ? strain : (r) => r.violation;
+    // The hand bone: turned round from grip space, its wrist behind the palm. The hand may
+    // have turned a little on its grip (see GIVE): about the palm, and round the middle of
+    // what it holds, which stays where it is.
+    _core.set(0, -HANDLE, 0).applyQuaternion(_q).add(_p);
+    const handAt = (yaw, roll) => {
+      _qg.copy(_q);
+      if (yaw) _qg.multiply(_qt.setFromAxisAngle(AXIS_Y, yaw));
+      if (roll) _qg.multiply(_qt.setFromAxisAngle(AXIS_X, roll));
+      _qh.copy(_qg).multiply(GRIP_TO_BONE);
+      _off.set(0, -HANDLE, 0).applyQuaternion(_qg);
+      _wrist.copy(PALM_BONE).applyQuaternion(_qh).negate().add(_core).sub(_off);
+    };
+    const give = gives[side];
+    const lim = grip.give || GIVE[side];
+    // (a hand that has let go has nothing to turn on)
+    const free = o.mode === "fp" ? 1 - k * k * (3 - 2 * k) : 1;
+    const maxYaw = lim[0] * free,
+      maxRoll = lim[1] * free;
+    const clampGive = () => {
+      give[0] = Math.max(-maxYaw, Math.min(maxYaw, give[0]));
+      give[1] = Math.max(-maxRoll, Math.min(maxRoll, give[1]));
+    };
+    if (o.snap) give[0] = give[1] = 0;
+    clampGive();
+    handAt(give[0], give[1]);
+    const pole = poles[side];
+    _eyeInv.copy(eye).invert();
+    // (the showcase has no eye, but its arms are placed as the shooter's would be, so they are
+    // judged from where the shooter's eye would be and come out the same as in first person)
+    const seen = (e) => inView(_el.copy(e).applyMatrix4(_eyeInv));
     // Shoulder. A weapon is often held further out than the arm is long. The shoulder then
     // comes forward (the shooter leans in) and sinks, staying on its own side of the body, so
     // the arm still reaches in from the lower corner on its side: the upper arm and elbow
     // stay under the frame and the forearm rises into the picture at a slant.
-    _sh.fromArray(GH.SHOULDER[side]);
-    _eyeInv.copy(eye).invert();
-    _w.copy(_wrist).applyMatrix4(_eyeInv); // wrist in eye space (x right, y up, -z forward)
-    const far = _sh.distanceTo(_w) - REACH;
-    if (far > 0) {
-      const dx = _w.x - _sh.x;
-      if (Math.abs(dx) < REACH * 0.92) {
-        // on the circle of reach behind and below the wrist: from the angle the shoulder
-        // already sits at below the hand, towards LEAN_ANGLE as the reach gets longer
-        const rho = Math.sqrt(REACH * REACH - dx * dx);
-        const a0 = Math.atan2(_w.y - _sh.y, _sh.z - _w.z);
-        const a = a0 + Math.max(0, LEAN_ANGLE - a0) * sat(far / LEAN_OVER);
-        _sh.y = _w.y - rho * Math.sin(a);
-        _sh.z = _w.z + rho * Math.cos(a);
-      } else {
-        // a hand far out to the side: nothing for it but to follow
-        _sh.y -= Math.min(0.4, 1.2 * far);
-        _sh.sub(_w).setLength(REACH).add(_w);
+    const shoulder = () => {
+      _sh.fromArray(GH.SHOULDER[side]);
+      _w.copy(_wrist).applyMatrix4(_eyeInv); // wrist in eye space (x right, y up, -z forward)
+      const far = _sh.distanceTo(_w) - REACH;
+      if (far > 0) {
+        const dx = _w.x - _sh.x;
+        if (Math.abs(dx) < REACH * 0.92) {
+          // on the circle of reach behind and below the wrist: from the angle the shoulder
+          // already sits at below the hand, towards LEAN_ANGLE as the reach gets longer
+          const rho = Math.sqrt(REACH * REACH - dx * dx);
+          const a0 = Math.atan2(_w.y - _sh.y, _sh.z - _w.z);
+          const a = a0 + Math.max(0, LEAN_ANGLE - a0) * sat(far / LEAN_OVER);
+          _sh.y = _w.y - rho * Math.sin(a);
+          _sh.z = _w.z + rho * Math.cos(a);
+        } else {
+          // a hand far out to the side: nothing for it but to follow
+          _sh.y -= Math.min(0.4, 1.2 * far);
+          _sh.sub(_w).setLength(REACH).add(_w);
+        }
       }
-    }
-    _sh.applyMatrix4(eye);
-    // Elbow. It points out and down by default, as the game has it, but a hand turned palm-up
-    // under a fore-end (or far over on its side) needs the elbow somewhere else or the wrist is
-    // bent past what a wrist can do. So the elbow is swung round the shoulder-wrist line to
-    // where the wrist is most comfortable, staying near the default when there is little in
-    // it, and it moves there smoothly.
-    const pole = poles[side];
-    _axis.subVectors(_wrist, _sh).normalize();
-    _base.fromArray(GH.DEFAULT_POLE[side]).transformDirection(eye);
-    _base.addScaledVector(_axis, -_base.dot(_axis)).normalize();
-    _perp.crossVectors(_axis, _base);
+      _sh.applyMatrix4(eye);
+      _axis.subVectors(_wrist, _sh).normalize();
+      _base.fromArray(GH.DEFAULT_POLE[side]).transformDirection(eye);
+      _base.addScaledVector(_axis, -_base.dot(_axis)).normalize();
+      _perp.crossVectors(_axis, _base);
+    };
+    shoulder();
     if (o.snap || pole.lengthSq() < 0.5) pole.copy(_base);
     pole.addScaledVector(_axis, -pole.dot(_axis)).normalize();
     // (the first solve of the frame also tells the arm how far the wrist has moved, which its
     // own follow-through in update() feeds on, so update() comes straight after it)
-    // (the showcase has no eye, but its arms are placed as the shooter's would be, so they are
-    // judged from where the shooter's eye would be and come out the same as in first person)
-    const seen = (e) => inView(_el.copy(e).applyMatrix4(_eyeInv));
     let ik = arm.solve(_sh, _wrist, _qh, pole, null);
-    const before =
-      ik.violation + POLE_BIAS * (1 - pole.dot(_base)) + seen(ik.elbow);
     arm.update(dt);
-    let best = before - POLE_STICK,
-      bestC = 2,
-      bestS = 0;
-    for (let i = 0; i < POLE_STEPS; i++) {
-      const a = (i / POLE_STEPS) * Math.PI * 2,
-        c = Math.cos(a),
-        sn = Math.sin(a);
-      _pole.copy(_base).multiplyScalar(c).addScaledVector(_perp, sn);
-      ik = arm.solve(_sh, _wrist, _qh, _pole, null);
-      const score = ik.violation + POLE_BIAS * (1 - c) + seen(ik.elbow);
-      if (score < best) ((best = score), (bestC = c), (bestS = sn));
-    }
-    if (bestC <= 1) {
+    // Elbow. It points out and down by default, as the game has it, but a hand turned palm-up
+    // under a fore-end (or far over on its side) needs the elbow somewhere else or the wrist is
+    // bent further than a wrist likes. So the elbow is swung round the shoulder-wrist line to
+    // where the wrist is easiest, staying near the default when there is little in it.
+    const swing = (rate, travel) => {
+      ik = arm.solve(_sh, _wrist, _qh, pole, null);
+      let best =
+          hurt(ik) +
+          POLE_BIAS * (1 - pole.dot(_base)) +
+          seen(ik.elbow) -
+          POLE_STICK,
+        bestC = 2,
+        bestS = 0;
+      for (let i = 0; i < POLE_STEPS; i++) {
+        const a = (i / POLE_STEPS) * Math.PI * 2,
+          c = Math.cos(a),
+          sn = Math.sin(a);
+        _pole.copy(_base).multiplyScalar(c).addScaledVector(_perp, sn);
+        ik = arm.solve(_sh, _wrist, _qh, _pole, null);
+        const score =
+          hurt(ik) +
+          POLE_BIAS * (1 - c) +
+          seen(ik.elbow) +
+          travel * (1 - _pole.dot(pole));
+        if (score < best) ((best = score), (bestC = c), (bestS = sn));
+      }
+      if (bestC > 1) return;
       _pole.copy(_base).multiplyScalar(bestC).addScaledVector(_perp, bestS);
-      pole.lerp(_pole, o.snap ? 1 : Math.min(1, dt * 14));
+      pole.lerp(_pole, rate);
       // (straight through the middle when the target is opposite: step sideways instead)
       if (pole.lengthSq() < 1e-4) pole.copy(_perp);
       pole.normalize();
+    };
+    // The hand. With the elbow where it is, would the wrist be easier if the hand lay a
+    // little differently on the weapon? One small step each way about the palm and round the
+    // handle; it goes towards whichever is best, and pays for how far it has turned.
+    const settle = (rate) => {
+      if (!(maxYaw > 0 || maxRoll > 0)) return;
+      const at = (yaw, roll) => {
+        handAt(yaw, roll);
+        const r = arm.solve(_sh, _wrist, _qh, pole, null);
+        return (
+          hurt(r) +
+          seen(r.elbow) +
+          GIVE_COST[0] * yaw * yaw +
+          GIVE_COST[1] * roll * roll
+        );
+      };
+      let best = at(give[0], give[1]) - 0.004,
+        by = give[0],
+        br = give[1];
+      for (const [dy, dr] of [
+        [GIVE_STEP, 0],
+        [-GIVE_STEP, 0],
+        [0, GIVE_STEP],
+        [0, -GIVE_STEP],
+      ]) {
+        const y = Math.max(-maxYaw, Math.min(maxYaw, give[0] + dy)),
+          r = Math.max(-maxRoll, Math.min(maxRoll, give[1] + dr));
+        if (y === give[0] && r === give[1]) continue;
+        const c = at(y, r);
+        if (c < best) ((best = c), (by = y), (br = r));
+      }
+      give[0] += (by - give[0]) * rate;
+      give[1] += (br - give[1]) * rate;
+      handAt(give[0], give[1]);
+      shoulder();
+      pole.addScaledVector(_axis, -pole.dot(_axis)).normalize();
+    };
+    if (o.snap) {
+      // a weapon just taken up: find the pose at once instead of drifting into it
+      for (let i = 0; i < 14; i++) {
+        swing(1, 0);
+        settle(1);
+      }
+    } else {
+      const rate = Math.min(1, dt * 14);
+      swing(rate, EASED[side] ? POLE_TRAVEL : 0);
+      settle(Math.min(1, dt * 10));
     }
     arm.solve(_sh, _wrist, _qh, pole, null);
     // fingers
@@ -487,5 +614,8 @@ export function createArms(kit) {
     setVisible(v) {
       group.visible = !!v;
     },
+    /** How far each hand has turned on its grip to ease its wrist (for checks and tuning). */
+    give: gives,
+    strain,
   };
 }
