@@ -11,6 +11,7 @@
 //   node arsenal/scripts/check-data.mjs
 import { WEAPONS, EXISTING, LEVELS } from "../src/data/weapons.js";
 import { BEHAVIOURS } from "../src/combat/behaviours.js";
+import { FEEL } from "../src/data/feel.js";
 import { RUN } from "../../src/chinatown/runtune.js";
 import { AMMO, ARMS, MAX_LEVEL, ammoPer } from "../../src/chinatown/loadout.js";
 import ZH from "../../src/i18n/locales/zh-CN.js";
@@ -25,6 +26,15 @@ for (const w of WEAPONS) {
     continue;
   }
   const spec = beh.spec("base", 1);
+  // how it handles (data/feel.js): a blade needs its bite, a stream its shudder
+  const feel = FEEL[w.id];
+  if (!feel) bad(`${w.id}: has no handling in data/feel.js`);
+  else if (spec.kind === "melee" && !feel.melee)
+    bad(`${w.id}: a blade without "melee" in data/feel.js`);
+  else if (spec.kind === "stream" && !feel.stream)
+    bad(`${w.id}: a stream without "stream" in data/feel.js`);
+  else if (spec.kind === "gun" && !(feel.ref > 0))
+    bad(`${w.id}: no "ref" in data/feel.js`);
   const f = w.fire;
   if (spec.kind === "gun") {
     if (spec.rpm !== f.rpm)

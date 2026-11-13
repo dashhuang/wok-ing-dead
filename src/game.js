@@ -66552,6 +66552,8 @@ void main() {
       for (let i of Object.keys(ctAudio.SOUNDS))
         ctAudio.SOUNDS[i].defer && lE.add(i);
       Ez.splice(Ez.indexOf("impact_concrete"), 0, ...ctAudio.ORDER);
+      // the armoury's weapons report the way the two stock guns do (see VOICES there)
+      ctAudio.VOICES && Object.assign(ji.weapon, ctAudio.VOICES);
     } catch (i) {
       ((ctAudio = null),
         console.warn("[audio] chinatown audio module unavailable", i));
@@ -67052,7 +67054,7 @@ void main() {
         pe = e.currentTime;
       ((Y = ae),
         (X = pe),
-        (ze[ie] = (ze[ie] + 1 + (s() < 0.25 ? 1 : 0)) % ae.n),
+        (ze[ie] = ((ze[ie] || 0) + 1 + (s() < 0.25 ? 1 : 0)) % ae.n),
         je(ae.shot, { variant: ze[ie], gain: ae.gain, jitter: 0.012 }));
       for (let Ce of Ge)
         if (Ce.ch.src === Ce.src)
@@ -67063,9 +67065,14 @@ void main() {
       let Ee = se,
         Me = Q6(pe - re),
         Ie = (Ce, Ye) => {
-          if (Ye < 0.05) return;
+          if (!Ce || Ye < 0.05) return;
           let rt = ae.tail * Ye,
-            Be = je(Ce, { gain: rt * Me, jitter: 0.02, noDefer: !0 });
+            Be = je(Ce, {
+              gain: rt * Me,
+              jitter: 0.02,
+              noDefer: !0,
+              pitch: ae.tailPitch || 1,
+            });
           if (Be && Me < 0.999) {
             try {
               Be.g.gain.setTargetAtTime(rt, Be.start + ji.tailBoostAfter, 0.03);
@@ -67717,6 +67724,10 @@ void main() {
         resume: ve,
         play: ke,
         loop: Ke,
+        // the report of a weapon in ji.weapon, with its echo and the ambience ducked under it
+        shot(ie) {
+          o() && ji.weapon[ie] && Le(ie);
+        },
         update: we,
         ready: v,
         selfTest: Ae,
@@ -79329,7 +79340,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
             b.flash && (b.flash.visible = !1),
             (E.ads = E.ext.ads || 0),
             (E.state = E.ext.reloading ? "reloading" : "idle"),
-            (E.spread = 0.02));
+            (E.spread = E.ext.spread ?? 0.02));
           return;
         }
       }

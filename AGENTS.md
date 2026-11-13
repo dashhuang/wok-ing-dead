@@ -73,7 +73,8 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
     岔路说明文字里的数字是手写的，改岔路的数值时一起改。
   - `docs/weapons-roguelike.md` 由 `node arsenal/scripts/design-doc.mjs` 生成，改数据不改文档；改了武器数据或这几张表之后重新生成。
 - **套餐的数值**只改 `src/chinatown/runtune.js` 的 `RUN` 和 `loadout.js` 的 `AMMO` / `ARMS`；僵尸的数值改 `zombietune.js`；
-  每级伤害倍率改 `arsenal/src/data/levels.js`；状态和反应的数字改 `arsenal/src/data/status.js`。用户定下的四条不要动：
+  每级伤害倍率改 `arsenal/src/data/levels.js`；状态和反应的数字改 `arsenal/src/data/status.js`；
+  后坐力、镜头上抬、散布扩张、近战顿挫这些手感改 `arsenal/src/data/feel.js`（`node arsenal/scripts/feel-report.mjs` 看换算后的幅度）。用户定下的四条不要动：
   弹药必须捡、弹药分四种、武器不限数量、红包只升手上那把。
 - **调数值看 [docs/balance.md](docs/balance.md)**：现在只调微辣（中辣和变态辣在菜单上锁着，`src/settings.js` 的 `openDifficulties`）。
   改了上面任何一张数值表或 `runflow.js` 的规则，运行 `npm run balance` 并把 `docs/balance-report.md` 一起提交，

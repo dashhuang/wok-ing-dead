@@ -23,6 +23,7 @@ import { RUN, spiceVars } from "./runtune.js";
 import { ZOMBIES, EXTRA_BODIES } from "./zombietune.js";
 import { STATUS } from "../../arsenal/src/data/status.js";
 import { LEVELS } from "../../arsenal/src/data/levels.js";
+import { FEEL } from "../../arsenal/src/data/feel.js";
 
 const esc = (s) =>
   String(s).replace(
@@ -282,6 +283,12 @@ export function createRange(G, c) {
   const TABLES = [
     ["状态与反应", "arsenal/src/data/status.js", "STATUS", STATUS],
     ["每级伤害倍率", "arsenal/src/data/levels.js", "LEVELS", LEVELS],
+    [
+      "手感（后坐、镜头、散布、近战顿挫）",
+      "arsenal/src/data/feel.js",
+      "FEEL",
+      FEEL,
+    ],
     [
       "僵尸",
       "src/chinatown/zombietune.js",

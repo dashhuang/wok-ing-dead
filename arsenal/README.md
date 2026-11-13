@@ -36,7 +36,8 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
 | 内容 | 唯一的出处 |
 | --- | --- |
 | 每种形态开火做什么，伤害、弹匣、射速、换弹时间 | `src/combat/behaviours.js` |
-| 输入、后坐、换弹、近战、投掷、范围伤害 | `src/combat/combat.js`（本体用的是同一个控制器） |
+| 输入、换弹、近战、投掷、范围伤害 | `src/combat/combat.js`（本体用的是同一个控制器） |
+| 手感：后坐、镜头上抬、散布扩张、喷射抖动、近战顿挫 | 数字在 `src/data/feel.js`，模型在 `src/combat/recoil.js` |
 | 伤害结算、四种状态、四种反应、精英和关底的抗性、附魔调料怎么触发 | `src/combat/status.js`，数字在 `src/data/status.js` |
 | 每级的伤害倍率 | `src/data/levels.js` |
 | 调料的层数和数值、对武器的作用 | 本体的 `src/chinatown/runtune.js` |
@@ -68,7 +69,9 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
   比如给喷火器加一层陈醋看爆燃）。拿近战武器时靶子会自动站近。
 - **尸潮**：16 只僵尸从巷子尽头一批批走过来，血量、速度、每下伤害、出手节奏和受击硬直读的就是本体的僵尸数值表，
   走到跟前会打人，屏幕泛红并计入「受伤」。武器数值就是在这个模式下校的，见设计文档的「尸潮下的数值」。
-- **声音**：顶部「声音」开关。枪声、换弹的每一下、近战、爆炸、落雷、持续的火焰和电弧声全部用 WebAudio 现场合成，没有音频文件；浏览器要求先点一下页面才会出声。
+- **声音**：顶部「声音」开关。枪声、换弹的每一下、近战、爆炸、落雷、持续的火焰和电弧声全部是合成的，没有音频文件；浏览器要求先点一下页面才会出声。
+  每个声音是 `src/audio/sounds.js` 里的一个生成函数（和游戏本体的声音同一种写法），试验场把它们渲染成缓冲区自己播放，
+  游戏把同一批函数并进自己的声音表、走自己的总线，所以两边听到的是同一个声音。
 
 ## 文件
 
@@ -87,12 +90,15 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
 | `src/fx/core.js` | 特效运行时：粒子、拖尾与闪电、贴花、光源池、弹壳、镜头震动 |
 | `src/fx/effects.js` | 具名特效：枪口焰、曳光、命中、爆炸、烟花、火焰喷射、落雷、符咒、火池等 |
 | `src/combat/behaviours.js` | 每把武器每种形态开火时做什么（弹道、伤害、状态、特效编排） |
-| `src/combat/combat.js` | 战斗控制器（测试台和本体共用）：输入、弹药与换弹、后坐力、近战挥砍、投掷、范围伤害；`setMods()` 接调料倍率，`lab.supply` 决定换弹从哪里拿子弹 |
+| `src/combat/combat.js` | 战斗控制器（测试台和本体共用）：输入、弹药与换弹、近战挥砍、投掷、范围伤害；`setMods()` 接调料倍率，`lab.supply` 决定换弹从哪里拿子弹 |
+| `src/combat/recoil.js`、`src/data/feel.js` | 手感。每把武器一组数：一发子弹让枪后坐多少、枪口上跳多少、往哪边歪、镜头抬多少、其中多少留在准星上要自己压回来、连射时准星张开多少；喷射类握着时怎么抖；近战砍中时停多久、镜头怎么跟。做法和原版两把枪一样（冲量打在阻尼弹簧上，枪绕握把转而不是绕眼睛转）。行为里的 `ctx.kick(a)` 只说这一下有多重，`a` 相对于表里的 `ref` 缩放。`node arsenal/scripts/feel-report.mjs` 把表里的数字换算成度、毫米和毫秒 |
 | `src/combat/status.js` | 两边共用的规则：伤害结算、四种状态、元素反应、附魔调料。测试台和本体各自只提供僵尸 |
 | `src/combat/meal.js` | 测试台这边的「套餐」：按本体的表管调料层数和四种弹药池，再通过 `setMods()`、`setInfusions()`、`lab.supply` 作用到武器上 |
 | `src/combat/projectiles.js` | 飞行弹体：钉子、弩箭、铜钱、符纸、烟花、油、剑气 |
 | `src/combat/targets.js` | 测试台的僵尸靶：模型和动作、站桩 / 逼近 / 尸潮、命中体积。数值读本体的 `zombietune.js`，规则在 `status.js` |
-| `src/audio/audio.js` | 声音：合成的枪声、换弹动作声、命中与爆炸、循环声，巷子混响 |
+| `src/audio/sounds.js` | 每个声音怎么合成：枪声（照本体两把枪的做法：三段噪声、压力脉冲、下滑的低频、饱和、随时间收拢的低通，再叠上机件声）、钉枪、烟花、弩、符、近战、换弹动作、街上的爆炸与落雷、火焰和电弧的循环声；还有每把武器开火用哪个声音的表 `SHOTS` |
+| `src/audio/dsp.js` | 合成用的信号工具（噪声、滤波、包络、共振、敲击、气流、无缝循环），纯函数，node 里也能跑 |
+| `src/audio/audio.js` | 播放：试验场自己的图（压缩器、巷子混响）；传入 `host`（游戏的声音系统）时改走游戏的总线 |
 | `src/ui/` | 界面与测试台 HUD |
 | `scripts/design-doc.mjs` | 从设计数据和本体的数值表生成 `docs/weapons-roguelike.md` |
 | `scripts/check-data.mjs` | 核对卡片上的基础数值和实际开火的数值、武器在本体的弹药表里是否齐全 |
@@ -110,7 +116,10 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
   `__lab.combat.meter` 里有累计伤害、击杀、受伤和打掉的发数（`spent`），`resetMeter()` 清零。
 - 套餐：`__lab.meal.set("vinegar", 2)`（调料层数，0 去掉）、`clear()`、`setAmmo("meal" | "free")`、`refill()`；`__lab.meal.pool` 是四种弹药池。
   `__lab.combat.mods` 是当前的伤害、射速、换弹倍率，`__lab.combat.targets.rules.infusions` 是生效的附魔。
-- 声音：`__lab.audio.measure("magIn")` 离线渲染一个声音并返回峰值和响度，用来在没有扬声器的环境里检查它确实有内容。
+- 声音：`__lab.audio.measure("magIn")` 渲染一个声音并返回峰值和响度，用来在没有扬声器的环境里检查它确实有内容；
+  `node arsenal/scripts/sounds.mjs [名字的一部分]` 把每个声音量成一行数字（衰减时间、密度、重心、各频段的能量占比）。
+  没人能听的时候靠它调：本体步枪的密度（crest）约 3 dB，频段占比约 15/45/33/7/1；
+  低于 120 Hz 的占比过高的声音在手机喇叭上等于没有。
 - 逐帧步进（抓枪口焰这类几十毫秒的瞬间）：`__lab.manual = true` 之后用 `__lab.advance(秒)` 推进时间并渲染一帧。
 - 开发服务器关掉了热重载，改完文件刷新页面即可；新增武器文件后需要重启服务器。
 - 特效亮度的经验：加色混合的粒子叠在一起很快就过曝成白色，ACES 色调映射还会把带蓝分量的亮色洗白。火焰的颜色用线性值直接给（见 `effects.js` 的 `PAL`），
@@ -207,7 +216,7 @@ hands: {
   用 `s.reload`（0→1，不在换弹时为 -1）和 `s.reloadTime`（秒）编排；`view.reload = { pos, rot }` 指定换弹时枪在视野里怎么偏，
   可选的 `span: [进入完成, 开始回正, 回正完成]`（换弹进度的分数）让枪在手回到握点之前先回正，免得前臂横在画面里。
 - **卡点与声音**：`s.prev.reload / cycle / swing / charge` 是上一帧的值，`if (s.prev.reload < 0.6 && s.reload >= 0.6) s.cue("magIn")`
-  就在弹匣到位的那一帧出声。可用的声音名见 `src/audio/audio.js`。
+  就在弹匣到位的那一帧出声。可用的声音名见 `src/audio/audio.js` 的 `CUES`，各自的做法在 `src/audio/sounds.js` 的 `CUE_DEFS`。
 - 展柜顶部「演示动作」会播放一次开火和一次换弹；`__lab.freeze({ reload: 0.4 })` 把动画停在某一刻方便检查。
 - 没有这只手就写 `null`。武器的 `update()` 里可以改 `model.grips.left.away`（0→1 松手离开）、`.pose`，或直接动 `.anchor`。
 - 换弹时托枪的手会自动松开再回来；武器被掷出时双手自动放下。
