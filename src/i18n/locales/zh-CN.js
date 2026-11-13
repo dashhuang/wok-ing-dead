@@ -105,7 +105,7 @@ export default {
   "ctl.move": "移动",
   "ctl.look": "视角",
   "ctl.fire": "射击",
-  "ctl.aim": "瞄准",
+  "ctl.aim": "副攻击",
   "ctl.reload": "换弹",
   "ctl.swap": "切换武器",
   "ctl.cut": "起灶",
@@ -115,7 +115,7 @@ export default {
   "ctl.melee": "近战",
   "ctl.pause": "暂停",
   "ctl.moveLook": "移动 · 视角",
-  "ctl.fireAim": "射击 · 瞄准",
+  "ctl.fireAim": "射击 · 副攻击",
   "ctl.mouse": "鼠标",
   "ctl.lmb": "左键",
   "ctl.rmb": "右键",
@@ -133,13 +133,13 @@ export default {
   "ctl.touchMove": "左手拇指，任意位置",
   "ctl.touchLook": "在右半屏拖动",
   "ctl.touchFire": "按住射击键，拖动跟枪",
-  "ctl.touchAim": "瞄准键切换",
+  "ctl.touchAim": "按住副攻击键，松开结束",
   "ctl.touchReload": "换弹键",
   "ctl.touchJump": "跳跃键",
   "ctl.touchCut": "在炉灶前按住使用键",
   "ctl.touchSprint": "摇杆推到底",
   "ctl.noteMouseHtml":
-    "如果浏览器无法锁定鼠标，可以按住鼠标键拖动来转视角（左键同时射击，右键同时瞄准）。方向键或 <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> 转向，<kbd>Enter</kbd> 射击。",
+    "如果浏览器无法锁定鼠标，可以按住鼠标键拖动来转视角（左键同时射击，右键同时副攻击）。方向键或 <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> 转向，<kbd>Enter</kbd> 射击。",
   "ctl.notePadHtml":
     "菜单中用十字键或左摇杆移动选择，<kbd>A</kbd> 确认，<kbd>B</kbd> 返回。浏览器要在点击或按键之后才会出声，只用手柄开始时如果没有声音，请先点一下鼠标。",
 
@@ -151,7 +151,7 @@ export default {
   "legend.padReload": "换弹 / 起灶",
   "legend.touchMove": "左手移动",
   "legend.touchLook": "右手转视角",
-  "legend.touchButtons": "射击 · 瞄准 · 换弹 · 跳跃均在屏幕上",
+  "legend.touchButtons": "射击 · 副攻击 · 换弹 · 跳跃均在屏幕上",
 
   "about.title": "关于这个版本",
   "about.body":
@@ -236,7 +236,7 @@ export default {
   "input.click": "单击一次以锁定鼠标",
 
   "touch.fire": "射击",
-  "touch.aim": "瞄准",
+  "touch.aim": "副攻击",
   "touch.reload": "换弹",
   "touch.swap": "切枪",
   "touch.jump": "跳",
@@ -372,7 +372,7 @@ export default {
   "run.branch.revolver.b": "开光",
   "run.branch.revolver.b.d": "穿透并叠镇压，定身必暴击",
   "run.branch.lever.a": "穿杨",
-  "run.branch.lever.a.d": "四倍镜，穿透全部并弹射",
+  "run.branch.lever.a.d": "穿透全部目标并弹射",
   "run.branch.lever.b": "惊雷",
   "run.branch.lever.b.d": "每三发召一道落雷",
   "run.branch.nailgun.a": "排钉",
