@@ -250,7 +250,7 @@ LK-9 和 LK-4、命中体积、夜街的曝光和特效亮度都是真的，没�
     它和弹药包走同一套拾取（`pickups.js` 里种类是 `food`），满血时留在地上。
   - 换弹装满全部：手上的武器换弹完成时，`loadout.js` 的 `reloadRest` 把收着的每把也从各自的弹药池装满
     （军械库武器走 `hooks.loaded`，游戏自带的两把听 `weapon:reload` 的 `magin`）。
-  - 补给箱的屏幕标记只在 `RUN.ammo.cacheMark` 米内显示，远处靠箱子上的灯。
+  - 补给箱与普通弹药掉落一样，靠自身灯光辨认，没有发现判定、指南针或屏幕距离标记；领取时共用普通弹药的图标与「+数量」提示。
   - 谁演谁在 `RUN.bodies`：关底、两种精英、胀尸、快尸各指定一个 `zombietune.js` 的 `EXTRA_BODIES` 模型和体型。
     一局开始时 `fetchBodies` 去下载（`low` 画质一个一个地下，免得五份原图同时在内存里）；角色贴图留多大按画质查
     `zombietune.js` 的 `BODY_TEX`，手机和电脑同一张表。开机的画质是地址里的 `?q=`、其次是保存的设置（`src/bootguard.js` 的

@@ -139,8 +139,6 @@ export const RUN = {
     cacheGive: 0.5, // share of the cap one crate hands over
     cacheEvery: 60,
     cacheReach: 1.9,
-    cacheSpot: 15, // seeing a stocked crate from this close puts it on the compass
-    cacheMark: 16, // a known crate is marked on screen only from this close
   },
   cases: { count: 5, reach: 1.7, spot: 12, apart: 14 },
   // The first one comes while every weapon is still at level one, so it is the weakest:
