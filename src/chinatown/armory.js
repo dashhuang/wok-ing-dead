@@ -537,6 +537,7 @@ export async function createArmory(G) {
      * dt: real seconds. input: the game's input, or null when the player cannot act.
      */
     frame(dt, input) {
+      const spentBefore = combat.meter.spent;
       time += dt;
       const P = G.player;
       if (cur) {
@@ -556,6 +557,9 @@ export async function createArmory(G) {
         motion(dt, P);
       }
       combat.update(dt, time);
+      const spent = combat.meter.spent - spentBefore;
+      if (cur && spent > 0)
+        G.events.emit("telemetry:spent", { weapon: cur.id, amount: spent });
       fx.update(dt, time);
       if (!cur) return;
       const model = cur.model;

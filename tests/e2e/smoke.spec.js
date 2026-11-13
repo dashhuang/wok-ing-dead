@@ -5,6 +5,24 @@
 // Each test loads the whole street (about a minute), so checks share a page where they can.
 // The second stage (the docks) is not covered yet: it is not in use.
 import { test, expect } from "@playwright/test";
+import { fileURLToPath } from "node:url";
+import { parseSnapshot } from "../../server/telemetry/schema.js";
+
+const telemetry = new WeakMap();
+test.beforeEach(async ({ page }) => {
+  const records = [];
+  telemetry.set(page, records);
+  await page.addInitScript({
+    path: fileURLToPath(
+      new URL("../support/fake-pointer-lock.js", import.meta.url),
+    ),
+  });
+  await page.route("**/api/telemetry", async (route) => {
+    const payload = route.request().postDataJSON();
+    records.push(parseSnapshot(payload));
+    await route.fulfill({ status: 204 });
+  });
+});
 
 const state = (page) => page.evaluate(() => window.__G?.game?.state);
 
@@ -184,6 +202,11 @@ test("a player can start, arm, level up, pause, die and retry with real input", 
   await clickAct(page, "resume");
   await expect.poll(() => state(page)).toBe("playing");
 
+  // Changing difficulty mid-run must not pollute comparisons of fixed difficulties.
+  await page.evaluate(() => {
+    const game = window.__G.game;
+    game.setDifficulty(game.difficulty === "brutal" ? "standard" : "brutal");
+  });
   // Die and retry.
   await page.evaluate(() => window.__G.player.damage(9999));
   await expect.poll(() => state(page)).toBe("dead");
@@ -191,6 +214,20 @@ test("a player can start, arm, level up, pause, die and retry with real input", 
   await expectButtonsReachable(page);
   await clickAct(page, "retry");
   await expect.poll(() => state(page)).toBe("playing");
+
+  await expect
+    .poll(() => telemetry.get(page).filter((p) => p.outcome === "dead").length)
+    .toBe(1);
+  const records = telemetry.get(page);
+  const dead = records.find((p) => p.outcome === "dead");
+  expect(dead.choices.length).toBeGreaterThanOrEqual(2);
+  expect(dead.weapons.length).toBeGreaterThanOrEqual(2);
+  expect(dead.test).toBe(true);
+  expect(dead.difficultyChanged).toBe(true);
+  expect(Object.values(dead.weaponUse).some((w) => w.spent > 0)).toBe(true);
+  await expect
+    .poll(() => new Set(telemetry.get(page).map((p) => p.runId)).size)
+    .toBe(2);
 
   // The new run starts from nothing: the sidearm and a fresh choice of weapon.
   await expect

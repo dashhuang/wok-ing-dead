@@ -3,6 +3,7 @@
 import { createSettingsStore } from "./settings.js";
 import * as L10N from "./i18n/index.js";
 import { createRun } from "./chinatown/run.js";
+import { createTelemetry } from "./telemetry/index.js";
 
 (() => {
   var bT = Object.defineProperty;
@@ -84623,6 +84624,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         Object.assign(xi, c(f.flow), c(he.flow || {})),
         (C.difficulty = lb[Y] ? Y : "hard"),
         RUN && RUN.onTuning());
+      n.events.emit("game:difficulty", { difficulty: C.difficulty });
     }
     let p = () => g.mode === "holdout",
       d = (Y) => L10N.fmtNum(Y);
@@ -85001,6 +85003,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       keepRetries: V = !1,
       mode: ne = null,
     } = {}) {
+      a(n.telemetry, "finish", "restart");
       if (
         ((g.mode = ne || (V || he ? g.mode : l.settings.mode) || "mission"),
         V || (g.retries = 0),
@@ -85008,6 +85011,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         l.locationCard(!1),
         a(n.audio, "setPaused", !1),
         Q(),
+        a(n.telemetry, "start"),
         a(n.weapon, "setVisible", !0),
         (R = !1),
         Y)
@@ -86021,6 +86025,9 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         ),
         await r("hud", "hud", () => sT(t)),
         (t.game = pT(t)));
+      try {
+        t.telemetry = createTelemetry(t);
+      } catch {}
     }
     await fa(L10N.t("boot.light"), 0.92);
     try {

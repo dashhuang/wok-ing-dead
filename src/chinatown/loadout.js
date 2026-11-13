@@ -406,7 +406,10 @@ export function createLoadout(G, on = {}) {
     /** Put units into a pool; returns how many fitted. */
     add(type, units) {
       const got = Math.max(0, Math.min(units, cap(type) - have(type)));
-      if (got > 0) setPool(type, have(type) + got);
+      if (got > 0) {
+        setPool(type, have(type) + got);
+        G.events.emit("telemetry:ammo", { type, amount: got });
+      }
       return got;
     },
     refill() {
