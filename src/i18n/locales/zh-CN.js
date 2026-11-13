@@ -206,7 +206,23 @@ export default {
   "wave.warn": "第 {n} 波　{dir}",
   "wave.contact": "接敌　{dir}",
   "wave.next": "{s} 秒后第 {n} 波",
-  "wave.down": "第 {n} 波击退。补给已投放——休整 {s} 秒。",
+
+  // Endless buffet: dedicated radio and rotating wave-clear lines.
+  "radio.holdout.intro":
+    "守夜人，今晚吃到饱。没有撤离车，只有下一波。清完一波就补弹、回血——别把自己留在菜单上。",
+  "radio.holdout.contact": "它们冲你来了。拉开距离，瞄准头部。别让它们围桌。",
+  "radio.holdout.low": "你伤得很重。先拉开距离，活着清完这波才有休整。",
+  "wave.down": "第 {n} 波清了，补弹、回血。歇 {s} 秒——吃到饱的规矩，不能打包。",
+  "wave.down1":
+    "第 {n} 波清了，补弹、回血。歇 {s} 秒。门口还在排队，差评倒是没人写。",
+  "wave.down2":
+    "第 {n} 波清了，补弹、回血。歇 {s} 秒。这桌吃相不行，已经请出去了。",
+  "wave.down3":
+    "第 {n} 波清了，补弹、回血。歇 {s} 秒。招牌写的是吃到饱，没写谁吃谁。",
+  "wave.down4":
+    "第 {n} 波清了，补弹、回血。歇 {s} 秒。今晚翻台真快，就是费子弹。",
+  "wave.down5":
+    "第 {n} 波清了，补弹、回血。歇 {s} 秒。还没到打烊的时候，先把弹匣装好。",
 
   "dir.0": "北面",
   "dir.1": "东北",

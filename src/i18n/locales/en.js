@@ -214,7 +214,26 @@ export default {
   "wave.warn": "Wave {n} — {dir}",
   "wave.contact": "Contact — {dir}",
   "wave.next": "Wave {n} in {s}",
-  "wave.down": "Wave {n} down. Resupply dropped — {s} seconds.",
+
+  // Endless buffet: dedicated radio and rotating wave-clear lines.
+  "radio.holdout.intro":
+    "Nightwatch, tonight is all you can eat. No extraction, just another wave. Clear each wave for ammo and healing. Keep yourself off the menu.",
+  "radio.holdout.contact":
+    "They are coming for you. Keep your distance. Aim for the head. No communal seating.",
+  "radio.holdout.low":
+    "You are badly hurt. Make some space. Survive this wave to get your breather.",
+  "wave.down":
+    "Wave {n} clear. Ammo and health topped up. {s} seconds to rest. Buffet rules: no takeaway.",
+  "wave.down1":
+    "Wave {n} clear. Ammo and health topped up. Rest for {s} seconds. Still a queue outside. No written complaints.",
+  "wave.down2":
+    "Wave {n} clear. Ammo and health topped up. Rest for {s} seconds. That table has been removed for poor manners.",
+  "wave.down3":
+    "Wave {n} clear. Ammo and health topped up. Rest for {s} seconds. All you can eat. The sign never said who eats whom.",
+  "wave.down4":
+    "Wave {n} clear. Ammo and health topped up. Rest for {s} seconds. Fast table turnover. Terrible ammunition bill.",
+  "wave.down5":
+    "Wave {n} clear. Ammo and health topped up. Rest for {s} seconds. Load your magazine. We are not closing yet.",
 
   "dir.0": "North",
   "dir.1": "North-east",

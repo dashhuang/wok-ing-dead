@@ -12,6 +12,10 @@ import {
   roundDamage,
   reloadPace,
 } from "./chinatown/stockguns.js";
+import {
+  holdoutRadio,
+  holdoutWaveClear,
+} from "./chinatown/holdout-dialogue.js";
 import { createComms } from "./chinatown/comms.js";
 import { uiIcon } from "./chinatown/icons.js";
 import { createTelemetry } from "./telemetry/index.js";
@@ -77250,8 +77254,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       } catch {}
       (i.heal(cs.heal),
         g.wave % 2 === 0 && a(n.explosives, "reset"),
-        o.radio &&
-          o.radio(L10N.t("wave.down", { n: g.wave, s: cs.breather }), 3.4),
+        o.radio && o.radio(holdoutWaveClear(g.wave, cs.breather), 3.4),
         o.setObjective(L10N.t("obj.breathe")),
         m(),
         n.events.emit("objective:done", {
@@ -77863,7 +77866,8 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       ((g.alertT = 10),
         C.state === "playing" &&
           !g.contactSaid &&
-          ((g.contactSaid = !0), o.radio && o.radio(Vu.contact, 3.2)));
+          ((g.contactSaid = !0),
+          o.radio && o.radio(p() ? holdoutRadio("contact") : Vu.contact, 3.2)));
     }),
       n.events.on("player:hit", () => {
         g.alertT = Math.max(g.alertT, 8);
@@ -78106,7 +78110,10 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
           return (
             (e.fade = 1 - ou(0.05, Math.min(M, 1.3), E)),
             !_ && E > 0.25 && ((_ = !0), l.locationCard(!0)),
-            !T && E > 0.9 && ((T = !0), o.radio && o.radio(Vu.intro, 4.2)),
+            !T &&
+              E > 0.9 &&
+              ((T = !0),
+              o.radio && o.radio(p() ? holdoutRadio("intro") : Vu.intro, 4.2)),
             r.pressed("pause")
               ? (le(), !1)
               : (E >= M && (l.locationCard(!1), (e.fade = 0), te()), !0)
@@ -78157,7 +78164,8 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
             !g.lowSaid &&
               i.alive &&
               i.health < 30 &&
-              ((g.lowSaid = !0), o.radio && o.radio(Vu.low, 3)),
+              ((g.lowSaid = !0),
+              o.radio && o.radio(p() ? holdoutRadio("low") : Vu.low, 3)),
             !0
           );
         }
