@@ -60402,6 +60402,9 @@ void main() {
             ne || y(),
             R && R.root.classList.toggle("on", ne && m.touch)));
       },
+      tapInteract() {
+        if (r && p) s.add("interact");
+      },
       setPrompt(ne) {
         ((p = !!ne), R && R.btn.interact.classList.toggle("on", !!ne));
       },
@@ -76074,8 +76077,16 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
           );
         });
       },
+      setCookDialogue(info) {
+        comms.setCook(info);
+      },
+      setStoveNearby(near) {
+        comms.setNearby(near);
+      },
       // tap: one press does it (no ring to fill): a run's stoves
       setPrompt(he, V = 0, tap = !1) {
+        comms.setAction(tap ? he : null);
+        E.classList.toggle("dialogue", !!tap);
         let ne = !!he;
         if (
           (ne !== oe.promptOn &&
@@ -77865,9 +77876,9 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       n.events.on("player:rescued", () => {
         C.state === "playing" && o.message(L10N.t("obj.rescued"), 2.5);
       }));
-    function me() {
+    function me(reach = xi.interactRange, facing = true) {
       let Y = null,
-        he = xi.interactRange;
+        he = reach;
       // (in a run no stove can be lit while a dish is on another)
       if (runOn() && RUN.cooking) return null;
       for (let V of g.relays) {
@@ -77877,7 +77888,8 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
           Te = Math.hypot(ne, ye);
         Te > he ||
           Math.abs((V.o.pos.y || 0) - i.pos.y) > 2.5 ||
-          (Te > 0.9 &&
+          (facing &&
+            Te > 0.9 &&
             (ne * i.forward.x + ye * i.forward.z) /
               (Te * Math.max(0.2, Math.hypot(i.forward.x, i.forward.z))) <
               xi.interactFacing) ||
@@ -77886,6 +77898,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       return Y;
     }
     function ge(Y) {
+      o.setStoveNearby(runOn() && i.alive && !!me(5, false));
       let he = i.alive ? me() : null;
       // In a run a stove is lit with one press of the key, not by holding it: the wok comes
       // straight up, and tossing it is what takes the time.

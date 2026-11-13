@@ -319,6 +319,7 @@ export default {
   "run.obj.bossDue": "Three orders up — it has caught the smell",
   "run.prompt.toss": "Toss the wok",
   "run.prompt.pack": "Pack the order",
+  "run.cook.light": "Here's a wok. Fire it up!",
   "run.cook.back": "That'll do — back on the stove",
   "run.cook.due": "Toss it! Burns in {s}s",
   "run.cook.ready": "Order up! Pack it — burns in {s}s",

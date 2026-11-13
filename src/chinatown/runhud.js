@@ -1,5 +1,4 @@
-// Run interface: the course name and the dishes packed so far, what the dish on the stove
-// wants next, the wok-hei (experience) bar, seasoning chips,
+// Run interface: the course name and dishes packed, the wok-hei (experience) bar, seasoning chips,
 // the boss bar, pickup toasts, the weapons carried and the four pools of ammunition, and the
 // order tickets shown on a level-up (seasonings, a new weapon, or the fork of a weapon).
 // Plain DOM next to the game's own HUD; all wording comes from the locale files.
@@ -34,8 +33,6 @@ export function createRunHud(G) {
     "rl-boss",
     '<span class="rl-boss-n"></span><div class="rl-boss-bar"><i></i></div>',
   );
-  const cook = el("div", "rl-cook", '<span class="rl-cook-n"></span>');
-  const cookName = cook.querySelector(".rl-cook-n");
   const bossName = boss.querySelector(".rl-boss-n");
   const bossFill = boss.querySelector(".rl-boss-bar i");
 
@@ -63,18 +60,7 @@ export function createRunHud(G) {
   // while tickets are up the street darkens behind them: this is ordering, not fighting
   const veil = el("div", "rl-veil");
 
-  root.append(
-    clock,
-    boss,
-    cook,
-    spices,
-    toasts,
-    weapons,
-    pools,
-    xp,
-    veil,
-    cards,
-  );
+  root.append(clock, boss, spices, toasts, weapons, pools, xp, veil, cards);
   // directly after the game's HUD: it shows and hides with it (see .hud.on ~ .rl in the
   // stylesheet) and stays underneath the menus
   const hudRoot = G.hud && G.hud.root;
@@ -93,15 +79,12 @@ export function createRunHud(G) {
   const last = {
     bags: "",
     stage: "",
-    cookUrgent: null,
     hands: null,
     xp: -1,
     level: -1,
     wlv: "",
     boss: -1,
     bossOn: null,
-    cookOn: null,
-    cookKey: "",
     spices: "",
     weapons: "",
     pools: "",
@@ -324,33 +307,12 @@ export function createRunHud(G) {
       last.wlv = key;
       wlv.innerHTML = level > 0 ? PIPS(level, max) : "";
     },
-    // The dish on a stove: one line under the course name saying what to do now, in the
+    // The dish on a stove: the shared dialogue says what to do now, in the
     // kitchen's own voice. null, or { key: the line ("run.cook." + key, with s: whole
     // seconds, where it counts any), urgent: it is about to catch, or has }.
     setCook(info) {
-      const on = !!info;
       cookInfo = info;
-      if (on !== last.cookOn) {
-        last.cookOn = on;
-        cook.classList.toggle("on", on);
-      }
-      if (!on) return;
-      const key = info.key + ":" + info.s + L10N.locale();
-      if (key !== last.cookKey) {
-        last.cookKey = key;
-        cookName.textContent = L10N.t("run.cook." + info.key, { s: info.s });
-        if (cook.dataset.k !== info.key) {
-          // a new thing to do: the line is seen to change
-          cook.dataset.k = info.key;
-          cook.classList.remove("flash");
-          void cook.offsetWidth;
-          cook.classList.add("flash");
-        }
-      }
-      if (!!info.urgent !== last.cookUrgent) {
-        last.cookUrgent = !!info.urgent;
-        cook.classList.toggle("urgent", !!info.urgent);
-      }
+      G.hud?.setCookDialogue(info);
     },
     // both hands are full of the wok or the packing: the weapon's rounds are not shown
     setHands(on) {
@@ -462,7 +424,6 @@ export function createRunHud(G) {
       stageEl.textContent = stageKey ? L10N.t("run.stage." + stageKey) : "";
       xpLabel.textContent = L10N.t("run.xp");
       if (bossKey) bossName.textContent = L10N.t(bossKey);
-      last.cookKey = "";
       if (cookInfo) api.setCook(cookInfo);
       last.spices = "";
       last.weapons = "";

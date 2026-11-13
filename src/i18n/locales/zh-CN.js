@@ -305,6 +305,7 @@ export default {
   "run.obj.bossDue": "三袋齐了　它闻着味来了",
   "run.prompt.toss": "颠锅",
   "run.prompt.pack": "打包",
+  "run.cook.light": "锅就在这儿，起火炒菜！",
   "run.cook.back": "够了够了　放回灶上",
   "run.cook.due": "该颠了！{s} 秒内不回来就糊",
   "run.cook.ready": "出锅！回来打包　{s} 秒后糊",
