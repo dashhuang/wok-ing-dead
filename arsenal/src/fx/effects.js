@@ -447,6 +447,45 @@ export function createEffects(fx, stage) {
     },
 
     /**
+     * A wound that keeps bleeding: a pulse of blood out of a stump, or off a limb in the air.
+     * dir: the way it is thrown (not normalised: its length is how hard). k: how much.
+     */
+    spurt(pos, dir, k = 1) {
+      const n = Math.max(1, Math.round(4 * k * fx.detail));
+      for (let i = 0; i < n; i++) {
+        _b.copy(dir).multiplyScalar(rand(0.6, 1.2));
+        _b.x += srand(0.5);
+        _b.y += rand(0, 0.9);
+        _b.z += srand(0.5);
+        fx.puff({
+          pos,
+          vel: _b,
+          life: rand(0.45, 0.9),
+          size: [rand(0.008, 0.018), 0.006],
+          color: BLOOD.drop,
+          alpha: 0.95,
+          type: P.DROP,
+          gravity: 9.8,
+          drag: 0.5,
+          ground: true,
+          stretch: 3,
+          fadePow: 0.5,
+        });
+      }
+    },
+    /** A mark of blood on the street. */
+    splat(pos, size = 0.5) {
+      fx.decal({
+        kind: "splat",
+        pos: V(pos.x, pos.y, pos.z),
+        size: size * rand(0.8, 1.3),
+        color: BLOOD.pool,
+        life: 22,
+        alpha: 0.85,
+      });
+    },
+
+    /**
      * A kill: the body bursts. A cloud of blood, a fan of it thrown the way of the hit and
      * a fountain upwards, a few pieces that bounce, a pool under where it falls and splashes
      * along the way it was sent.

@@ -1332,6 +1332,7 @@ export async function createCombat(lab) {
     clear() {
       fx.clear();
       proj.clear();
+      targets.limbs?.clear(); // (the bench's own dead: the game's street clears its own)
       zones.length = 0;
       lights[0] = lights[1] = null;
     },

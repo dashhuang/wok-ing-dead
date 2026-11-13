@@ -2133,6 +2133,7 @@ export const BEHAVIOURS = {
           .clone();
         ctx.hit(h.z, F.coinsword.damage * (last ? 1.5 : 1), {
           dir,
+          cut: true,
           point: h.z.chest,
           element: "seal",
           knock: last ? 1.2 : 0.4,
@@ -2416,6 +2417,7 @@ export const BEHAVIOURS = {
           .clone();
         ctx.hit(h.z, F.guandao.damage * (up ? 2 : 1), {
           dir,
+          cut: true,
           point: h.z.chest,
           element: ctx.b === "a" ? "fire" : undefined,
           knock: up ? 1 : 2,

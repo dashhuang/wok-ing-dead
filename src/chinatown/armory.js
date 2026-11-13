@@ -243,6 +243,17 @@ export async function createArmory(G) {
         quiet: true,
       });
     });
+    // a limb comes off: a burst where it was torn, then the end pumps and the piece trails
+    // (the zombies ask for each spurt and each mark as they happen)
+    G.events.on("enemy:severed", (e) => {
+      if (!e || !e.pos) return;
+      E.blood(e.pos, e.dir || UP, e.pop ? 2.2 : 1.7, {
+        quiet: true,
+        ground: e.ground ?? 0,
+      });
+    });
+    G.events.on("gore:spurt", (e) => e && E.spurt(e.pos, e.dir, e.k));
+    G.events.on("gore:splat", (e) => e && E.splat(e.pos, e.size));
     // a thrown body comes down: the thud of it, and what it leaves where it lands
     G.events.on("enemy:landed", (e) => {
       if (!e || !e.pos) return;

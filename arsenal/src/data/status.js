@@ -36,12 +36,42 @@ export const STATUS = {
     gravity: 14,
     skid: 5,
   },
+  // What a kill takes off the body (combat/fate.js; the limbs are those of fx/limbs.js).
+  //   head    a bullet through the head that takes this share of its health in one bursts it
+  //   blast   an explosion: up to this many arms and legs at the root (each 85% of the
+  //           time), and the head this often
+  //   cut     a blade's killing stroke takes a piece this often; this often it is the head,
+  //           otherwise an arm at the shoulder
+  //   thrown  a body thrown by the hit loses an arm this often, and part of a leg this often
+  //   plain   any other kill by a hit of half its health or more: a forearm or a shin
+  //   heavy   a heavy's share of those chances
+  sever: {
+    head: 0.6,
+    blast: [2, 0.3],
+    cut: [0.85, 0.35],
+    thrown: [0.8, 0.35],
+    plain: 0.15,
+    heavy: 0.5,
+  },
   // The run's elites and its boss: how much of a hold they sit through, the share of their
   // health 焚符 takes instead of the usual one, and whether a firework can frighten them.
   rank: {
-    // (thrown: whether a kill can throw the body; these two fall where they stand)
-    elite: { pin: 0.5, 焚符: 0.12, scare: false, thrown: false },
-    boss: { pin: 0.25, 焚符: 0.04, scare: false, thrown: false },
+    // (thrown: whether a kill can throw the body; severed: whether it can take a piece off
+    // it. These two fall where they stand, whole)
+    elite: {
+      pin: 0.5,
+      焚符: 0.12,
+      scare: false,
+      thrown: false,
+      severed: false,
+    },
+    boss: {
+      pin: 0.25,
+      焚符: 0.04,
+      scare: false,
+      thrown: false,
+      severed: false,
+    },
     bloater: { scare: false },
   },
 };
