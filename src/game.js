@@ -11,6 +11,7 @@ import { createTelemetry } from "./telemetry/index.js";
 import { createNavigation, STEP_HEIGHT } from "./chinatown/navigation.js";
 import { createSpawnPicker } from "./chinatown/spawning.js";
 import * as DOORS from "./chinatown/doors.js";
+import { pickLook, sunDirection } from "./chinatown/look.js";
 
 (() => {
   var bT = Object.defineProperty;
@@ -36430,6 +36431,8 @@ ${ge}`,
         sharpen: 0.3,
         lookPower: 1.18,
         lookSat: 1.22,
+        // the street's own grade (src/chinatown/look.js)
+        ...CT.post,
       },
       v = !1;
     try {
@@ -77986,6 +77989,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     on: !1,
     skyGain: 1,
     sunDisk: 1,
+    post: {},
     puddles: [
       [-31, 6.4, 3.2, 2, 0.24],
       [-20, 3.2, 6.5, 0.8, 0.26],
@@ -78139,7 +78143,11 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           c.stroke());
       }
     },
-    apply() {
+    // sun, sky and grade come from src/chinatown/look.js
+    apply(params) {
+      let look = pickLook(params),
+        sun = look.sun,
+        sky = look.sky;
       ((CT.on = !0),
         (Kn.quayX = 1e3),
         (Ha.w = 80),
@@ -78148,14 +78156,16 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         (Fi.size = 84),
         (Pw.length = 0),
         Pw.push(...CT.puddles),
-        (Z0.intensity = 3.1),
-        Z0.color.setRGB(1, 0.6, 0.36),
-        T0.zenith.setRGB(0.03, 0.05, 0.095),
-        T0.horizon.setRGB(0.9, 0.46, 0.24),
-        T0.horizonAway.setRGB(0.1, 0.14, 0.215),
-        T0.fog.setRGB(0.2, 0.235, 0.3),
-        (CT.skyGain = 0.28),
-        (CT.sunDisk = 0.3));
+        Z0.dir.set(...sunDirection(sun)).normalize(),
+        (Z0.intensity = sun.intensity),
+        Z0.color.setRGB(...sun.color),
+        T0.zenith.setRGB(...sky.zenith),
+        T0.horizon.setRGB(...sky.horizon),
+        T0.horizonAway.setRGB(...sky.horizonAway),
+        T0.fog.setRGB(...sky.fog),
+        (CT.skyGain = sky.gain),
+        (CT.sunDisk = sky.disk),
+        (CT.post = look.post));
     },
   };
   async function cL() {
@@ -78165,7 +78175,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     // the firing range (src/chinatown/range.js) is the set meal, entered without the title
     n.range && ((n.autostart = "1"), delete n.mode);
     globalThis.__SALTLINE_THREE__ = ut;
-    CT.apply();
+    CT.apply(n);
     let t = {
       THREE: ut,
       params: n,
