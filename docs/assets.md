@@ -137,3 +137,8 @@ python scripts/assets/build-ui-fonts.py <放有原始可变字体 TTF 的目录>
 | [GOLDEN HOUR](../upstream/golden-hour/README.md) | https://claude.ai/artifact/6N9gzgYJDa925a1tVxps2f | 发布包、本地运行入口、可读代码、分类索引与大堂预览 | 未确认游戏复用许可证，仅作参考 |
 
 各目录的 `provenance.json` 记录下载日期、来源、原件哈希以及派生内容说明。完整导航见 [参考档案目录](../upstream/README.md)。
+
+## 分享预览封面（2026-11-13）
+
+`public/assets/social/chinatown-v1.jpg` 直接复用本仓库 `docs/screenshots/street-light/opening-after.jpg`，1280×720 JPEG，未改图。
+来源为本项目已有实机截图，没有新增外部素材；画面中素材沿用本文件已列出的来源和许可。更新封面时使用新文件名，并同步 `scripts/social.mjs` 的地址与尺寸，避免图片缓存继续使用旧封面。

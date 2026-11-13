@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { socialPreview } from "./scripts/social.mjs";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 
@@ -49,7 +50,7 @@ function gallery() {
 }
 
 export default defineConfig({
-  plugins: [gallery()],
+  plugins: [gallery(), socialPreview()],
   define: {
     __GAME_RELEASE__: JSON.stringify(
       process.env.VERCEL_GIT_COMMIT_SHA || process.env.GAME_RELEASE || "local",

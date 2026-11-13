@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "雨夜唐人街打僵尸的浏览器 FPS（Three.js）",
-  "homepage": "https://wok-ing-dead.vercel.app",
+  "homepage": "https://wok.huang.co",
   "repository": {
     "type": "git",
     "url": "https://github.com/dashhuang/wok-ing-dead.git"

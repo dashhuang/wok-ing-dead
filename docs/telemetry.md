@@ -49,7 +49,8 @@
 
 1. 给 Vercel 项目 `wok-ing-dead` 连接 Neon，设置生产环境 `DATABASE_URL`。
 2. 设置两个独立随机密钥（至少 32 字符）：`TELEMETRY_ADMIN_TOKEN` 和 `CRON_SECRET`。
-3. `TELEMETRY_ORIGINS` 默认为 `https://wok-ing-dead.vercel.app`，新增正式域名时用逗号分隔。
+3. `TELEMETRY_ORIGINS` 代码默认只允许 `https://wok-ing-dead.vercel.app`；生产环境配置为
+   `https://wok-ing-dead.vercel.app,https://wok.huang.co`，同时允许新旧域名。变更环境变量后需重新部署。
    预览地址默认不能写生产日志；如需测试，使用单独测试库和允许的预览域名。
 4. 拉取环境变量到被 git 忽略的文件后初始化：
 
