@@ -186,7 +186,7 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
 
 **岔路**：`kit.only(node, "a")` 让节点只在甲形态出现，`"base,a"` 表示基础和甲都出现。被替换掉的原件标 `"base"`。
 
-**双手**（`src/kit/hands.js`）：用的就是游戏本体的那双手——战术手套、雨衣袖子、35 根骨骼、从肩膀算起的手臂求解，
+**双手**（`src/kit/hands.js`）：用的就是游戏本体的那双手——战术手套、裸露的手臂（主角是女生）、35 根骨骼、从肩膀算起的手臂求解，
 由 `scripts/extract-hands.mjs` 从 `src/game.js` 原样抽到 `src/kit/gamehands.gen.js`（生成文件，不要手改；本体的手改了就重新跑一遍脚本）。
 `hands.js` 只负责把武器的握法描述换算成这双手的目标。武器不用管骨骼，只描述“怎么握”——
 
