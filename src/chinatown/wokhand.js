@@ -519,7 +519,55 @@ export function createWokHands(armory) {
       },
     });
     model.body = body;
+    model.bits = bits;
     return model;
+  })();
+
+  // ================================================================ the same dish, on its stove
+  // What the cook tosses is what fries: the heap of the wok in hand, laid out again for the
+  // wok of the street stove (which is a different size: this is made for a bowl whose rim is
+  // one unit from its middle, lowest point at the origin, and the stove scales it to its
+  // own). It lies still but for the shiver of something frying (sizzle); charred, it is a
+  // few lumps of coal instead.
+  const frying = { t: 0, rice: [], coals: null };
+  const dish = (() => {
+    const g = new THREE.Group();
+    g.name = "wok-dish";
+    const inner = new THREE.Group();
+    inner.scale.setScalar(1 / WOK.r);
+    inner.position.y = (WOK.depth - WOK.wall) / WOK.r;
+    g.add(inner);
+    wok.bits.forEach((b, i) => {
+      const node = b.node.clone();
+      node.position.copy(b.rest);
+      node.rotation.set(0, b.yaw, 0);
+      inner.add(node);
+      frying.rice.push({
+        node,
+        rest: b.rest.clone(),
+        yaw: b.yaw,
+        seed: i * 1.7,
+      });
+    });
+    const coals = new THREE.Group();
+    for (let i = 0; i < 9; i++) {
+      const c = coal(120 + i, 1.7);
+      const a = i * 2.39996;
+      const d = i ? 0.03 + 0.05 * ((i * 0.618) % 1) : 0;
+      c.position.set(Math.cos(a) * d, bowlY(d) + 0.014, Math.sin(a) * d);
+      c.rotation.set(i, i * 2, i * 3);
+      coals.add(c);
+    }
+    coals.visible = false;
+    inner.add(coals);
+    frying.coals = coals;
+    g.traverse((n) => {
+      if (n.isMesh) {
+        n.castShadow = false;
+        n.receiveShadow = true;
+      }
+    });
+    return g;
   })();
 
   // ================================================================ the packing
@@ -1073,6 +1121,30 @@ export function createWokHands(armory) {
         spin: (Math.random() - 0.5) * 1.5,
         turb: 2,
       });
+    },
+    /** The dish as it stands in the wok of a street stove (stove.js, setDish). */
+    dish,
+    /** charred: what stands in that wok is coal. */
+    charDish(on) {
+      frying.coals.visible = !!on;
+      for (const r of frying.rice) r.node.visible = !on;
+    },
+    /**
+     * Once a frame while the dish fries on its stove: it shivers where it lies. k: how
+     * hard (1 frying; more when it wants tossing and is starting to jump).
+     */
+    sizzle(dt, k = 1) {
+      frying.t += dt;
+      const t = frying.t;
+      for (const r of frying.rice) {
+        const a = t * (21 + (r.seed % 9)) + r.seed * 5;
+        r.node.position.y = r.rest.y + Math.max(0, Math.sin(a)) * 0.0022 * k;
+        r.node.rotation.set(
+          Math.sin(a * 0.7 + 1) * 0.035 * k,
+          r.yaw + Math.sin(t * 3.1 + r.seed) * 0.03 * k,
+          Math.cos(a * 0.6) * 0.035 * k,
+        );
+      }
     },
     /** Once a frame while something hot is in hand: what rises off it. */
     steam(dt, model = wok) {

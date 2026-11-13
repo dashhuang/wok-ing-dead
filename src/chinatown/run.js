@@ -524,6 +524,16 @@ export function createRun(G, hooks) {
       const made = createWokHands(a);
       // (usable at once; each is also drawn once ahead of time, whenever frames allow)
       wokHands = made;
+      // (the dish as it stands on a stove is drawn by the street's pass: a few frames of it
+      // a thousandth of its size before the eye, so that the first time it is set down
+      // costs nothing)
+      const d = made.dish;
+      d.scale.setScalar(0.001);
+      d.position.set(0, 0, -0.7);
+      G.camera.add(d);
+      setTimeout(() => {
+        if (d.parent === G.camera) G.camera.remove(d);
+      }, 2500);
       for (const m of made.models) await a.adopt(m);
     } catch (e) {
       console.error(
@@ -532,6 +542,22 @@ export function createRun(G, hooks) {
     }
   });
   // charred: (packing) what goes into the pail is charcoal
+  // The dish in the wok of the street stove: the stove draws a mound of its own, but with
+  // the cook's hands there (wokhand.js) what stands in it is the heap that was tossed.
+  let plated = null; // the stove it stands on (the userData of its object)
+  function plate(o) {
+    const u = o && o.object && o.object.userData;
+    if (!wokHands || !u || !u.setDish || plated === u) return;
+    if (plated) plated.setDish(null);
+    u.setDish(wokHands.dish);
+    plated = u;
+  }
+  function unplate() {
+    try {
+      if (plated) plated.setDish(null);
+    } catch {}
+    plated = null;
+  }
   function fillHands(what, charred = false) {
     S.hands = what;
     closeWheel();
@@ -684,6 +710,14 @@ export function createRun(G, hooks) {
         play(name, { gain, pitch });
       }
     }
+    // on its stove it is the heap that was tossed, shivering as it fries (harder when it
+    // wants tossing again), and coal once it is charred
+    if (wokHands) {
+      plate(c.o);
+      wokHands.charDish(c.charred);
+      if (c.phase === "fry" || c.phase === "due" || c.phase === "ready")
+        wokHands.sizzle(dt, c.charred ? 0 : c.phase === "due" ? 2.4 : 1);
+    }
     // a dish that has caught says so where it stands: black smoke off the wok
     if (wokHands && (c.caught || c.charred) && c.phase !== "pack") {
       tmp.set(c.pos.x, (c.pos.y || 0) + 1.1, c.pos.z);
@@ -743,6 +777,7 @@ export function createRun(G, hooks) {
   }
   // packed: the dish is the cook's, and it pays
   function serve(c) {
+    unplate();
     S.cook = null;
     S.sirens++;
     S.served++;
@@ -1602,6 +1637,7 @@ export function createRun(G, hooks) {
     },
     reset() {
       const pre = preset();
+      unplate();
       Object.assign(S, {
         active: true,
         range: !!range,
@@ -1674,6 +1710,7 @@ export function createRun(G, hooks) {
         return;
       }
       S.active = false;
+      unplate();
       S.cook = null;
       S.hands = "";
       S.bonusHealth = S.bonusCap = 0;
@@ -1920,6 +1957,7 @@ export function createRun(G, hooks) {
         S.eliteAt = Math.max(S.eliteAt, S.t + 5);
         if (t >= RUN.bossAt && S.bossDue < 0) {
           if (S.cook) setStove(S.cook.o, "served");
+          unplate();
           S.cook = null;
           freeHands();
           hud.setCook(null);

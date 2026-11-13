@@ -247,12 +247,29 @@ export function buildStove(THREE, mats, rnd = Math.random) {
   let t = rnd() * 6;
   let heat = 0; // 0 cold … 1 a dish is on, eased
   let jet = 0; // 0 … 1 the wok is off and the burner is open, eased
+  // Something else to stand in the wok as its dish (run.js hands in the very heap the cook
+  // tosses, so that what fries is what was tossed): made for a bowl of radius one with its
+  // lowest point at the origin. null gives the mound drawn here back.
+  let guest = null;
+  function setDish(node) {
+    if (guest && guest.parent === g) g.remove(guest);
+    guest = node || null;
+    if (guest) {
+      g.add(guest);
+      guest.position.set(0, 0.826, 0);
+      guest.rotation.set(0, 0, 0);
+      guest.scale.setScalar(0.52);
+    }
+    setState(state);
+  }
   function setState(s) {
     state = s;
     const lit = s !== "live";
     light.off = !lit;
     wok.visible = s !== "toss";
-    dish.visible = s === "cook" || s === "due" || s === "ready";
+    const served = s === "cook" || s === "due" || s === "ready";
+    dish.visible = served && !guest;
+    if (guest) guest.visible = served;
   }
   function update(dt) {
     t += dt;
@@ -302,7 +319,8 @@ export function buildStove(THREE, mats, rnd = Math.random) {
   setState("live");
   update(0);
   g.userData.setState = setState;
-  return { group: g, light, setState, update };
+  g.userData.setDish = setDish;
+  return { group: g, light, setState, setDish, update };
 }
 
 // The flame: a sheet that is brightest and widest at the bottom, torn by noise that climbs.
