@@ -54,7 +54,7 @@ const STOCK = {
 // also hurt, and what share of the damage they take; precise: aimed at the head.
 const SHAPE = {
   shotgun: { reach: 14 },
-  smg: { reach: 40 },
+  smg: { reach: 25 },
   revolver: { reach: 60, precise: true },
   lever: { reach: 60, precise: true, more: 1, share: 1 },
   nailgun: { reach: 50 },
@@ -69,7 +69,13 @@ const SHAPE = {
   pistol: { reach: 40 },
 };
 
-/** The lab's measured table: how each form did against the firing range's horde. */
+/**
+ * The lab's measured table (arsenal/tools/balance.mjs): how each form did with the real
+ * weapon code. rows: { id, b, lv, kills, dps, hurt, crowd, spent, solo } — against the
+ * street's dead: kills, damage, damage taken a minute and rounds spent a minute; `solo` is
+ * the damage a second on one elite. scene: the test itself, which lab.mjs replays; line:
+ * the standard line the forms are scored against.
+ */
 export const MEASURED = JSON.parse(
   fs.readFileSync(
     new URL("../../arsenal/scripts/balance.json", import.meta.url),
@@ -78,6 +84,34 @@ export const MEASURED = JSON.parse(
 );
 const measured = (id, b, lv) =>
   MEASURED.rows.find((r) => r.id === id && r.b === b && r.lv === lv);
+
+/**
+ * The standard line every weapon is held to: what a level-one gun does in that test, the
+ * street's dead felled a minute and the damage a second on the elite. Set where the test
+ * is (arsenal/tools/balance.mjs, LINE) and written into its table.
+ */
+export const LINE = MEASURED.line;
+/** A form's score: 1 for clearing a crowd like the line, 1 for one target like the line. */
+export const score = (r) =>
+  r ? r.kills / LINE.crowd + r.solo / LINE.single : null;
+/** { crowd, single, total } of a measured form, null where the lab has none. */
+export function scoreOf(id, branch = "base", level = 1) {
+  const r = measured(id, branch, level);
+  return r
+    ? {
+        crowd: r.kills / LINE.crowd,
+        single: r.solo / LINE.single,
+        total: score(r),
+      }
+    : null;
+}
+/** Of the street's dead, how many a full pool of its ammunition fells (null: needs none). */
+export function poolKills(id, branch = "base", level = 1) {
+  const r = measured(id, branch, level);
+  const kind = ARMS[id].ammo;
+  if (!r || !kind || !r.spent) return null;
+  return r.kills / ((r.spent * ammoPer(id, branch, level)) / AMMO[kind].cap);
+}
 
 function baseModel(id) {
   const w =
@@ -149,10 +183,10 @@ export const model = (id) => MODELS[id];
 
 /**
  * How much more a form does than the weapon as picked up (base form, level 1), as a
- * multiplier on damage. Levels 3 and 5 are the lab's measurements of that form against the
- * horde, so a fork's change of mechanics counts for what it was measured to be worth; levels
- * 2 and 4 are the level table applied to the measurement below them. The game's own two guns
- * have no forks and no measurements: the level table alone.
+ * multiplier on damage. Levels 3 and 5 are the lab's measurements of that form: its score
+ * over the base form's, so a fork's change of mechanics counts for what it was measured to
+ * be worth; levels 2 and 4 are the level table applied to the measurement below them. The
+ * game's own two guns have no forks and no measurements: the level table alone.
  */
 export function power(id, branch = "base", level = 1) {
   const lv = Math.max(1, Math.min(LEVELS.length, level));
@@ -163,15 +197,16 @@ export function power(id, branch = "base", level = 1) {
   const at3 = measured(id, b, 3);
   const at5 = measured(id, b, 5);
   if (!at3 || !at5) return table;
-  if (lv === 3) return at3.dps / base.dps;
-  if (lv === 4) return (at3.dps / base.dps) * (LEVELS[3].dmg / LEVELS[2].dmg);
-  return at5.dps / base.dps;
+  if (lv === 3) return score(at3) / score(base);
+  if (lv === 4)
+    return (score(at3) / score(base)) * (LEVELS[3].dmg / LEVELS[2].dmg);
+  return score(at5) / score(base);
 }
 /** The better fork of a weapon by the lab's level-five measurement ("a" when unmeasured). */
 export function betterFork(id) {
   const a = measured(id, "a", 5);
   const b = measured(id, "b", 5);
-  return a && b && b.dps > a.dps ? "b" : "a";
+  return a && b && score(b) > score(a) ? "b" : "a";
 }
 export const measuredRow = measured;
 

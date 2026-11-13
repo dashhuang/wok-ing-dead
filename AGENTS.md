@@ -95,6 +95,9 @@ Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值
 - **调数值看 [docs/balance.md](docs/balance.md)**：现在只调微辣（中辣和变态辣在菜单上锁着，`src/settings.js` 的 `openDifficulties`）。
   改了上面任何一张数值表或 `runflow.js` 的规则，运行 `npm run balance` 并把 `docs/balance-report.md` 一起提交，
   否则 `npm run check` 不过。目标写成了护栏（`scripts/balance/guards.mjs`）；达到了哪条，就在那次改动里把它启用。
+  **武器对同一条标准线**（docs/balance.md「武器的统一标准」）：改了武器的伤害、射速、弹匣或岔路的效果，
+  先重新实测（`node arsenal/tools/balance.mjs --seconds 120 --write`，约 2 分钟，开的是不显示窗口的试验场测试台，不是游戏），
+  再 `npm run balance` 和 `node arsenal/scripts/design-doc.mjs`；出了目标带的形态护栏会拦。
 
 ## 工作流
 

@@ -10,14 +10,20 @@
 // units per round. A player who leans on one weapon uses a quarter of what the street gives;
 // one who carries something for every pool wastes nothing.
 //
+// What a round costs is set so that a full pool is worth about the same to every weapon:
+// some fifty-five of the street's dead at level one (arsenal/tools/balance.mjs measures it,
+// the balance report lists it). A weapon that kills more with a round pays more for it.
+//
 // AMMO and ARMS are plain data and ammoPer() a plain function: the weapon lab (arsenal/) reads
 // them too, so what a round costs on its firing range is what it costs in a run. What a level
 // multiplies damage by is the arsenal's own table (LEVELS), the one the lab shows.
 import { LEVELS } from "../../arsenal/src/data/levels.js";
 
 export const AMMO = {
-  // cap: units carried (the "portion" seasoning raises it), pack: units in one dropped pack
-  bullets: { cap: 240, pack: 45, start: 90 },
+  // cap: units carried (the "portion" seasoning raises it), pack: units in one dropped pack,
+  // start: units a run begins with. For every kind a pack is a fifth of the cap and a run
+  // starts with three tenths of it.
+  bullets: { cap: 240, pack: 48, start: 72 },
   heavy: { cap: 60, pack: 12, start: 18 },
   fuel: { cap: 300, pack: 60, start: 90 },
   parts: { cap: 300, pack: 60, start: 90 },
@@ -28,14 +34,14 @@ export const AMMO_TYPES = Object.keys(AMMO);
 // own: one of the game's own rigs
 export const ARMS = {
   rifle: { ammo: "bullets", per: 1, own: true },
-  smg: { ammo: "bullets", per: 0.75 },
-  shotgun: { ammo: "heavy", per: 1 },
-  revolver: { ammo: "heavy", per: 1 },
-  lever: { ammo: "heavy", per: 1 },
-  flamer: { ammo: "fuel", per: 0.5 },
-  firework: { ammo: "fuel", per: { base: 12, a: 4, b: 20 } },
-  nailgun: { ammo: "parts", per: 1.5 },
-  crossbow: { ammo: "parts", per: 4 },
+  smg: { ammo: "bullets", per: 0.5 },
+  shotgun: { ammo: "heavy", per: 1.25 },
+  revolver: { ammo: "heavy", per: 0.8 },
+  lever: { ammo: "heavy", per: 1.5 },
+  flamer: { ammo: "fuel", per: 0.8 },
+  firework: { ammo: "fuel", per: { base: 7, a: 5, b: 14 } },
+  nailgun: { ammo: "parts", per: 1 },
+  crossbow: { ammo: "parts", per: 2 },
   arc: { ammo: "parts", per: 1 },
   pistol: { ammo: null, own: true },
   talisman: { ammo: null },

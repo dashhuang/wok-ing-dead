@@ -12,7 +12,7 @@
 // A zombie, as seen from here (the range's own object, or the game's "mark" on one of its
 // zombies), carries: alive, type ("walker" | "brute"), rank ("" | "elite" | "boss" | ...),
 // maxHp, radius, pos, chest, headPos, feet, vel, lift, liftV, stagger, pin, pinKind, fear,
-// flash, burnAcc and st { burn, burnT, shock, venom, venomT, seal, sealT }.
+// flash, burnAcc and st { burn, burnT, shock, venom, venomT, seal, sealT, spent }.
 import * as THREE from "three";
 import { C, rand, srand } from "../fx/core.js";
 import { STATUS } from "../data/status.js";
@@ -29,6 +29,7 @@ const fresh = () => ({
   venomT: 0,
   seal: 0,
   sealT: 0,
+  spent: 0, // seconds before a seal on it can set off another reaction
 });
 
 /** The fields the rules keep on a zombie, cleared (a new zombie, or a pooled one come back). */
@@ -238,7 +239,8 @@ export function createStatus(host) {
     apply(z, element, stacks = 1) {
       if (!z.alive) return;
       const s = z.st;
-      const held = s.seal > 0 || sealed(z);
+      // (a seal that has just gone off needs a moment: see STATUS.reactions, every)
+      const held = (s.seal > 0 || sealed(z)) && !(s.spent > 0);
       if (element === "fire") {
         if (held) return react(z, "焚符");
         if (s.venom > 0) return react(z, "爆燃");
@@ -330,6 +332,7 @@ export function createStatus(host) {
       if (s.shock > 0) s.shock -= dt;
       if (s.venom > 0 && (s.venomT -= dt) <= 0) s.venom = 0;
       if (s.seal > 0 && (s.sealT -= dt) <= 0) s.seal = 0;
+      if (s.spent > 0) s.spent -= dt;
       if (z.pin > 0) z.pin = Math.max(0, z.pin - dt);
       z.fear = Math.max(0, z.fear - dt);
       if (z.lift > 0 || z.liftV > 0) {
@@ -482,6 +485,7 @@ export function createStatus(host) {
     } else if (name === "焚符") {
       const r = R.焚符;
       s.seal = 0;
+      s.spent = r.every;
       E.seal(z.headPos, {
         pal: "fire",
         glyph: "焚",
@@ -515,6 +519,7 @@ export function createStatus(host) {
     } else if (name === "引雷") {
       const r = R.引雷;
       s.seal = 0;
+      s.spent = r.every;
       E.lightning(z.pos, { radius: r.radius });
       for (const h of api.inSphere(z.chest, r.radius))
         api.damage(h.z, h.z === z ? r.self : r.others, {
