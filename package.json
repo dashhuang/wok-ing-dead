@@ -29,7 +29,8 @@
     "test:e2e": "playwright test",
     "verify": "npm run check && npm run build && npm run test:e2e",
     "test:telemetry": "node --test tests/telemetry/*.test.mjs",
-    "telemetry:migrate": "node scripts/telemetry/migrate.mjs"
+    "telemetry:migrate": "node scripts/telemetry/migrate.mjs",
+    "prepare": "git config core.hooksPath .githooks || true"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",

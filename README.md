@@ -118,7 +118,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `src/settings.js` | 设置存储 |
 | `src/bootguard.js` | 开机时用保存的画质；手机上因画质过高被浏览器杀掉页面后，下次自动退回自动档 |
 | `tests/e2e/` | Playwright 冒烟测试：用真实点击走标题 → 开镬 → 暂停 → 死亡 → 重试 |
-| `.github/` | CI（只做构建）、PR 和 issue 模板 |
+| `.github/` | CI（检查和构建，不跑浏览器测试）、PR 和 issue 模板 |
 | `public/assets/` | 贴图、道具、僵尸、字体（`fonts/ui` 界面字体，`fonts/world` 场景贴图字体）、音效 |
 | `scripts/assets/` | 素材下载与转换脚本、素材清单；`build-ui-fonts.py` 按语言包生成界面字体子集 |
 | `arsenal/` | 肉鸽武器的试验场（模型、特效、战斗逻辑、靶场），可以单独运行；游戏本体直接导入其中的武器、特效和战斗模块，所以它必须和游戏一起发布。试验场只管看模型和握法；**靶场在游戏里**（`/?range=1`），试验场的「靶场」按钮会带着当前武器直接打开它。见 [arsenal/README.md](arsenal/README.md) 和 [武器设计](docs/weapons-roguelike.md) |

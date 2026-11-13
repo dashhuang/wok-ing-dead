@@ -14,7 +14,7 @@
 ## 命令
 
 ```sh
-npm ci                 # 安装依赖
+npm ci                 # 安装依赖（同时启用 .githooks/：推送前自动跑 npm run check）
 npm run dev            # 开发服务器 http://127.0.0.1:5173/（有热重载）
 npm run check          # 全仓库 JS 语法 + Prettier 格式检查 + 数值护栏（见 docs/balance.md）
 npm run balance        # 改了数值后重新生成 docs/balance-report.md（不是最新的话 check 会失败）
@@ -88,7 +88,8 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
    AI 协助的提交加上要求的署名 trailer。
 3. 用户要求时才 push。用户说直接推 / 直接发布时，在最新的 `main` 上提交并推送（推上去立即上线）；没说清楚的，
    小改动（文案、数值、小修复、文档）问一句，大改动（新玩法、菜单或启动流程、多文件重构）默认开 PR（`gh pr create --fill`）。
-   CI 只跑构建（`npm run build`）。检查和测试在本机跑：推送前跑 `npm run check`；改了菜单、标题页、启动或一局的流程时再跑 `npm run test:e2e`。
+   pre-push 钩子和 CI 都跑 `npm run check`（CI 再跑构建），不过就推不上去；不要用 `--no-verify` 绕过。
+   浏览器测试不在 CI 里：改了菜单、标题页、启动或一局的流程时在本机跑 `npm run test:e2e`。
 4. 合并用 Squash and merge；合并后用 `npx vercel@latest ls wok-ing-dead` 确认生产部署成功。
 
 ## 验证（交付前必须做）

@@ -7,7 +7,8 @@
 - **小改动直接推 `main`**：改文案、调数值、修小问题、改文档。推上去就上线。
 - **大改动走 Pull Request**：新玩法、改菜单或启动流程、动很多文件。好处是有 Vercel 预览地址可以先玩。
 
-CI 只做一件事：确认游戏还能构建（`npm run build`，约 30 秒）。其余检查和测试都是需要时在本机手动跑。
+推送前钩子和 CI 都会跑 `npm run check`（语法、格式、武器数据、数值护栏），CI 再确认游戏能构建，一共约 1 分钟。
+不过就推不上去：格式问题用 `npm run format` 修，改了数值后用 `npm run balance` 重新生成报告。浏览器测试不在里面，需要时在本机手动跑。
 
 ## 小改动：直接推 `main`
 
@@ -19,7 +20,7 @@ git commit -am "Fix the pause menu overlapping the timer"
 git push
 ```
 
-推上去后 CI 会再构建一次，变红就马上修或回滚（见下文）。
+推上去后 CI 会再检查和构建一次，变红就马上修或回滚（见下文）。
 
 ## 大改动：走 Pull Request
 
@@ -62,7 +63,7 @@ git push
    gh pr create --fill
    ```
 
-   - CI 只跑「Build」（约 30 秒）。
+   - CI 跑「Check and build」（约 1 分钟）。
    - 改了菜单、标题页、启动流程或一局的流程时，合并前在本机跑一下 `npm run test:e2e`（真实点击冒烟测试，约 6 分钟）；
      改了 `arsenal/` 跑 `npm run arsenal:test`（约 2 分钟）。
    - Vercel 会在 PR 里贴出预览地址。在预览地址上实际玩一遍受影响的部分，再按模板勾选验证项。
@@ -70,7 +71,7 @@ git push
 
 5. **合并**
 
-   「Build」通过后用 **Squash and merge** 合并，并删除分支。合并后 Vercel 自动部署生产环境，
+   「Check and build」通过后用 **Squash and merge** 合并，并删除分支。合并后 Vercel 自动部署生产环境，
    用 `npx vercel@latest ls wok-ing-dead` 确认部署成功，再打开线上地址看一眼。
 
 ## 出了问题怎么回滚

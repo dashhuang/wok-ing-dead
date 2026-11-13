@@ -1,0 +1,8 @@
+#!/bin/sh
+# Before every push: syntax, formatting, weapon data and the balance guards (npm run check,
+# ~12 s). Pushing to main deploys straight to production, so a failing check stops the push.
+# No browser tests here; run those by hand when they are useful.
+npm run --silent check || {
+  echo "pre-push: npm run check failed — fix it (npm run format / npm run balance) and push again." >&2
+  exit 1
+}
