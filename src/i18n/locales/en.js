@@ -35,6 +35,8 @@ export default {
   "act.retry": "Another round",
   "act.redeploy": "Order again",
   "act.close": "Close",
+  "act.gallery": "Weapon Rack",
+  "act.range": "Test Kitchen",
 
   "mode.mission": "Set menu",
   "mode.holdout": "All-you-can-eat",

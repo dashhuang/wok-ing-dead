@@ -33,6 +33,8 @@ export default {
   "act.retry": "再來一鑊",
   "act.redeploy": "再來一單",
   "act.close": "關閉",
+  "act.gallery": "傢伙陳列",
+  "act.range": "試菜靶場",
 
   "mode.mission": "套餐",
   "mode.holdout": "吃到飽",
