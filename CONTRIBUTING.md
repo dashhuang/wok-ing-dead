@@ -4,8 +4,10 @@
 
 有两种发布方式，按改动大小选：
 
-- **小改动直接推 `main`**：改文案、调数值、修小问题、改文档。推送前钩子会跑语法和格式检查，推上去就上线。
-- **大改动走 Pull Request**：新玩法、改菜单或启动流程、动很多文件。好处是有 Vercel 预览地址可以先玩，需要时可以跑冒烟测试。
+- **小改动直接推 `main`**：改文案、调数值、修小问题、改文档。推上去就上线。
+- **大改动走 Pull Request**：新玩法、改菜单或启动流程、动很多文件。好处是有 Vercel 预览地址可以先玩。
+
+CI 只做一件事：确认游戏还能构建（`npm run build`，约 30 秒）。其余检查和测试都是需要时在本机手动跑。
 
 ## 小改动：直接推 `main`
 
@@ -17,7 +19,7 @@ git commit -am "Fix the pause menu overlapping the timer"
 git push
 ```
 
-推上去后 CI 还会再跑一遍检查和构建（约 20 秒），变红就马上修或回滚（见下文）。
+推上去后 CI 会再构建一次，变红就马上修或回滚（见下文）。
 
 ## 大改动：走 Pull Request
 
@@ -46,7 +48,6 @@ git push
    npm run verify     # 以上三步一起跑
    ```
 
-   `npm ci` 时会自动启用 `.githooks/`：`git push` 前先跑 `npm run check`。
 
 3. **提交**
 
@@ -61,21 +62,15 @@ git push
    gh pr create --fill
    ```
 
-   - CI 每次都跑「Check and build」：语法、格式、生产构建，在 GitHub 的机器上约 20 秒。
-   - **冒烟测试按需跑**：给 PR 加上 `e2e` 标签就会开始（之后每次推新提交都会再跑），也可以在 Actions 页面选「Smoke test」→ Run workflow，
-     或 `gh workflow run smoke.yml --ref <分支>`。改了菜单、标题页、启动流程或一局的流程时建议跑。
-     它先检查标题页在桌面、手机竖屏、手机横屏下按钮都没有被遮挡，再用真实鼠标点击和按键走开镬 → 选主菜 → 开火 → 升级选小票 → 暂停 → 继续 →
-     死亡 → 重试，另外检查试验场的地址参数能带进真实的一局（约 6 分钟）；之后跑武器试验场的测试 `npm run arsenal:test`（约 2 分钟）。
-     第二关（码头）暂时没有在用，不在测试范围内。只在重试后才通过的测试会在这次运行的页面上标黄提示。
-     冒烟测试要约 10 GB 内存，GitHub 给私有仓库的机器只有 7 GB，所以它跑在 Dash 的 Mac Studio 上的自托管 runner
-     （`mac-studio`，安装在 `~/actions-runner/wok-ing-dead`，作为登录项服务运行，登录后自动上线）。
-     runner 离线时会排队等待，超过 24 小时会失败，需要在 PR 页面点 Re-run。
+   - CI 只跑「Build」（约 30 秒）。
+   - 改了菜单、标题页、启动流程或一局的流程时，合并前在本机跑一下 `npm run test:e2e`（真实点击冒烟测试，约 6 分钟）；
+     改了 `arsenal/` 跑 `npm run arsenal:test`（约 2 分钟）。
    - Vercel 会在 PR 里贴出预览地址。在预览地址上实际玩一遍受影响的部分，再按模板勾选验证项。
    - 画面、界面、特效改动附上截图或录屏。
 
 5. **合并**
 
-   「Check and build」通过（跑了冒烟测试的话它也要通过）后用 **Squash and merge** 合并，并删除分支。合并后 Vercel 自动部署生产环境，
+   「Build」通过后用 **Squash and merge** 合并，并删除分支。合并后 Vercel 自动部署生产环境，
    用 `npx vercel@latest ls wok-ing-dead` 确认部署成功，再打开线上地址看一眼。
 
 ## 出了问题怎么回滚
@@ -88,5 +83,5 @@ git push
 - `upstream/` 是提取时的原件，不要修改。
 - 界面文案只改 `src/i18n/locales/`，四种语言一起改，然后重新生成界面字体子集（见 [素材来源与许可](docs/assets.md#界面字体)）。
 - 新增外部素材（贴图、模型、音效、字体）要在 [docs/assets.md](docs/assets.md) 写明来源和许可，只用 CC0 或 OFL 这类允许再分发的素材。
-- 依赖更新由 Dependabot 每月提 PR。`three` 不会自动升级：它的附加模块要和 `src/game.js` 内嵌的 Three.js r180 保持一致。
+- 依赖需要时手动升级。`three` 不要升级：它的附加模块要和 `src/game.js` 内嵌的 Three.js r180 保持一致。
 - 构建产物（`dist/`、`dist-single/`）、测试报告不进仓库。

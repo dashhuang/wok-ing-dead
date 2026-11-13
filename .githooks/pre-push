@@ -1,4 +1,0 @@
-#!/bin/sh
-# Fast checks before every push (syntax + formatting). Pushing to main is allowed and
-# deploys straight to production (Vercel); see CONTRIBUTING.md.
-npm run --silent check

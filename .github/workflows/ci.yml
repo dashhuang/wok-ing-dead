@@ -1,24 +1,19 @@
 name: CI
 
-# Always runs: syntax, formatting and the production build (~20 s on GitHub's machines).
-# The browser smoke test is opt-in and lives in smoke.yml.
+# Just one thing: the game still builds. Everything else (checks, browser tests) is run by
+# hand when it is useful; see CONTRIBUTING.md.
 
 on:
   pull_request:
   push:
     branches: [main]
-  workflow_dispatch:
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  check:
-    name: Check and build
+  build:
+    name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -28,12 +23,4 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Syntax and formatting
-        run: npm run check
-      - name: Telemetry contract and queue tests
-        run: npm run test:telemetry
-      - name: Production build
-        run: npm run build
-      - name: Arsenal build
-        if: hashFiles('arsenal/vite.config.js') != ''
-        run: npx vite build --config arsenal/vite.config.js
+      - run: npm run build

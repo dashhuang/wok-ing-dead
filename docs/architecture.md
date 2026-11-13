@@ -267,7 +267,7 @@ LK-9 和 LK-4、命中体积、夜街的曝光和特效亮度都是真的，没�
 ## 验证入口
 
 - `npm run check`：全仓库语法检查和格式检查。
-- `npm run test:e2e`：Playwright 真实点击冒烟测试（标题 → 开镬 → 暂停 → 死亡 → 重试，另查手机尺寸下按钮是否被遮挡），CI 上按需跑（PR 加 `e2e` 标签或手动触发）。
+- `npm run test:e2e`：Playwright 真实点击冒烟测试（标题 → 开镬 → 暂停 → 死亡 → 重试，另查手机尺寸下按钮是否被遮挡），需要时在本机跑。
 - `npm run build`：Vite 模块解析与生产打包。
 - `/?autostart=1&noaudio=1`：启动冒烟检查；核对 `__ready`、`__fatal`、`__errors` 和 `__G.game.state`。
 - `__G.game.debugCut()`：直接切断下一座警报器。

@@ -14,13 +14,13 @@
 ## 命令
 
 ```sh
-npm ci                 # 安装依赖（同时启用 .githooks/）
+npm ci                 # 安装依赖
 npm run dev            # 开发服务器 http://127.0.0.1:5173/（有热重载）
 npm run check          # 全仓库 JS 语法 + Prettier 格式检查 + 数值护栏（见 docs/balance.md）
 npm run balance        # 改了数值后重新生成 docs/balance-report.md（不是最新的话 check 会失败）
 npm run format         # 自动修格式
 npm run build          # 生产构建到 dist/
-npm run test:e2e       # Playwright 真实点击冒烟测试（先 build；端口 5199；CI 上按需跑，见下文）
+npm run test:e2e       # Playwright 真实点击冒烟测试（先 build；端口 5199；只在本机跑）
 npm run verify         # check + build + test:e2e
 npm run build:single   # 单文件版 dist-single/wok-ing-dead.html（约 35 MB）
 npm run arsenal        # 武器试验场 http://127.0.0.1:5311/（独立于本体，没有热重载）
@@ -66,7 +66,7 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
     试验场（`arsenal/`）只用来看模型和握法；它里面的「测试台」（`?mode=fp`）是给自动测试和测量脚本用的简化巷子，不要拿它调手感。
   - **不要在任何一边再写一份规则或数字**。测试台缺什么，就把本体那部分抽成两边共用的代码，而不是在 `arsenal/` 里照抄。
   - 这三张表所在的文件不能导入游戏对象或 DOM（试验场和 node 脚本都要能直接导入）。试验场不引用 `src/game.js`。
-  - 改 `arsenal/src/combat/`、`arsenal/src/data/` 或这三张表的结构，`npm run arsenal:test` 和 `npm run test:e2e` 都要跑（走 PR 的话加 `e2e` 标签）；
+  - 改 `arsenal/src/combat/`、`arsenal/src/data/` 或这三张表的结构，`npm run arsenal:test` 和 `npm run test:e2e` 都要在本机跑；
     只调表里的数字不用。改接口（`createCombat(lab)`、`lab` 舞台对象、`createStatus(host)`、`kit/hands.js`、`data/weapons.js` 的字段）同理。
   - 武器基础形态的伤害、弹丸数、射程、溅射、弱点倍率、挥砍范围只写在 `arsenal/src/data/weapons.js` 的 `fire` 里，`behaviours.js` 读它（`F.<武器>`），
     不要在 `behaviours.js` 里再写一遍。射速、弹匣、换弹时间写在 `behaviours.js` 的 `spec()` 里，数据里的那份由 `npm run check` 核对。
@@ -88,21 +88,19 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
    AI 协助的提交加上要求的署名 trailer。
 3. 用户要求时才 push。用户说直接推 / 直接发布时，在最新的 `main` 上提交并推送（推上去立即上线）；没说清楚的，
    小改动（文案、数值、小修复、文档）问一句，大改动（新玩法、菜单或启动流程、多文件重构）默认开 PR（`gh pr create --fill`）。
-   pre-push 钩子会跑 `npm run check`，不要用 `--no-verify` 绕过。
-   CI 每次只跑检查和构建；冒烟测试按需跑：改了菜单、标题页、启动或一局的流程时给 PR 加 `e2e` 标签（`gh pr edit <号> --add-label e2e`），
-   或 `gh workflow run smoke.yml --ref <分支>`。
+   CI 只跑构建（`npm run build`）。检查和测试在本机跑：推送前跑 `npm run check`；改了菜单、标题页、启动或一局的流程时再跑 `npm run test:e2e`。
 4. 合并用 Squash and merge；合并后用 `npx vercel@latest ls wok-ing-dead` 确认生产部署成功。
 
 ## 验证（交付前必须做）
 
 - `npm run check`、`npm run build` 必须通过。自动化冒烟测试（`npm run test:e2e`）现阶段不是每次必跑：改动大（菜单、标题页、启动或一局的流程）
-  或用户要求时才跑，在本机或按上文在 CI 上跑。
+  或用户要求时才跑，在本机跑。
 - **必须用真实鼠标点击和按键走入口**，不能只靠 `?autostart=1` 或直接调用 `G.game.start()`——曾经标题页按钮被透明元素挡住，
   脚本直达的检查全部通过，用户一上手就点不动。界面改动走一遍：标题页 → 开镬 → 选主菜 → 数字键换武器 → Esc 暂停 → 设置里换语言 → 继续 →
   死亡重试 → 通关再开（第二关码头暂时没有在用，不用验证），
   桌面、手机竖屏、手机横屏各看一次，确认按钮没有被别的元素盖住。
 - 手动验证用 `npm run build` + `npx vite preview --port 5185` 之类的独立端口，不要用开发服务器：别的会话改文件会触发热重载打断测试。
-  端口约定：dev 5173、arsenal 5311（测试 5312）、e2e 5199；CI 在同一台 Mac 上跑测试时用 5399 / 5412，不会和本地冲突。
+  端口约定：dev 5173、arsenal 5311（测试 5312）、e2e 5199。
 - **这台 Mac 有人在用：浏览器自动化不能真的锁定鼠标。** Chromium 在 macOS 上执行 `requestPointerLock()` 会移动系统光标（无头模式也会），
   用户的鼠标会乱跳。用 Playwright 默认的无头浏览器（headless shell，锁定会失败，不影响光标），或在页面里注入
   `tests/support/fake-pointer-lock.js`（`page.addInitScript({ path })`，试验场的测试已经这样做）；不要用系统 Chrome 开有窗口的浏览器做验证。
