@@ -50,6 +50,16 @@
 
 - **iPhone Safari 的「“网址”重复出现问题」= 页面被系统连续杀掉**，几乎都是内存超限，不是服务器出错。第一次被杀后 Safari 自动重载，
   再被杀就显示这句话。开机保护（`src/bootguard.js`）只能把高于 `low` 的画质退回自动档，本来就在 `low` 时没有退路。
+- **查是哪个进程、为什么被杀**：手机连着 Mac 时，`xcrun devicectl device info files --device <UDID> --domain-type systemCrashLogs`
+  列出 `JetsamEvent-*.ips`，拷下来看 `reason` 为 `per-process-limit` 的进程和它的页数。2026-11-13 是 `com.apple.WebKit.WebContent`，2049 MB。
+- **iPhone 把 WebGL 的显存也算在网页进程头上**：Mac 上图形进程单独占几 GB，iPhone 上图形进程只有几百 MB、网页进程 2 GB。
+  所以省显存和省 JS 里的副本同样有效。three.js 上传贴图后默认还留着原图（解码图片、画布），手持设备上由 `texmem.js` 释放；
+  新做的画布贴图画完以后不再改，就 `markStatic(tex)`；会在游戏中继续画的（贴花、屏幕）不要标。
+- **武器库的模型开机就全部建好**：所有武器、所有岔路的画布都会上传，不管带没带（例如符纸 30 张、关刀龙纹 4 张）。手机档用 `createKit({ canvasScale: 0.5 })`；
+  画布里的绘制不要用 `setTransform`（会冲掉这个缩放），用 `save` / `transform` / `restore`。
+- 本机量内存：Playwright 的 WebKit（`npx playwright install webkit`）带 iPhone UA 打开，`vmmap -summary <WebContent pid>` 看
+  `CG Raster Data`（画布）、`Untagged (graphics)`（解码图片）、`WebKit Malloc`、`JS VM Reservations`。手机经局域网打开
+  `vite preview --host` 的构建即可实测，不用部署。起服务前先 `lsof -iTCP:<端口>`，别的会话常占着 5185–5187。
 - **长音频不要整首 `decodeAudioData`**：解码后是 32 位浮点 PCM，48 kHz 立体声每分钟约 22 MB。两首配乐（共约 4 分 49 秒）
   解码后约 110 MB，是 MP3 的十几倍。配乐、环境长音轨用 `<audio>` 加 `createMediaElementSource` 边播边解；短音效才解码成 buffer。
 

@@ -199,6 +199,10 @@ AudioContext 挂起（切后台）时音乐元素一起暂停，回来后从原�
   - 界面不用 `backdrop-filter`（`<html data-quality>` 控制）。
 
   `render.setQuality()` 切档时，会让带这些宏的材质重新编译。
+- **手机的内存上限**（iPhone 把网页进程和它的显存算在一起，iPhone Air 约 2 GB，超了整页被杀）：手持设备上 `texmem.js` 在贴图上传后
+  释放原图（`game.js` 里 three.js 上传 2D 贴图处调 `afterUpload`）。解码图片总是释放；画布只在标了 `markStatic` 后释放
+  （建筑贴图、招牌图集最后一次 `finish`、僵尸贴图缩小、武器库 `kit.canvas`）。武器库画布在 `low` 档是半分辨率（`createKit({ canvasScale })`）。
+  音乐用 `<audio>` 边播边解，不整首解码。
 - **两遍渲染的灯光布局必须一致**：世界一遍和武器一遍各看到 1 盏平行光、1 盏聚光灯和同样数量的点光源。
   因此武器补光是一盏远处的无衰减聚光灯，不是第二盏平行光。两遍不一致时，three.js 每帧会两次判定灯光状态变了，
   对所有材质重新推导着色器参数。

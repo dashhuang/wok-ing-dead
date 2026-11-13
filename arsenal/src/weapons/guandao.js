@@ -421,8 +421,10 @@ export default function build(kit) {
     g.clearRect(0, 0, W, Hh);
     const s = W / Lz;
     // face "x": canvas right = -Z; face "-x": canvas right = +Z
-    if (sign > 0) g.setTransform(-s, 0, 0, -s, LZ1 * s, LY1 * s);
-    else g.setTransform(s, 0, 0, -s, -LZ0 * s, LY1 * s);
+    // (on top of whatever scale the canvas came with: see createKit's canvasScale)
+    g.save();
+    if (sign > 0) g.transform(-s, 0, 0, -s, LZ1 * s, LY1 * s);
+    else g.transform(s, 0, 0, -s, -LZ0 * s, LY1 * s);
     // clip to the flat (not the bevel), where the label lies on the steel
     g.beginPath();
     const lim = Math.floor((N - 1) * 0.8);
@@ -742,7 +744,7 @@ export default function build(kit) {
         }
       }
     }
-    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.restore();
   };
   const engraving = new THREE.Group();
   engraving.name = "dragon-engraving";

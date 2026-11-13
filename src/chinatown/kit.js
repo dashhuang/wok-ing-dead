@@ -3,6 +3,7 @@
 // world-scaled primitives, GLB props and collision helpers.
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { markStatic } from "./texmem.js";
 
 const TEX = "assets/textures/";
 const PROPS = "assets/props/";
@@ -93,6 +94,7 @@ export async function createKit(G) {
       c.height = tex.image.height >> 1;
       c.getContext("2d").drawImage(tex.image, 0, 0, c.width, c.height);
       tex.image = c;
+      markStatic(tex);
     }
     tex.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;

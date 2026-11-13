@@ -2,6 +2,7 @@
 // neon and lightbox signs, lacquered signboards, lit windows, posters, lattice.
 // Each family shares one atlas texture so hundreds of signs cost a handful of draw calls.
 import * as THREE from "three";
+import { markStatic } from "./texmem.js";
 
 const SERIF = '"CT Serif", "Noto Serif TC", "Songti TC", "PingFang TC", serif';
 const KAI =
@@ -1412,6 +1413,8 @@ export async function createSigns(kit) {
           a.tex.image = c;
         }
         a.tex.needsUpdate = true;
+        // nothing is painted after the last finish: a phone lets the canvas go once uploaded
+        if (final) markStatic(a.tex);
       }
     },
   };

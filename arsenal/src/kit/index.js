@@ -12,7 +12,12 @@ export const FONT_HEI =
   '"PingFang SC","Heiti SC","Microsoft YaHei","Noto Sans SC",sans-serif';
 export const FONT_MONO = '"IBM Plex Mono","SF Mono",Menlo,Consolas,monospace';
 
-export function createKit() {
+/**
+ * canvasScale: the resolution of the painted labels and papers against the size they are
+ * drawn at (the game passes 0.5 on its low preset, where a phone cannot resolve more and every
+ * weapon's canvases are built at start: about 80 MB of GPU memory less).
+ */
+export function createKit({ canvasScale = 1 } = {}) {
   const mats = createMats();
   const texCache = new Map();
 
@@ -20,13 +25,17 @@ export function createKit() {
   function canvas(key, W, H, draw, { srgb = true } = {}) {
     if (key && texCache.has(key)) return texCache.get(key);
     const c = document.createElement("canvas");
-    c.width = W;
-    c.height = H;
+    c.width = Math.max(1, Math.round(W * canvasScale));
+    c.height = Math.max(1, Math.round(H * canvasScale));
     const g = c.getContext("2d");
+    // draw() keeps painting in W × H units, whatever the canvas holds
+    g.scale(c.width / W, c.height / H);
     draw(g, W, H);
     const t = new THREE.CanvasTexture(c);
     t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     t.anisotropy = 8;
+    // painted once and never again: the game may let the canvas go once it is uploaded
+    t.userData.staticImage = true;
     if (key) texCache.set(key, t);
     return t;
   }
