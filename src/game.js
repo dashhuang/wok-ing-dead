@@ -4,6 +4,8 @@ import { createSettingsStore } from "./settings.js";
 import { presetToBoot } from "./bootguard.js";
 import * as L10N from "./i18n/index.js";
 import { createRun } from "./chinatown/run.js";
+import { createComms } from "./chinatown/comms.js";
+import { uiIcon } from "./chinatown/icons.js";
 import { createTelemetry } from "./telemetry/index.js";
 import { createNavigation, STEP_HEIGHT } from "./chinatown/navigation.js";
 import { createSpawnPicker } from "./chinatown/spawning.js";
@@ -60202,7 +60204,8 @@ void main() {
       u = 0,
       f = [],
       h = new Set(),
-      p = !1;
+      p = !1,
+      secondary = !1;
     function d(ne) {
       if (m.device !== ne) {
         m.device = ne;
@@ -60251,6 +60254,14 @@ void main() {
       },
       setPrompt(ne) {
         ((p = !!ne), R && R.btn.interact.classList.toggle("on", !!ne));
+      },
+      setSecondary(on) {
+        secondary = !!on;
+        if (R && R.btn.ads.hidden === secondary) R.btn.ads.hidden = !secondary;
+        if (!secondary) {
+          R && R.btn.ads.classList.remove("active");
+          v("touch", "ads", false);
+        }
       },
       onModeChange(ne) {
         f.push(ne);
@@ -60449,10 +60460,10 @@ void main() {
           ]
             .map(
               ([a, k]) =>
-                `<button class="t-btn t-${a}" data-a="${a}" data-i18n-aria="touch.${k}" aria-label="${L10N.t("touch." + k)}"><span data-i18n="touch.${k}">${L10N.t("touch." + k)}</span></button>`,
+                `<button class="t-btn t-${a}" data-a="${a}" data-i18n-aria="touch.${k}" aria-label="${L10N.t("touch." + k)}">${uiIcon(a === "ads" ? "secondary" : a)}</button>`,
             )
             .join("") +
-          `<button class="t-btn t-pause" data-a="pause" data-i18n-aria="touch.pause" aria-label="${L10N.t("touch.pause")}"><span>II</span></button>`),
+          `<button class="t-btn t-pause" data-a="pause" data-i18n-aria="touch.pause" aria-label="${L10N.t("touch.pause")}">${uiIcon("pause")}</button>`),
         t.appendChild(ne));
       let ye = (Re) => ne.querySelector(Re),
         Te = {
@@ -60469,6 +60480,7 @@ void main() {
             pause: ye(".t-pause"),
           },
         };
+      Te.btn.ads.hidden = !secondary;
       for (let Re in Te.btn) {
         let Ue = Te.btn[Re];
         Ue.addEventListener(
@@ -65690,11 +65702,11 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
     sD = 0.01,
     oD = 0.012,
     rD = 0.0015,
+    // the bare arm: where it starts (inside the glove's cuff) and where it ends, in metres
+    // up from the wrist joint
     Ah = {
-      hem: 0.046,
+      hem: 0.03,
       end: 0.535,
-      band: [0.128, 0.172],
-      refl: [0.1445, 0.1555],
     },
     zu = [],
     aD = new Je(),
@@ -65960,14 +65972,15 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
         { k: 0.003 },
       );
     }
-    (ku(l0.twist2, py, new K(0, 5e-4, 0.084), NE, 0.088, 0.0232, 0.0222, {
+    // (the cuff ends just past the strap: above it the arm is bare)
+    (ku(l0.twist2, py, new K(0, 5e-4, 0.04), NE, 0.044, 0.0232, 0.0222, {
       wide: 1.43,
       k: 0.006,
       ta: 0,
       tb: 0.012,
       R: 0.022,
     }),
-      ku(l0.twist2, py, new K(0, 5e-4, 0.084), NE, 0.064, 0.0246, 0.024, {
+      ku(l0.twist2, py, new K(0, 5e-4, 0.04), NE, 0.02, 0.0246, 0.024, {
         wide: 1.4,
         k: 0.0035,
         ta: 0,
@@ -66323,69 +66336,31 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
     (t = Math.min(1, Math.max(0, (t - n) / (e - n)))),
     t * t * (3 - 2 * t)
   );
+  // The shooter's bare arm (she wears gloves and no sleeves). n: metres up the arm from the
+  // wrist joint (the elbow is at 0.27). Returns the half-width there; armFlat(n) is how much
+  // thinner the arm is from back to front. A slim arm: 15 cm round the wrist, 21 round the
+  // forearm, 23 above the elbow. It is the same all the way round and round in section from
+  // a hand's width above the wrist, and it thickens slowly: the forearm turns about its own
+  // length as the hand turns, and anything that is not round there, or that swells in a
+  // short distance, is wrung into a bend.
+  function armFlat(n) {
+    return 0.79 + 0.19 * Qa(0.03, 0.11, n) + 0.02 * Qa(0.29, 0.42, n);
+  }
   function dy(n, e, t) {
-    let i = (n - 0.066) / (Ah.end - 0.066),
-      s = 0.0042 * Math.exp(-Math.pow((n - 0.105) / 0.04, 2)),
-      o = 0.005 * Qa(0.19, 0.25, n) * (1 - Qa(0.33, 0.4, n)),
-      r =
-        Math.pow(
-          Math.abs(
-            Math.sin(
-              (Math.PI * n) / 0.029 +
-                1.7 * Math.sin(e + 0.5) +
-                0.8 * Math.sin(2 * e + 1.3),
-            ),
-          ),
-          0.6,
-        ) *
-          2 -
-        1.25,
-      a =
-        Math.pow(
-          Math.abs(
-            Math.sin(
-              (Math.PI * n) / 0.036 +
-                1.9 * Math.sin(e - 0.8) +
-                0.7 * Math.sin(2 * e),
-            ),
-          ),
-          0.6,
-        ) *
-          2 -
-        1.25,
-      l =
-        Math.sin(n * 38 + 2 * Math.sin(e * 2 + 1)) +
-        0.6 * Math.sin(3 * e + n * 23),
-      c =
-        0.041 +
-        0.015 * Math.pow(Math.max(0, Math.min(1, i * 1.9)), 0.8) +
-        0.0035 * Qa(0.3, 0.42, n) +
-        0.0022 * Math.exp(-Math.pow((n - 0.08) / 0.012, 2)),
-      u =
-        0.0016 *
-        Math.exp(
-          -Math.pow(Math.atan2(Math.sin(e + 1.9), Math.cos(e + 1.9)) / 0.1, 2),
-        );
     return (
-      t && (t[0] = ((s * r + o * a) / (s + o + 8e-4)) * 0.8 + 0.1 * l),
-      c + s * r + o * a + 0.0015 * l + u
+      t && (t[0] = 0),
+      0.0266 +
+        0.0074 * Qa(0.02, 0.25, n) -
+        0.0006 * Qa(0.23, 0.29, n) +
+        0.0032 * Qa(0.3, 0.44, n)
     );
   }
   function mD(n) {
     let t = [],
       i = [0],
-      s = [
-        [0.053, 0.0238, 0],
-        [0.049, 0.0262, 0],
-        [0.0462, 0.0318, 0],
-        [0.0462, 0.0356, 0],
-        [0.049, 0.0382, 0],
-        [0.053, 0.0388, 0],
-        [0.06, 0.0384, 0],
-        [0.065, 0.0368, 0],
-      ];
+      s = [];
     for (let p of s) t.push(p);
-    for (let p = 0.072; p < 0.3; p += 0.0072) t.push([p, -1, 0]);
+    for (let p = Ah.hem; p < 0.3; p += 0.0072) t.push([p, -1, 0]);
     for (let p = 0.309; p < Ah.end - 0.02; p += 0.015) t.push([p, -1, 0]);
     let o = t.length,
       r = [Ah.end - 0.018, Ah.end - 0.006, Ah.end],
@@ -66401,8 +66376,8 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
             m,
           ];
         }
-        let v = dy(m, d, i) * (0.9 + 0.1 * Qa(0.066, 0.085, m));
-        return [Math.cos(d) * v, Math.sin(d) * v * 0.9 + 5e-4, m];
+        let v = dy(m, d, i);
+        return [Math.cos(d) * v, Math.sin(d) * v * armFlat(m) + 5e-4, m];
       },
       u = (p, d, m, x, v) => {
         (n.pos.push(p[0], p[1], p[2]),
@@ -66442,7 +66417,11 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
         let m = (d / 24) * Math.PI * 2,
           x = [0.8, 0.42][p],
           v = dy(Ah.end - 0.02, m, null),
-          y = [Math.cos(m) * v * x, Math.sin(m) * v * 0.9 * x + 5e-4, r[p]],
+          y = [
+            Math.cos(m) * v * x,
+            Math.sin(m) * v * armFlat(Ah.end) * x + 5e-4,
+            r[p],
+          ],
           b = [0.55, 0.9][p],
           g = Math.sqrt(1 - b * b);
         u(y, [Math.cos(m) * g, Math.sin(m) * g, b], r[p], m, 0);
@@ -67153,10 +67132,8 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
       cuff: [0.062, 0.066, 0.056],
       strap: [0.036, 0.038, 0.04],
       tab: [0.56, 0.15, 0.03],
-      navy: [0.046, 0.068, 0.106],
-      hem: [0.028, 0.04, 0.062],
-      orange: [0.5, 0.145, 0.028],
-      refl: [0.42, 0.42, 0.4],
+      skin: [0.49, 0.295, 0.195],
+      skinIn: [0.52, 0.33, 0.235],
     },
     kh = { value: 0.7 },
     ys = Ay,
@@ -67194,18 +67171,11 @@ float aNoise(vec3 x) { vec3 i = floor(x), q = fract(x); q = q * q * (3.0 - 2.0 *
 vec3 armSurface(vec4 hc, vec4 rs, float gD, out float rough, out float h, out float kind) {
   float A = hc.x, F = hc.y, D = hc.z, S = hc.w, x = rs.x, y = rs.y, z = rs.z; vec3 col; h = 0.0;
   if (rs.w > 0.5) {
-    float ang = atan(D, S);
-    col = ${Ui(ys.navy)}; rough = 0.50; kind = 4.0;
-    col *= 0.80 + 0.26 * smoothstep(-0.9, 0.6, F);
-    float bandM = aBand(A, 0.128, 0.172, 0.0012), refl = aBand(A, 0.1445, 0.1555, 0.0008);
-    col = mix(col, ${Ui(ys.orange)}, bandM); col = mix(col, ${Ui(ys.refl)}, refl); rough = mix(rough, 0.62, bandM); rough = mix(rough, 0.30, refl); kind = mix(kind, 5.0, refl);
-    h += 0.00035 * bandM + 0.00015 * refl;
-    float edge = aBand(A, 0.1268, 0.1292, 0.0006) + aBand(A, 0.1708, 0.1732, 0.0006);
-    col = mix(col, ${Ui(ys.stitch)}, 0.55 * edge * step(fract(ang * 9.5), 0.62));
-    float hem = 1.0 - smoothstep(0.0655, 0.0675, A), rib = 0.5 + 0.5 * cos(ang * 44.0);
-    col = mix(col, ${Ui(ys.hem)}, hem); col *= mix(1.0, 0.62 + 0.5 * rib, hem); h += 0.0007 * rib * hem; rough = mix(rough, 0.82, hem); kind = mix(kind, 3.0, hem);
-    float sa = atan(sin(ang + 1.9), cos(ang + 1.9)) / 0.045, seam = exp(-sa * sa) * (1.0 - hem);
-    rough = mix(rough, 0.34, seam * 0.8); col *= 1.0 - 0.25 * seam;
+    // bare skin: paler and pinker on the inside of the arm, a breath of colour at the elbow
+    col = mix(${Ui(ys.skin)}, ${Ui(ys.skinIn)}, smoothstep(0.35, -0.75, D)); rough = 0.50; kind = 6.0;
+    float elbow = exp(-pow((A - 0.275) / 0.035, 2.0)) * smoothstep(-0.2, 0.7, D);
+    col *= mix(vec3(1.0), vec3(1.0, 0.92, 0.9), 0.4 * elbow); rough = mix(rough, 0.6, elbow);
+    col *= 0.98 + 0.04 * aNoise(rs.xyz * vec3(60.0, 60.0, 22.0));
   } else {
     float j1 = ${Sy(0)}, j2 = ${Sy(1)}, j3 = ${Sy(2)};
     float u = A < j1 ? A / j1 : A < j2 ? 1.0 + (A - j1) / (j2 - j1) : 2.0 + (A - j2) / (j3 - j2);
@@ -67270,28 +67240,31 @@ ${[0, 1, 2].map(
   }
   return col;
 }
-// sub-millimetre detail by kind: weave (0), pebbled grain (1), moulded rubber (2), knit rib (3), waxed ripstop + beads (4), glass bead tape (5)
+// sub-millimetre detail by kind: weave (0), pebbled grain (1), moulded rubber (2), knit rib (3), waxed ripstop + beads (4), glass bead tape (5), skin (6)
 vec3 armMicro(vec3 col, vec4 hc, vec4 rs, vec3 rn, float kind, float wet, inout float rough, inout float h) {
   vec3 p = rs.xyz, an = abs(rn); an = an * an; an /= an.x + an.y + an.z + 1e-5;
   float px = max(length(dFdx(p)), length(dFdy(p))), fine = 1.0 - smoothstep(0.00018, 0.00050, px);      // fade detail the pixels cannot hold
   float wf = 5712.0, weave = (sin(p.y * wf) * sin(p.z * wf)) * an.x + (sin(p.x * wf) * sin(p.z * wf)) * an.y + (sin(p.x * wf) * sin(p.y * wf)) * an.z;
   float n1 = aNoise(p * 950.0), n2 = aNoise(p * 2300.0 + 7.3), big = aNoise(p * 90.0 + 3.1);
-  float kFab = 1.0 - min(1.0, abs(kind - 0.0)), kLea = 1.0 - min(1.0, abs(kind - 1.0)), kRub = 1.0 - min(1.0, abs(kind - 2.0)), kRib = 1.0 - min(1.0, abs(kind - 3.0)), kShell = 1.0 - min(1.0, abs(kind - 4.0)), kRefl = 1.0 - min(1.0, abs(kind - 5.0));
-  h += fine * (kFab * 0.00005 * weave + kLea * 0.00011 * (n1 * 0.7 + n2 * 0.3 - 0.5) + kRub * 0.00003 * (n2 - 0.5) + kRib * 0.00006 * weave + kShell * 0.000035 * weave + kRefl * 0.00004 * (n2 - 0.5));
+  float kFab = 1.0 - min(1.0, abs(kind - 0.0)), kLea = 1.0 - min(1.0, abs(kind - 1.0)), kRub = 1.0 - min(1.0, abs(kind - 2.0)), kRib = 1.0 - min(1.0, abs(kind - 3.0)), kShell = 1.0 - min(1.0, abs(kind - 4.0)), kRefl = 1.0 - min(1.0, abs(kind - 5.0)), kSkin = 1.0 - min(1.0, abs(kind - 6.0));
+  h += fine * (kFab * 0.00005 * weave + kLea * 0.00011 * (n1 * 0.7 + n2 * 0.3 - 0.5) + kRub * 0.00003 * (n2 - 0.5) + kRib * 0.00006 * weave + kShell * 0.000035 * weave + kRefl * 0.00004 * (n2 - 0.5) + kSkin * 0.000018 * (n1 * 0.6 + n2 * 0.4 - 0.5));
   col *= 1.0 + fine * (kFab * 0.06 * weave + kLea * 0.16 * (n1 - 0.5) + kRib * 0.08 * weave + kShell * 0.04 * weave) + (big - 0.5) * (0.16 * kLea + 0.10 * kFab + 0.10 * kShell + 0.06 * kRub);
   rough += (big - 0.5) * (0.10 * kLea + 0.10 * kShell + 0.12 * kRub) + fine * (n1 - 0.5) * 0.10 * kLea;
-  // rain beads on the shell (laid out in the sleeve's own angle / length coordinates) and, sparser, on the rubber
-  if (wet > 0.01 && (kShell + kRefl + kRub) > 0.3) {
+  // wet skin shines
+  rough = mix(rough, 0.34, 0.6 * wet * kSkin);
+  // rain beads on the arm (laid out in its own angle / length coordinates) and, sparser, on the rubber
+  if (wet > 0.01 && (kShell + kRefl + kRub + kSkin) > 0.3) {
     vec2 q = rs.w > 0.5 ? vec2(atan(hc.z, hc.w) * 0.046, hc.x) : vec2(dot(p, vec3(0.8, 0.0, 0.6)), dot(p, vec3(-0.42, 0.7, 0.57)));
     float bead = 0.0, wetR = 0.0;
     for (int o = 0; o < 2; o++) {
       float cell = o == 0 ? 0.0085 : 0.0041; vec2 g = q / cell + float(o) * 13.7, id = floor(g), fr = fract(g);
       float r1 = aHash(vec3(id, 1.0 + float(o))), r2 = aHash(vec3(id, 5.0)), r3 = aHash(vec3(id, 9.0));
-      float rad = (o == 0 ? 0.0019 : 0.0010) * (0.55 + 0.6 * r3), on = step(r1, (o == 0 ? 0.42 : 0.5) * wet * (rs.w > 0.5 ? 1.0 : 0.5));
+      float rad = (o == 0 ? 0.0019 : 0.0010) * (0.55 + 0.6 * r3), on = step(r1, (o == 0 ? 0.42 : 0.5) * wet * (rs.w > 0.5 ? 1.0 - 0.72 * kSkin : 0.5));
       float d = length((fr - (0.25 + 0.5 * vec2(r2, r3))) * cell) / rad;
       bead = max(bead, on * sqrt(max(0.0, 1.0 - d * d)) * rad * 0.55); wetR = max(wetR, on * (1.0 - smoothstep(0.85, 1.0, d)));
     }
-    h += bead; rough = mix(rough, 0.07, wetR); col *= 1.0 - 0.18 * wetR;
+    // (a bead on cloth darkens it; on skin it only catches the light)
+    h += bead * (1.0 - 0.45 * kSkin); rough = mix(rough, 0.07, wetR); col *= 1.0 - 0.18 * wetR * (1.0 - kSkin);
   }
   rough = clamp(rough, 0.05, 1.0);
   return col;
@@ -67322,6 +67295,26 @@ attribute vec4 aRest; attribute vec4 aHand; varying vec4 vArmRest; varying vec4 
               "#include <begin_vertex>",
               `#include <begin_vertex>
 vArmRest = aRest; vArmHand = aHand; vArmN = normal;`,
+            )
+            .replace(
+              "#include <skinning_vertex>",
+              `#include <skinning_vertex>
+#ifdef USE_SKINNING
+  // The forearm turns about its own length, a share of the turn at each of three bones, and a
+  // vertex blended between two of them is pulled in towards the axis: on a bare arm that is
+  // a waist between every pair of bones. Put back what the blend took (the arm lies along z
+  // from the wrist at rest; this stops short of the elbow, which bends and does not turn).
+  if (aRest.w > 0.5) {
+    float armFix = 1.0 - smoothstep(0.2, 0.245, aHand.x);
+    if (armFix > 0.0) {
+      mat4 armM = skinWeight.x * boneMatX + skinWeight.y * boneMatY + skinWeight.z * boneMatZ + skinWeight.w * boneMatW;
+      vec3 armX = armM[0].xyz, armY = armM[1].xyz;
+      vec4 armS = skinned;
+      armS.xyz += armFix * (armX * (1.0 / max(length(armX), 0.5) - 1.0) * skinVertex.x + armY * (1.0 / max(length(armY), 0.5) - 1.0) * skinVertex.y);
+      transformed = (bindMatrixInverse * armS).xyz;
+    }
+  }
+#endif`,
             )),
           (t.fragmentShader = t.fragmentShader
             .replace(
@@ -67350,7 +67343,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
   normal = armBump(normal, -vViewPosition, armH);`,
             )));
       }),
-      (e.customProgramCacheKey = () => "saltline-arm-1"),
+      (e.customProgramCacheKey = () => "saltline-arm-3"),
       e
     );
   }
@@ -75692,14 +75685,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       H = L.querySelector(".h-alt"),
       N = si("div", "h-marks");
     (t.append(N, i, c, m, b, x, y, E, w, S, R, L), e.appendChild(t));
-    let Z = si(
-      "div",
-      "comms",
-      `<span class="comms-who" data-i18n="hud.who">${L10N.t("hud.who")}</span><span class="comms-t"></span>`,
-    );
-    (Z.setAttribute("role", "status"), Z.setAttribute("aria-live", "polite"));
-    let Q = Z.querySelector(".comms-t");
-    e.appendChild(Z);
+    const comms = createComms(n, e);
     let W = !1,
       J = 420,
       G = innerWidth,
@@ -75730,11 +75716,6 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       le = "",
       xe = 0,
       j = 0,
-      O = [],
-      q = null,
-      ue = 0,
-      de = 0,
-      $ = 0,
       se = 0,
       fe = 0,
       me = [],
@@ -75846,12 +75827,12 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           let ne = si(
               "div",
               "h-cm " + (V.kind || "relay"),
-              `<i></i><b>${V.short || ""}</b><span></span>`,
+              `<i></i><b title="${V.short || ""}">${V.icon ? uiIcon(V.icon) : V.short || ""}</b><span></span>`,
             ),
             ye = si(
               "div",
               "h-wm " + (V.kind || "relay"),
-              `<i></i><b>${V.short || ""}</b><span></span>`,
+              `<i></i><b title="${V.short || ""}">${V.icon ? uiIcon(V.icon) : V.short || ""}</b><span></span>`,
             );
           return (
             a.appendChild(ne),
@@ -75898,10 +75879,10 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           E.classList.toggle("busy", Re > 0));
       },
       radio(he, V = 4.5) {
-        he && O.push({ text: he, secs: V });
+        comms.push(he, V);
       },
       clearRadio() {
-        ((O.length = 0), (q = null), Z.classList.remove("on"));
+        comms.clear();
       },
       warn(he, V = 3) {
         ((m.textContent = he),
@@ -75941,7 +75922,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         } catch {}
       },
       reset() {
-        ((O.length = 0), (q = null), Z.classList.remove("on"));
+        comms.clear();
         for (let he of me) he.el.remove();
         me.length = 0;
         for (let he of g) he.life = 0;
@@ -75955,7 +75936,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       update: re,
     };
     function re(he) {
-      if ((Y(he), !W)) return;
+      if ((comms.update(he), !W)) return;
       let V = n.player,
         ne = n.weapon || {},
         ye = n.camera,
@@ -76166,26 +76147,6 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
               !Ke.out &&
               ((Ke.out = !0), Ke.el.classList.add("out")));
       }
-    }
-    function Y(he) {
-      if (!q) {
-        if (!O.length) return;
-        ((q = O.shift()),
-          (ue = 0),
-          (de = 0),
-          ($ = q.secs),
-          (Q.textContent = ""),
-          Z.classList.add("on"),
-          n.events.emit("radio:line", { text: q.text }));
-      }
-      let V = q.text;
-      if (ue < V.length) {
-        de += he * 58;
-        let ne = Math.min(V.length, Math.floor(de));
-        ne !== ue && ((ue = ne), (Q.textContent = V.slice(0, ne)));
-      } else
-        (($ -= he),
-          $ <= 0 && ((q = null), O.length || Z.classList.remove("on")));
     }
     return (L10N.onLocale(() => X.relocalize()), B(), X);
   }

@@ -31,8 +31,9 @@ npm run check    # JavaScript 语法、格式和数值护栏检查
 npm run balance  # 改了数值后重新生成 docs/balance-report.md
 npm run build    # 生成 dist/，包含本地调试 source map
 npm run preview  # 预览构建产物
-npm run test:e2e # 真实点击冒烟测试（先 build；首次运行前 npx playwright install chromium）
-npm run verify   # check + build + test:e2e
+npm test         # 不开浏览器的测试（僵尸导航、游玩日志）
+npm run verify   # check + build + npm test
+npm run test:e2e # 浏览器里的真实点击冒烟测试（暂停使用；先 build，首次运行前 npx playwright install chromium）
 npm run format   # 格式化开发文件
 npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 MB，可直接双击打开或作为文件发送）
 ```
@@ -114,7 +115,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `src/engine/three.js` | 把内嵌的 Three.js 以 `three` 的名字导出，供官方加载器使用 |
 | `src/settings.js` | 设置存储 |
 | `src/bootguard.js` | 开机时用保存的画质；手机上因画质过高被浏览器杀掉页面后，下次自动退回自动档 |
-| `tests/e2e/` | Playwright 冒烟测试：用真实点击走标题 → 开镬 → 暂停 → 死亡 → 重试 |
+| `tests/e2e/` | 浏览器冒烟测试（暂停使用）：用真实点击走标题 → 开镬 → 暂停 → 死亡 → 重试 |
 | `.github/` | CI（检查和构建，不跑浏览器测试）、PR 和 issue 模板 |
 | `public/assets/` | 贴图、道具、僵尸、字体（`fonts/ui` 界面字体，`fonts/world` 场景贴图字体）、音效 |
 | `scripts/assets/` | 素材下载与转换脚本、素材清单；`build-ui-fonts.py` 按语言包生成界面字体子集 |
@@ -122,6 +123,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `upstream/` | 提取时的原件和来源记录，不应直接编辑 |
 
 实现导读见 [架构与代码导航](docs/architecture.md)，素材来源和许可见 [素材来源与许可](docs/assets.md)。
+Dash 定下的方向见 [决定与偏好](docs/decisions.md)，各功能的进度和待验证项见 [现状](docs/status.md)，踩过的坑见 [踩过的坑](docs/pitfalls.md)。
 
 ## 调试
 
