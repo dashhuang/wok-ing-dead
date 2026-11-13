@@ -106,6 +106,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `src/chinatown/runflow.js` | 套餐的纯规则：时间线、刷什么、击杀给多少镬气、掉什么弹药。游戏和数值模拟器（`scripts/balance/`）共用 |
 | `src/chinatown/zombietune.js` | 僵尸的数值表（纯数据，试验场的测试台也读它） |
 | `src/chinatown/range.js` | 靶场（`/?range=1`）：套餐关掉时间线，加一块调试面板。见下面「调试」 |
+| `src/chinatown/doors.js` | 首页、靶场、陈列馆（`/gallery/`）之间跳转的地址。首页顶栏的「家伙陈列」「试菜靶场」两个入口用它 |
 | `src/chinatown/loadout.js` | 一局里带着的武器和四种弹药池：换武器（数字键按捡到的顺序）、等级与形态、打空自动换枪 |
 | `src/chinatown/wheel.js` | 武器轮盘：按住切枪键时把带着的武器排成一圈，鼠标或右摇杆指向、触屏点选 |
 | `src/chinatown/armory.js` | 把 `arsenal/` 的十二把武器接进游戏：模型和双手画在武器图层，特效亮度按场景校正，提前把每把画一遍免得第一次上手卡顿 |
@@ -140,7 +141,9 @@ Dash 定下的方向见 [决定与偏好](docs/decisions.md)，各功能的进�
 - `window.__G.run`：套餐关卡。`state` 是当前局的状态，`tune` 是全部数值，`loadout` 是武器和弹药；`debug.addXp(n)`、
   `debug.setTime(秒)`、`debug.envelope()`、`debug.pack("heavy")`、`debug.give("flamer")`、`debug.set("shotgun", 5, "b")`
   用来直接造出升级、关底、红包、弹药包、新武器，以及指定等级和形态的武器。`/?pool=1` 在电脑上也用手机的 30 只僵尸池。
-- `/?range=1`：**靶场**。就是套餐本身，只是关掉了时间线，换成左边一块面板手动摆（`src/chinatown/range.js`）：
+- `/gallery/`：**陈列馆**，`arsenal/` 的展柜：看十二把武器的模型、双手、升级卡。构建站点时自动生成（`dist/gallery/`），
+  首页顶栏有入口；开发服务器上这个地址会转到试验场（先 `npm run arsenal`）。
+- `/?range=1`：**靶场**（首页顶栏也有入口）。就是套餐本身，只是关掉了时间线，换成左边一块面板手动摆（`src/chinatown/range.js`）：
   街道、僵尸、武器、调料、弹药、画面全是真的，所以在这里试到的就是玩到的。面板能把任意一把武器（含 LK-9、LK-4）调到任意等级和形态、
   给任意调料加层、弹药选「无限」或「套餐」、让僵尸「站桩 / 逼近 / 尸潮（按前菜、热炒、大菜、猛火的配比）」、单独召行尸、奔尸、重型、
   胀尸、精英、关底，看每秒伤害、击杀、受伤和耗弹；「模型」一行把还在试用的七个新僵尸模型（见 docs/assets.md）换上场——

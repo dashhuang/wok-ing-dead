@@ -18,6 +18,7 @@
 // A debugging tool: its own labels are Chinese only and are not in the language packs (the
 // names of weapons, seasonings, ammunition and courses are the game's and follow the language).
 import * as L10N from "../i18n/index.js";
+import { hasGallery, homeUrl, galleryUrl } from "./doors.js";
 import { ARMS, AMMO, AMMO_TYPES, MAX_LEVEL, ammoPer } from "./loadout.js";
 import { RUN, spiceVars } from "./runtune.js";
 import { ZOMBIES, EXTRA_BODIES } from "./zombietune.js";
@@ -141,7 +142,7 @@ export function createRange(G, c) {
   const el = document.createElement("div");
   el.className = "rg";
   el.innerHTML = `
-    <header><b>靶场</b><span class="rg-keys">Tab 松开 / 收回鼠标</span><button data-act="fold" title="收起 / 展开面板"></button></header>
+    <header><b>靶场</b><a class="rg-door" data-door="home" title="回到游戏首页">首页</a><a class="rg-door" data-door="gallery" title="在陈列馆里看手上这把：模型、双手、升级卡">陈列</a><span class="rg-keys">Tab 松开 / 收回鼠标</span><button data-act="fold" title="收起 / 展开面板"></button></header>
     <div class="rg-body"><div id="rg-main"></div>
       <details class="rg-tune"><summary>数值<small>改了立刻生效，刷新即还原</small></summary><div id="rg-tables"></div>
         <div class="rg-row"><button data-act="copy">复制改动</button><button data-act="revert">全部还原</button><span class="rg-note" id="rg-changed"></span></div>
@@ -209,6 +210,14 @@ export function createRange(G, c) {
       ([id, label]) => `<button data-spawn="${id}">＋${label}</button>`,
     ).join("");
     const bodies = seg("body", BODIES, opt.body);
+    // the ways out: the title page, and the gallery with the weapon in hand on show (the
+    // game's own two guns are not in it: it opens on its first)
+    el.querySelector('[data-door="home"]').href = homeUrl();
+    const door = el.querySelector('[data-door="gallery"]');
+    door.hidden = !hasGallery();
+    door.href = galleryUrl(
+      own ? {} : { w: cur, b: forked ? it.branch : undefined, lv: it.level },
+    );
     el.classList.toggle("shut", !opt.open);
     el.querySelector('[data-act="fold"]').textContent = opt.open
       ? "收起"

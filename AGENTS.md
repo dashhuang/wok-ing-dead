@@ -47,7 +47,7 @@ Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值
 | 路径 | 说明 |
 | --- | --- |
 | `src/game.js` | 反压缩后的原版发布包（含内嵌 Three.js r180）。变量名是压缩名（`ov`、`hT`、`pT`…），靠 architecture.md 的入口表和搜索字符串定位 |
-| `src/chinatown/` | 唐人街关卡的全部新模块：布局、建筑、店铺、街市、车辆、招牌、灯光、僵尸、音效；套餐（肉鸽关卡）的规则 `run.js`、纯规则 `runflow.js` 和数值 `runtune.js`、武器与弹药 `loadout.js`、武器轮盘 `wheel.js`、僵尸数值 `zombietune.js`、接入试验场武器的 `armory.js` / `armtargets.js`、第二关的补充 `docks.js` |
+| `src/chinatown/` | 唐人街关卡的全部新模块：布局、建筑、店铺、街市、车辆、招牌、灯光、僵尸、音效；套餐（肉鸽关卡）的规则 `run.js`、纯规则 `runflow.js` 和数值 `runtune.js`、武器与弹药 `loadout.js`、武器轮盘 `wheel.js`、僵尸数值 `zombietune.js`、接入试验场武器的 `armory.js` / `armtargets.js`、第二关的补充 `docks.js`、首页 / 靶场 / 陈列馆之间跳转的地址 `doors.js` |
 | `src/telemetry/`、`api/`、`server/telemetry/` | 游玩日志客户端、Vercel 接口与校验/存储；数据库迁移和查询脚本在 `scripts/telemetry/`，日志测试用 `npm run test:telemetry` |
 | `src/i18n/` | 语言选择和四份语言包（`locales/`，英文是基准） |
 | `src/style.css` | 全部界面样式，设计变量在开头 |
@@ -76,6 +76,8 @@ Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值
   - **靶场在游戏里**：`/?range=1`（`src/chinatown/range.js`），是关掉时间线的套餐加一块调试面板，街道、僵尸、画面都是真的。
     调武器手感、调料、状态、僵尸数值、特效亮度都在这里做；面板状态记在地址里，开发服务器存盘刷新后回到同一个场面，
     「数值」一栏可以边玩边改共用数值表，再用「复制改动」把结果写回文件。面板是调试工具：只有中文、用系统字体、不进语言包。
+    **陈列馆也在游戏里**：`/gallery/` 是试验场的展柜，`npm run build` 时自动生成进 `dist/gallery/`（`vite.config.js` 的插件调
+    `arsenal/scripts/showcase.mjs`）；首页顶栏有两个入口，三个页面互相跳转的地址在 `src/chinatown/doors.js`。
     试验场（`arsenal/`）只用来看模型和握法；它里面的「测试台」（`?mode=fp`）是给自动测试和测量脚本用的简化巷子，不要拿它调手感。
   - **不要在任何一边再写一份规则或数字**。测试台缺什么，就把本体那部分抽成两边共用的代码，而不是在 `arsenal/` 里照抄。
   - 这三张表所在的文件不能导入游戏对象或 DOM（试验场和 node 脚本都要能直接导入）。试验场不引用 `src/game.js`。
