@@ -1,7 +1,9 @@
 // Vehicles. A body is a side silhouette swept across the width with every edge rounded,
 // a glasshouse that leans in above the belt line and wheel arches cut into the flanks; lamps,
-// wheels, mirrors, plates and shut lines are added on top. Everything is baked into the
-// static batches, so a street full of cars costs a handful of draw calls.
+// wheels, mirrors, plates and shut lines are added on top. The glass is tinted: it mirrors the
+// street and lets a dim cabin show through, with a second layer of tint on the far windows so
+// that one does not look straight through a car. Everything is baked into the static batches,
+// so a street full of cars costs a handful of draw calls.
 import * as THREE from "three";
 
 const LATIN =
@@ -134,10 +136,62 @@ function fillet(points, radius) {
   return out;
 }
 
+// Cuts a simple polygon ([[x, y]…], either way round) into triangles of point indices.
+function earClip(P) {
+  const idx = P.map((_, i) => i);
+  let area = 0;
+  for (let i = 0; i < P.length; i++) {
+    const a = P[i],
+      b = P[(i + 1) % P.length];
+    area += a[0] * b[1] - b[0] * a[1];
+  }
+  if (area < 0) idx.reverse();
+  const turn = (a, b, c) =>
+    (P[b][0] - P[a][0]) * (P[c][1] - P[a][1]) -
+    (P[b][1] - P[a][1]) * (P[c][0] - P[a][0]);
+  const out = [];
+  while (idx.length > 3) {
+    let cut = -1;
+    // an ear is a corner that turns the right way with no other point inside it; if rounding
+    // leaves none, take the corner anyway rather than stop
+    for (let strict = 1; strict >= 0 && cut < 0; strict--)
+      for (let k = 0; k < idx.length && cut < 0; k++) {
+        const a = idx[(k + idx.length - 1) % idx.length],
+          b = idx[k],
+          c = idx[(k + 1) % idx.length];
+        if (turn(a, b, c) <= 1e-12) continue;
+        const lim = strict ? 0 : 1e-9;
+        let free = true;
+        for (const q of idx)
+          if (
+            q !== a &&
+            q !== b &&
+            q !== c &&
+            turn(a, b, q) >= lim &&
+            turn(b, c, q) >= lim &&
+            turn(c, a, q) >= lim
+          ) {
+            free = false;
+            break;
+          }
+        if (free) cut = k;
+      }
+    if (cut < 0) cut = 0;
+    else
+      out.push([
+        idx[(cut + idx.length - 1) % idx.length],
+        idx[cut],
+        idx[(cut + 1) % idx.length],
+      ]);
+    idx.splice(cut, 1);
+  }
+  if (idx.length === 3) out.push(idx);
+  return out;
+}
+
 // ---------------------------------------------------------------- the body
 // Row indices of one half section, from the sill up and over to the centre line.
-const R_SILL = 0,
-  R_BELT = 4,
+const R_BELT = 4,
   R_WINB = 5,
   R_WINT = 6, // top of the side glass = start of the roof edge
   R_EDGE = 10, // end of the roof edge = start of the top surface
@@ -158,47 +212,28 @@ function loft(spec) {
   const shoulder = spec.shoulder ?? 0.022;
   const [eLow, eHigh, eEnd] = spec.edge || [0.05, 0.1, 0.17];
   const bowMax = spec.bow ?? 0.12;
+  const crownMax = spec.crown ?? 0.025;
   const taper = spec.taper ?? 0.05;
   const tuck = spec.tuck ?? 0.05;
   const lean = spec.lean ?? 0.016;
   const arches = spec.arches || [];
   const wheelR = spec.wheelR ?? 0.31;
 
-  // ---- stations along the silhouette
-  let line = fillet(spec.outline, spec.corner ?? 0.09);
-  const need = [];
-  for (const a of arches)
-    for (let k = 0; k <= 14; k++)
-      need.push(a.x + a.r * Math.cos((Math.PI * k) / 14) * 0.999);
-  for (const w of spec.windows || []) need.push(w[0], w[1]);
-  if (spec.cabin) need.push(spec.cabin[0], spec.cabin[1]);
-  const dense = [];
-  for (let i = 0; i < line.length - 1; i++) {
-    const [x0, y0] = line[i],
-      [x1, y1] = line[i + 1];
-    const ts = [0];
-    if (x1 - x0 > 0.01)
-      for (const x of need)
-        if (x > x0 + 0.004 && x < x1 - 0.004) ts.push((x - x0) / (x1 - x0));
-    ts.sort((a, b) => a - b);
-    ts.push(1);
-    for (let k = 0; k < ts.length - 1; k++) {
-      // split what is left so no span is longer than 16 cm
-      const a = ts[k],
-        b = ts[k + 1];
-      const len = Math.hypot(x1 - x0, y1 - y0) * (b - a);
-      const n = Math.max(1, Math.ceil(len / 0.16));
-      for (let m = 0; m < n; m++) {
-        const t = a + ((b - a) * m) / n;
-        dense.push([x0 + (x1 - x0) * t, y0 + (y1 - y0) * t]);
-      }
+  // ---- stations along the silhouette, no span longer than 16 cm
+  let line = [];
+  {
+    const src = fillet(spec.outline, spec.corner ?? 0.09);
+    for (let i = 0; i < src.length - 1; i++) {
+      const [x0, y0] = src[i],
+        [x1, y1] = src[i + 1];
+      const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 0.16));
+      for (let m = 0; m < n; m++)
+        line.push([x0 + ((x1 - x0) * m) / n, y0 + ((y1 - y0) * m) / n]);
     }
+    line.push(src[src.length - 1]);
   }
-  dense.push(line[line.length - 1]);
-  line = dense;
-  const S = line.length;
   const xRear = line[0][0],
-    xFront = line[S - 1][0];
+    xFront = line[line.length - 1][0];
   const xMid = (xRear + xFront) / 2,
     halfLen = (xFront - xRear) / 2;
 
@@ -219,93 +254,286 @@ function loft(spec) {
     tuck * (1 - smooth(sill - 0.02, sill + 0.34, y)) -
     lean * smooth(waist, Math.min(belt, 1.4), y);
 
-  // ---- sections
-  const st = [];
-  for (let i = 0; i < S; i++) {
-    const p = line[i];
-    const a = line[Math.max(0, i - 1)],
-      b = line[Math.min(S - 1, i + 1)];
-    let tx = b[0] - a[0],
-      ty = b[1] - a[1];
-    const tl = Math.hypot(tx, ty) || 1;
-    tx /= tl;
-    ty /= tl;
-    const nx = -ty,
-      ny = tx; // outward
-    const bow = bowMax * Math.abs(nx);
-    const g0 = smooth(belt, belt + 0.16, p[1]);
-    let r = eLow + (eHigh - eLow) * g0;
-    r += (eEnd - r) * nx * nx; // the corners of nose and tail are much rounder in plan
-    const Cx = p[0] - nx * (r + bow),
-      Cy = p[1] - ny * (r + bow);
-    const g = smooth(belt + 0.02, belt + 0.14, Cy);
-    const yb = Math.min(belt, Cy);
-    const wB = flank(Cx, yb);
-    const wT = wB - g * (shoulder + tumble * Math.max(0, Cy - belt));
-    const half = (s) => {
-      const rows = [];
-      const push = (x, y, z, n) =>
-        rows.push({ p: [x, y, s * z], n: [n[0], n[1], s * n[2]] });
-      const y0 = Math.min(sillAt(Cx), yb);
-      for (const f of [0, 0.2, 0.5, 0.82, 1]) {
-        const y = y0 + (yb - y0) * f;
-        const z = flank(Cx, y);
-        const dz = (flank(Cx, y + 0.01) - flank(Cx, y - 0.01)) / 0.02;
-        const l = Math.hypot(1, dz);
-        push(Cx, y, z, [0, -dz / l, 1 / l]);
-      }
-      const y2 = Math.min(Cy, belt + 0.04 * g),
-        z2 = wB - shoulder * g;
-      // the pane leans in: its normal comes from the two rows that bound it
-      const gy = -(wT - z2),
-        gz = Cy - y2;
-      const gl = Math.hypot(gy, gz);
-      const gn = gl > 1e-4 ? [0, gy / gl, gz / gl] : [0, 0, 1];
-      push(Cx, y2, z2, gn);
-      push(Cx, Cy, wT, gn);
-      for (const deg of [22.5, 45, 67.5, 90]) {
-        const a2 = (deg * Math.PI) / 180,
-          sn = Math.sin(a2),
-          cs = Math.cos(a2);
-        push(Cx + nx * r * sn, Cy + ny * r * sn, wT - r + r * cs, [
-          nx * sn,
-          ny * sn,
-          cs,
-        ]);
-      }
-      const span = Math.max(0.02, wT - r);
-      const crown = (spec.crown ?? 0.025) * Math.max(0, ny);
-      for (let k = 1; k <= TOP; k++) {
-        const fz = 1 - k / TOP;
-        // measured from the bowed edge, so the offset is zero where the top meets the roof edge
-        const off = bow * (1 - Math.pow(fz, POW)) + crown * (1 - fz * fz);
-        const slope =
-          (bow * POW * Math.pow(fz, POW - 1) + crown * 2 * fz) / span;
-        const nl = Math.hypot(1, slope);
-        push(
-          p[0] - nx * bow + nx * off,
-          p[1] - ny * bow + ny * off,
-          span * fz,
-          [nx / nl, ny / nl, slope / nl],
-        );
-      }
-      return rows;
-    };
-    const left = half(1),
-      right = half(-1);
-    st.push({
-      x: p[0],
-      y: p[1],
-      nx,
-      ny,
-      Cx,
-      Cy,
-      g,
-      wT,
-      r,
-      rows: left.concat(right.slice(0, -1).reverse()),
+  // ---- the edge of the body at every station
+  // Seen from the side the body is the silhouette; across the car it runs flat to an edge and
+  // rounds down into the flank. Where that edge sits, and which way the rounding leaves it,
+  // follow a direction that turns slowly: the silhouette's normal averaged over `reach` metres.
+  // Offsetting along the normal itself folds the skin wherever the silhouette turns tighter
+  // than the offset (bumpers, the lip of a bonnet), which is what creased the corners.
+  const frame = (reach) => {
+    const S = line.length;
+    const at = [0];
+    for (let i = 1; i < S; i++)
+      at.push(
+        at[i - 1] +
+          Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]),
+      );
+    const nrm = line.map((p, i) => {
+      const a = line[Math.max(0, i - 1)],
+        b = line[Math.min(S - 1, i + 1)];
+      const tx = b[0] - a[0],
+        ty = b[1] - a[1];
+      const tl = Math.hypot(tx, ty) || 1;
+      return [-ty / tl, tx / tl]; // outward
     });
+    const share = line.map(
+      (_, i) => (at[Math.min(S - 1, i + 1)] - at[Math.max(0, i - 1)]) / 2,
+    );
+    return line.map((p, i) => {
+      let mx = 0,
+        my = 0;
+      for (let j = 0; j < S; j++) {
+        const w = (1 - Math.abs(at[j] - at[i]) / reach) * share[j];
+        if (w <= 0) continue;
+        mx += nrm[j][0] * w;
+        my += nrm[j][1] * w;
+      }
+      const ml = Math.hypot(mx, my) || 1;
+      mx /= ml;
+      my /= ml;
+      const [nx, ny] = nrm[i];
+      let r = eLow + (eHigh - eLow) * smooth(belt, belt + 0.16, p[1]);
+      r += (eEnd - r) * mx * mx; // the corners of nose and tail are much rounder in plan
+      // nose and tail are bowed in plan: their edges sit further back than the middle
+      const bx = bowMax * Math.pow(Math.abs(mx), 1.5) * Math.sign(mx);
+      const crown = crownMax * Math.max(0, my);
+      const ex = p[0] - bx,
+        ey = p[1];
+      // the rounding is an arc from the lean of the side glass to the slope the top has
+      // at its edge, so it runs into both without a crease
+      const alpha =
+        Math.atan(tumble) * smooth(belt + 0.02, belt + 0.14, ey - my * r);
+      const psi =
+        Math.PI / 2 -
+        Math.atan(
+          (Math.abs(bx * mx) * POW +
+            2 * crown * Math.max(0, nx * mx + ny * my)) /
+            Math.max(0.1, W - r),
+        );
+      const inset = r * (Math.sin(psi) - Math.sin(alpha));
+      const Cx = ex - mx * inset,
+        Cy = ey - my * inset;
+      const g = smooth(belt + 0.02, belt + 0.14, Cy);
+      const yb = Math.min(belt, Cy);
+      const wB = flank(Cx, yb);
+      const wT = wB - g * (shoulder + tumble * Math.max(0, Cy - belt));
+      const span = Math.max(0.02, wT - r * (Math.cos(alpha) - Math.cos(psi)));
+      return {
+        x: p[0],
+        y: p[1],
+        nx,
+        ny,
+        mx,
+        my,
+        r,
+        bx,
+        crown,
+        alpha,
+        psi,
+        ex,
+        ey,
+        Cx,
+        Cy,
+        g,
+        yb,
+        wB,
+        wT,
+        span,
+      };
+    });
+  };
+  // does the edge, or the line where the rounding meets the flank, run backwards anywhere?
+  const folded = (fr) => {
+    for (let i = 0; i < fr.length - 1; i++) {
+      const a = fr[i],
+        b = fr[i + 1];
+      const tx = b.x - a.x,
+        ty = b.y - a.y;
+      const min = 0.15 * (tx * tx + ty * ty);
+      if (
+        (b.Cx - a.Cx) * tx + (b.Cy - a.Cy) * ty < min ||
+        (b.ex - a.ex) * tx + (b.ey - a.ey) * ty < min
+      )
+        return true;
+    }
+    return false;
+  };
+  let reach = 0.36;
+  let fr = frame(reach);
+  for (let k = 0; k < 8 && folded(fr); k++) fr = frame((reach *= 1.25));
+
+  // ---- where the flank ends at nose and tail
+  // Along the car the flank is cut into upright strips, one per station, hanging from the line
+  // where the rounding starts. Down the nose and tail that line runs nearly upright and leans
+  // both ways (out over a bumper, back under a bonnet lip), so strips would overlap or leave
+  // holes. Past the stations jT and jN the flank is a patch with that line as its outline.
+  let S, jT, jN;
+  const ends = () => {
+    S = fr.length;
+    let iN = 0,
+      iT = 0;
+    for (let i = 0; i < S; i++) {
+      if (fr[i].Cx > fr[iN].Cx) iN = i;
+      if (fr[i].Cx < fr[iT].Cx) iT = i;
+    }
+    let xT = -Infinity,
+      xN = Infinity;
+    for (let i = 0; i <= iT; i++) xT = Math.max(xT, fr[i].Cx);
+    for (let i = iN; i < S; i++) xN = Math.min(xN, fr[i].Cx);
+    xT += 0.012;
+    xN -= 0.012;
+    jT = iT;
+    while (jT < iN && fr[jT].Cx < xT - 0.003) jT++;
+    jN = iN;
+    while (jN > jT && fr[jN].Cx > xN + 0.003) jN--;
+    return [iT, iN, xT, xN];
+  };
+  // stations wanted at exact places along the flank: the ends of arches and windows, and
+  // where the two patches begin
+  for (let pass = 0; pass < 3; pass++) {
+    const [iT, iN, xT, xN] = ends();
+    const want = [xT, xN];
+    for (const a of arches)
+      for (let k = 0; k <= 14; k++)
+        want.push(a.x + a.r * Math.cos((Math.PI * k) / 14) * 0.999);
+    for (const w of spec.windows || []) want.push(w[0], w[1]);
+    if (spec.cabin) want.push(spec.cabin[0], spec.cabin[1]);
+    const add = [];
+    for (const X of want)
+      for (let i = iT; i < iN; i++) {
+        const a = fr[i],
+          b = fr[i + 1];
+        if ((a.Cx - X) * (b.Cx - X) > 0) continue;
+        if (Math.abs(a.Cx - X) > 0.002 && Math.abs(b.Cx - X) > 0.002)
+          add.push([i, (X - a.Cx) / (b.Cx - a.Cx)]);
+        break;
+      }
+    if (!add.length) break;
+    add.sort((p, q) => q[0] - p[0] || q[1] - p[1]);
+    const from = line.slice();
+    let last = null;
+    for (const [i, t] of add) {
+      if (last && last[0] === i && Math.abs(last[1] - t) < 1e-3) continue;
+      last = [i, t];
+      line.splice(i + 1, 0, [
+        from[i][0] + (from[i + 1][0] - from[i][0]) * t,
+        from[i][1] + (from[i + 1][1] - from[i][1]) * t,
+      ]);
+    }
+    fr = frame(reach);
   }
+  ends();
+  // the lower edge of the flank: sill and arches, lifting toward the chins over the last 30 cm
+  // so that the flank does not hang below the corner of a bumper
+  const lowerAt = (x) => {
+    const t = fr[0],
+      n = fr[S - 1];
+    return Math.max(
+      sillAt(x),
+      sill +
+        Math.max(0, t.Cy - sill) * (1 - smooth(fr[jT].Cx, fr[jT].Cx + 0.3, x)),
+      sill + Math.max(0, n.Cy - sill) * smooth(fr[jN].Cx - 0.3, fr[jN].Cx, x),
+    );
+  };
+  // which way the side faces at (x, y): the flank below the belt, the leaning glass above
+  const sideNormal = (x, y) => {
+    const yy = Math.min(y, belt);
+    const dx = (flank(x + 0.01, yy) - flank(x - 0.01, yy)) / 0.02;
+    const dy =
+      y < belt
+        ? (flank(x, y + 0.01) - flank(x, y - 0.01)) / 0.02
+        : -tumble * smooth(belt + 0.02, belt + 0.14, y);
+    const l = Math.hypot(dx, dy, 1);
+    return [-dx / l, -dy / l, 1 / l];
+  };
+
+  // ---- sections: one half, from the sill up and over to the centre line
+  const half = fr.map((f, i) => {
+    const rows = [];
+    if (i < jT || i > jN) {
+      // inside a patch: no strip, the rows below the rounding all sit on its first point
+      for (let k = 0; k <= R_WINB; k++)
+        rows.push({ p: [f.Cx, f.Cy, f.wT], n: sideNormal(f.Cx, f.Cy) });
+    } else {
+      const y0 = Math.min(lowerAt(f.Cx), f.yb);
+      for (const k of [0, 0.2, 0.5, 0.82, 1]) {
+        const y = y0 + (f.yb - y0) * k;
+        rows.push({ p: [f.Cx, y, flank(f.Cx, y)], n: sideNormal(f.Cx, y) });
+      }
+      // the pane leans in: its normal comes from the two rows that bound it
+      const y2 = Math.min(f.Cy, belt + 0.04 * f.g),
+        z2 = f.wB - shoulder * f.g;
+      const gy = -(f.wT - z2),
+        gz = f.Cy - y2;
+      const gl = Math.hypot(gy, gz);
+      rows.push({
+        p: [f.Cx, y2, z2],
+        n: gl > 1e-4 ? [0, gy / gl, gz / gl] : [0, 0, 1],
+      });
+    }
+    for (let k = 0; k <= 4; k++) {
+      const a = f.alpha + ((f.psi - f.alpha) * k) / 4;
+      const u = f.r * (Math.sin(f.psi) - Math.sin(a));
+      rows.push({
+        p: [
+          f.ex - f.mx * u,
+          f.ey - f.my * u,
+          f.span + f.r * (Math.cos(a) - Math.cos(f.psi)),
+        ],
+        // the rounding leaves the side in the direction the side faces there
+        n: k
+          ? [f.mx * Math.sin(a), f.my * Math.sin(a), Math.cos(a)]
+          : sideNormal(f.Cx, f.Cy),
+      });
+    }
+    for (let k = 1; k <= TOP; k++) {
+      const fz = 1 - k / TOP;
+      const lift = f.crown * (1 - fz * fz);
+      rows.push({
+        p: [
+          f.x - f.bx * Math.pow(fz, POW) + f.nx * lift,
+          f.y + f.ny * lift,
+          f.span * fz,
+        ],
+        n: [f.nx, f.ny, 0.2],
+      });
+    }
+    return rows;
+  });
+  // The rounding and the top take their normals from the surface as built (the ones written
+  // above are only the outward side, for where two stations coincide).
+  for (let i = 0; i < S; i++)
+    for (let j = R_WINT + 1; j < H; j++) {
+      const a = half[Math.max(0, i - 1)][j].p,
+        b = half[Math.min(S - 1, i + 1)][j].p;
+      const d =
+        j === H - 1
+          ? [0, 0, -1]
+          : [0, 1, 2].map((k) => half[i][j + 1].p[k] - half[i][j - 1].p[k]);
+      const s = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+      const n = [
+        s[1] * d[2] - s[2] * d[1],
+        s[2] * d[0] - s[0] * d[2],
+        s[0] * d[1] - s[1] * d[0],
+      ];
+      const l = Math.hypot(n[0], n[1], n[2]);
+      const out = half[i][j].n;
+      const ol = Math.hypot(out[0], out[1], out[2]) || 1;
+      half[i][j].n =
+        l > 1e-9 && n[0] * out[0] + n[1] * out[1] + n[2] * out[2] > 0
+          ? [n[0] / l, n[1] / l, n[2] / l]
+          : [out[0] / ol, out[1] / ol, out[2] / ol];
+    }
+  const st = fr.map((f, i) => {
+    const mirror = half[i]
+      .slice(0, -1)
+      .reverse()
+      .map((q) => ({
+        p: [q.p[0], q.p[1], -q.p[2]],
+        n: [q.n[0], q.n[1], -q.n[2]],
+      }));
+    return { ...f, rows: half[i].concat(mirror) };
+  });
 
   // ---- faces
   const bufs = {
@@ -335,14 +563,14 @@ function loft(spec) {
     if (spec.roof && h >= R_WINT && ny > 0.9 && y > belt + 0.2) return "roof";
     return "paint";
   };
+  // the cabin is closed all round: its shell from the inside, a floor, and a wall at each end
   const cabin = spec.cabin;
+  const inner = (q) => bufs.liner.vert(q.p, [-q.n[0], -q.n[1], -q.n[2]]);
   for (let i = 0; i < S - 1; i++) {
     const inCabin =
       cabin &&
-      st[i].Cx >= cabin[0] - 1e-3 &&
-      st[i + 1].Cx <= cabin[1] + 1e-3 &&
-      st[i].ny > 0.2 &&
-      st[i + 1].ny > 0.2;
+      Math.min(st[i].Cx, st[i + 1].Cx) >= cabin[0] - 1e-3 &&
+      Math.max(st[i].Cx, st[i + 1].Cx) <= cabin[1] + 1e-3;
     for (let j = 0; j < F - 1; j++) {
       const h = j < H - 1 ? j : F - 2 - j;
       const A = st[i].rows[j],
@@ -365,18 +593,62 @@ function loft(spec) {
         id = buf.vert(D.p, D.n);
       buf.tri(ia, ib, ic);
       buf.tri(ia, ic, id);
-      // the inside of the shell, seen through the glass
-      if (inCabin && key !== "glass" && h >= 2) {
-        const L = bufs.liner;
-        const neg = (n) => [-n[0], -n[1], -n[2]];
-        const la = L.vert(A.p, neg(A.n)),
-          lb = L.vert(Bq.p, neg(Bq.n)),
-          lc = L.vert(C.p, neg(C.n)),
-          ld = L.vert(D.p, neg(D.n));
-        L.tri(la, lc, lb);
-        L.tri(la, ld, lc);
+      if (inCabin && key !== "glass") {
+        const la = inner(A),
+          lb = inner(Bq),
+          lc = inner(C),
+          ld = inner(D);
+        bufs.liner.tri(la, lb, lc);
+        bufs.liner.tri(la, lc, ld);
       }
     }
+  }
+
+  // ---- the flank at nose and tail: a patch outlined by the line where the rounding starts,
+  // the last strip, and a straight lower edge from the foot of that strip to the chin
+  const endCap = (list, join) => {
+    const pts = list.map((i) => half[i][R_WINT]);
+    for (let j = R_WINT; j >= 0; j--) pts.push(half[join][j]);
+    const ring = [];
+    for (const q of pts) {
+      const l = ring[ring.length - 1];
+      if (!l || Math.hypot(q.p[0] - l.p[0], q.p[1] - l.p[1]) > 1e-5)
+        ring.push(q);
+    }
+    while (
+      ring.length > 3 &&
+      Math.hypot(
+        ring[0].p[0] - ring[ring.length - 1].p[0],
+        ring[0].p[1] - ring[ring.length - 1].p[1],
+      ) < 1e-5
+    )
+      ring.pop();
+    const tris = earClip(ring.map((q) => q.p));
+    for (const s of [1, -1]) {
+      const at = ring.map((q) =>
+        bufs.paint.vert(
+          [q.p[0], q.p[1], s * q.p[2]],
+          [q.n[0], q.n[1], s * q.n[2]],
+        ),
+      );
+      for (const [a, b, c] of tris) bufs.paint.tri(at[a], at[b], at[c]);
+      if (!cabin || fr[join].Cx < cabin[0] || fr[join].Cx > cabin[1]) continue;
+      const li = ring.map((q) =>
+        bufs.liner.vert(
+          [q.p[0], q.p[1], s * q.p[2]],
+          [-q.n[0], -q.n[1], -s * q.n[2]],
+        ),
+      );
+      for (const [a, b, c] of tris) bufs.liner.tri(li[a], li[b], li[c]);
+    }
+  };
+  {
+    const tail = [],
+      nose = [];
+    for (let i = 0; i < jT; i++) tail.push(i);
+    for (let i = S - 1; i > jN; i--) nose.push(i);
+    if (tail.length) endCap(tail, jT);
+    if (nose.length) endCap(nose, jN);
   }
 
   // ---- wheel housings and floor
@@ -395,17 +667,28 @@ function loft(spec) {
           continue;
         const pi = [p[0], p[1], p[2] - s * depth],
           qi = [q[0], q[1], q[2] - s * depth];
-        if (s > 0) bufs.trim.quad(q, p, pi, qi);
-        else bufs.trim.quad(p, q, qi, pi);
+        // (each face twice: the housing from the wheel's side, and from inside the cabin, where
+        // the open arch would otherwise show the tyre and the road through the glass)
+        if (s > 0) {
+          bufs.trim.quad(q, p, pi, qi);
+          bufs.liner.quad(p, q, qi, pi);
+        } else {
+          bufs.trim.quad(p, q, qi, pi);
+          bufs.liner.quad(q, p, pi, qi);
+        }
       }
       const z = s * (W - depth);
       const x0 = a.x - a.r,
         x1 = a.x + a.r,
         y1 = wheelR + a.r;
-      if (s > 0)
-        bufs.trim.quad([x0, 0.12, z], [x1, 0.12, z], [x1, y1, z], [x0, y1, z]);
-      else
-        bufs.trim.quad([x1, 0.12, z], [x0, 0.12, z], [x0, y1, z], [x1, y1, z]);
+      const yw = sill - 0.02; // not below the sill, where it showed as a flap behind the wheel
+      if (s > 0) {
+        bufs.trim.quad([x0, yw, z], [x1, yw, z], [x1, y1, z], [x0, y1, z]);
+        bufs.liner.quad([x1, yw, z], [x0, yw, z], [x0, y1, z], [x1, y1, z]);
+      } else {
+        bufs.trim.quad([x1, yw, z], [x0, yw, z], [x0, y1, z], [x1, y1, z]);
+        bufs.liner.quad([x0, yw, z], [x1, yw, z], [x1, y1, z], [x0, y1, z]);
+      }
     }
   const xr = xRear + 0.14,
     xf = xFront - 0.14,
@@ -447,6 +730,21 @@ function loft(spec) {
     }
     return null;
   };
+  // a wall across the body at each end of the cabin, so that the view through the glass stops
+  // at the cabin instead of running on into the boot, the engine bay or a van's load space
+  if (cabin)
+    for (const [x, face] of [
+      [cabin[0], 1],
+      [cabin[1], -1],
+    ]) {
+      const sec = sectionAtX(x);
+      if (!sec) continue;
+      const L = bufs.liner;
+      const n = [face, 0, 0];
+      const c = L.vert([x, sill, 0], n);
+      const rim = sec.map((q) => L.vert(q.p, n));
+      for (let j = 0; j < rim.length - 1; j++) L.tri(c, rim[j], rim[j + 1]);
+    }
   // the section at height y on the nose (end = 1) or tail (end = -1)
   const sectionAtY = (end, y) => {
     let best = null,
@@ -489,7 +787,8 @@ function loft(spec) {
     return y < at(0).p[1] ? at(0) : at(R_WINT);
   };
   // lays a grid of sampled points into a buffer, standing `lift` off the skin
-  const lay = (buf, pts, lift, uv) => {
+  // (us: where each column sits from 0 to 1, when they are not evenly spaced)
+  const lay = (buf, pts, lift, uv, us) => {
     const nu = pts.length - 1,
       nv = pts[0].length - 1;
     const idx = pts.map((row, iu) =>
@@ -504,7 +803,7 @@ function loft(spec) {
         );
         if (uv)
           buf.uv.push(
-            uv[0] + ((uv[2] - uv[0]) * iu) / nu,
+            uv[0] + (uv[2] - uv[0]) * (us ? us[iu] : iu / nu),
             uv[1] + ((uv[3] - uv[1]) * iv) / nv,
           );
         return k;
@@ -520,22 +819,59 @@ function loft(spec) {
         buf.tri(i0, i2, i3);
       }
   };
-  // a patch on the nose or tail between two heights and two lateral positions (wraps the corners)
-  const endPatch = (buf, end, y0, y1, z0, z1, lift = 0.004, o = {}) => {
-    const nz = o.nz ?? Math.max(2, Math.ceil(Math.abs(z1 - z0) / 0.07)),
-      ny = o.ny ?? 2;
-    const pts = [];
-    for (let iu = 0; iu <= nz; iu++) {
-      const z = z0 + ((z1 - z0) * iu) / nz;
-      const col = [];
-      for (let iv = 0; iv <= ny; iv++) {
-        const sec = sectionAtY(end, y0 + ((y1 - y0) * iv) / ny);
-        if (!sec) return;
-        col.push(acrossAt(sec, z));
-      }
-      pts.push(col);
+  // across a section, positions counted in rows: where lateral position z falls, and back
+  const rowAt = (rows, z) => {
+    for (let j = R_WINT; j < F - 1 - R_WINT; j++) {
+      const a = rows[j].p[2],
+        b = rows[j + 1].p[2];
+      if ((a - z) * (b - z) <= 0 && Math.abs(a - b) > 1e-6)
+        return j + (z - a) / (b - a);
     }
-    lay(buf, pts, lift, o.uv);
+    return z > 0 ? R_WINT : F - 1 - R_WINT;
+  };
+  const atRow = (rows, c) => {
+    const j = Math.min(F - 2, Math.floor(c));
+    return mix(rows[j], rows[j + 1], c - j);
+  };
+  // a patch on the nose or tail between two heights and two lateral positions (wraps the corners).
+  // Its columns follow the rows of the skin, so it bends exactly where the skin does: evenly
+  // spaced ones cut straight through the rounding of a corner and sink into the body there.
+  const endPatch = (buf, end, y0, y1, z0, z1, lift = 0.004, o = {}) => {
+    const ny = o.ny ?? 2;
+    const mid = sectionAtY(end, (y0 + y1) / 2);
+    if (!mid) return;
+    const c0 = rowAt(mid, z0),
+      c1 = rowAt(mid, z1);
+    const dir = Math.sign(c1 - c0) || 1;
+    const cols = [c0];
+    for (
+      let c = dir > 0 ? Math.floor(c0) + 1 : Math.ceil(c0) - 1;
+      (c1 - c) * dir > 0;
+      c += dir
+    )
+      if (Math.abs(c - c0) > 0.02 && Math.abs(c - c1) > 0.02) cols.push(c);
+    cols.push(c1);
+    // the flat stretch between two rows is still split so that long patches follow the bow
+    const fine = [cols[0]];
+    for (let k = 1; k < cols.length; k++) {
+      const w = Math.abs(
+        atRow(mid, cols[k]).p[2] - atRow(mid, cols[k - 1]).p[2],
+      );
+      const n = o.nz ? 1 : Math.max(1, Math.ceil(w / 0.09));
+      for (let m = 1; m <= n; m++)
+        fine.push(cols[k - 1] + ((cols[k] - cols[k - 1]) * m) / n);
+    }
+    const secs = [];
+    for (let iv = 0; iv <= ny; iv++) {
+      const sec = sectionAtY(end, y0 + ((y1 - y0) * iv) / ny);
+      if (!sec) return;
+      secs.push(sec);
+    }
+    const pts = fine.map((c) => secs.map((sec) => atRow(sec, c)));
+    const us = fine.map((c) =>
+      Math.abs(z1 - z0) > 1e-6 ? (atRow(mid, c).p[2] - z0) / (z1 - z0) : 0,
+    );
+    lay(buf, pts, lift, o.uv, us);
   };
   // a patch on a flank between two stations and two heights
   const sidePatch = (buf, s, x0, x1, y0, y1, lift = 0.004, o = {}) => {
@@ -706,24 +1042,24 @@ const MODELS = {
       [-2.3, 0.65, 0.03],
       [-2.3, 1.84, 0.16],
       [-2.0, 1.94, 0.18],
-      [1.1, 1.92, 0.32],
-      [1.98, 1.12, 0.18],
+      [1.26, 1.92, 0.3],
+      [1.96, 1.13, 0.16],
       [2.24, 1.0, 0.14],
       [2.33, 0.63, 0.07],
       [2.38, 0.56, 0.05],
       [2.37, 0.36, 0.04],
       [2.31, 0.3, 0],
     ],
-    windows: [[1.0, 1.86]],
-    screens: [{ end: 1, y0: 1.18, y1: 1.86 }],
-    cabin: [0.5, 1.94],
+    windows: [[0.64, 1.84]],
+    screens: [{ end: 1, y0: 1.19, y1: 1.86 }],
+    cabin: [0.42, 1.94],
     seats: { front: 1.02, half: 0.4 },
     bumperTop: 0.63,
-    seams: [0.92, -0.1, -1.72],
-    handles: [0.98, -0.2],
-    mirrorX: 1.86,
+    seams: [0.56, -0.56, -1.76],
+    handles: [0.66, 0.44],
+    mirrorX: 1.84,
     lampY: 0.82,
-    tailY: 1.0,
+    tailY: 0.84,
     tailTall: true,
     wheels: "steel",
   },
@@ -775,7 +1111,7 @@ const MODELS = {
     mirrorX: 3.02,
     mirrorY: 1.75,
     lampY: 0.94,
-    tailY: 1.1,
+    tailY: 0.94,
     tailTall: true,
     roof: true,
     wheels: "steel",
@@ -972,30 +1308,53 @@ export function createVehicles(ctx) {
     wet: "glazed",
     key: "lens",
   });
-  const glassDark = kit.flat(0x06090c, {
-    rough: 0.04,
-    metal: 0,
-    wet: [0, 0.6, 0.6, 0.9],
-    macro: [0, 0, 1, 0.1],
-    reflect: true,
-    key: "carglass",
-  });
-  // tinted glass you can see the cabin through
+  // Glass. What it mirrors is the street: the probe the renderer captures once the level is
+  // built and hands to every material flagged userData.street (render.streetEnv); before
+  // that, and where that probe is off, the sky.
+  // Tinted glass with a cabin behind it. A metal has no colour of its own, only reflection, and
+  // the blending adds that reflection at full strength over whatever shows through, dimmed by
+  // the tint (opacity). Ordinary transparency would fade the reflection with the glass.
   const glass = new THREE.MeshStandardMaterial({
-    color: 0x141c20,
+    color: 0x66737c,
+    roughness: 0.05,
+    metalness: 1,
     transparent: true,
-    opacity: 0.5,
-    roughness: 0.03,
-    metalness: 0,
+    opacity: 0.8,
     depthWrite: false,
-    side: THREE.DoubleSide,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
   });
   glass.name = "ct_carglass";
-  glass.envMapIntensity = 1.8;
   G.mats.adopt(glass, { wet: [0, 1, 0, 0] });
   glass.userData.oneCell = true;
   glass.userData.noReflect = true;
   glass.userData.street = true;
+  // The same panes seen from inside, as tint only: the windows on the far side of a cabin are
+  // darkened a second time, so the street beyond a car barely shows through it. Drawn before
+  // the glass (userData.renderOrder), or it would dim the reflections on the near windows.
+  const tint = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.8,
+    depthWrite: false,
+    side: THREE.BackSide,
+  });
+  tint.name = "ct_cartint";
+  tint.userData.oneCell = true;
+  tint.userData.noReflect = true;
+  tint.userData.renderOrder = -1;
+  // Glass with nothing behind it (a bus, the rear doors of a van, the cars of the backdrop):
+  // an opaque dark mirror.
+  const mirror = new THREE.MeshStandardMaterial({
+    color: 0x66737c,
+    roughness: 0.05,
+    metalness: 1,
+  });
+  mirror.name = "ct_carglass";
+  G.mats.adopt(mirror, { wet: [0, 0.6, 0.6, 0.9], macro: [0, 0, 1, 0.1] });
+  mirror.userData.oneCell = true;
+  mirror.userData.street = true;
   const tyre = kit.game("tire");
   const glowHead = kit.glow(0xfff0d4, 3.2);
   const glowTail = kit.glow(0xff1a0a, 3.2);
@@ -1381,7 +1740,7 @@ export function createVehicles(ctx) {
           x1 = m.arches[1].x - m.arches[1].r - 0.04;
         b.sidePatch(d.trim, s, x0, x1, b.sill + 0.26, b.sill + 0.3, 0.006);
       }
-      if (m.cabin && m.windows && !m.plain) {
+      if (m.windows && !m.plain) {
         // bright strip under the side glass
         const w0 = Math.min(...m.windows.map((w) => w[0])),
           w1 = Math.max(...m.windows.map((w) => w[1]));
@@ -1562,7 +1921,7 @@ export function createVehicles(ctx) {
     return g;
   };
 
-  // Adds one swept body with all its fittings. colours: { paint, roof }.
+  // Adds one swept body with all its fittings. colours: { paint, roof, seat }.
   function body(M, name, colours, o = {}) {
     const { b, d, steering, m } = shell(name);
     put(M, colours.paint, b.bufs.paint);
@@ -1570,8 +1929,9 @@ export function createVehicles(ctx) {
     put(M, trim, b.bufs.trim);
     put(M, trim, d.trim);
     put(M, m.plain ? trim : chrome, d.chrome);
-    if (o.far) put(M, glassDark, b.bufs.glass);
+    if (o.far) put(M, mirror, b.bufs.glass);
     else {
+      put(M, tint, b.bufs.glass);
       put(M, glass, b.bufs.glass);
       put(M, liner, b.bufs.liner);
       put(M, colours.seat || cloth(0x2b2d31), d.seat);
@@ -1608,14 +1968,17 @@ export function createVehicles(ctx) {
   };
 
   // ---------------- placement
-  // squares along the length follow any heading without filling the corners
+  // Squares along the length follow any heading without filling the corners. They reach both
+  // ends of the body: left short, one could walk into a nose or a tail until the camera cut
+  // through the skin and showed the inside of the car.
   function footprint(x, y, z, yaw, len, wid, h) {
-    const n = Math.max(1, Math.round(len / wid));
     const fx = Math.sin(yaw),
       fz = Math.cos(yaw);
     const hw = wid / 2 - 0.04;
+    const reach = Math.max(0, len / 2 - hw);
+    const n = Math.max(1, Math.ceil((2 * reach) / hw) + 1);
     for (let i = 0; i < n; i++) {
-      const t = ((i + 0.5) / n - 0.5) * (len - wid * 0.6);
+      const t = n > 1 ? reach * ((2 * i) / (n - 1) - 1) : 0;
       const cx = x + fx * t,
         cz = z + fz * t;
       kit.solid(cx - hw, y, cz - hw, cx + hw, y + h, cz + hw, "metal");
@@ -1636,7 +1999,7 @@ export function createVehicles(ctx) {
   // Stands a vehicle at (x, z): the point is its middle, yaw as for props (0 = nose toward +z).
   // kind: taxi | saloon | hatch | van | minibus | lorry | army | bus.
   // o: color, lights, brake, hazard, cabin (dome light), steer, flat (wheel index), far (cheap
-  // version for the backdrop), collide, dead (signs unlit).
+  // version for the backdrop: no cabin, no lights of its own), collide, dead (signs unlit).
   function place(kind, x, z, yaw, o = {}) {
     const y = o.y ?? groundAt(x, z);
     const M = kit.xform(x, y, z, o.pitch || 0, yaw - Math.PI / 2, o.roll || 0);
@@ -1779,7 +2142,7 @@ export function createVehicles(ctx) {
       }
       b.endPatch(rc, -1, 1.02, 1.06, 0.03, 0.2, 0.014, { nz: 1, ny: 1 });
       kit.add(trim, rd.geometry(), M);
-      kit.add(glassDark, rg.geometry(), M);
+      kit.add(mirror, rg.geometry(), M);
       kit.add(chrome, rc.geometry(), M);
       wheels(m, 0.2);
       size = [4.7, m.width, 1.95];
@@ -1950,7 +2313,7 @@ export function createVehicles(ctx) {
       b.endPatch(r, -1, 0.5, 1.2, -W + 0.06, W - 0.06, 0.003);
       b.endPatch(k, -1, 2.74, 3.6, -W + 0.2, W - 0.2, 0.003);
       b.endPatch(g, -1, 2.8, 3.54, -W + 0.26, W - 0.26, 0.006);
-      kit.add(glassDark, g.geometry(), M);
+      kit.add(mirror, g.geometry(), M);
       kit.add(red, r.geometry(), M);
       kit.add(trim, k.geometry(), M);
       kit.add(o.lights ? glowHead : lensClear, hd.geometry(), M);

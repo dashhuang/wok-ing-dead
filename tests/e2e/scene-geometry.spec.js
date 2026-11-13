@@ -63,8 +63,8 @@ test("scene roofs, suspended boxes and vehicle surfaces have no missing faces", 
             actual: hit([px, y, z], [0, 0, dz], 0.3),
           });
 
-    // These shared materials include the procedural car bodies, windows, trim and
-    // cabin linings in the street and backdrop. Imported props keep other materials.
+    // These shared materials include the procedural car bodies, windows and trim
+    // in the street and backdrop. Imported props keep other materials.
     const a = new Vector3(),
       b = new Vector3(),
       c = new Vector3(),

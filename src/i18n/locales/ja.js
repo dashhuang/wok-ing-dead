@@ -26,6 +26,7 @@ export default {
   "title.difficulty": "辛さ",
 
   "act.deploy": "火を入れる",
+  "act.home": "メインメニューに戻る",
   "act.settings": "設定",
   "act.controls": "操作方法",
   "act.resume": "再開",
