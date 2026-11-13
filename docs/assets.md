@@ -14,10 +14,37 @@
 | 界面字体（子集） | `public/assets/fonts/ui/` | Inter、Noto Serif Display、Noto Sans / Serif SC·TC·JP（Google Fonts 仓库） | SIL OFL 1.1 |
 | 场景贴图用的拉丁字体 | `public/assets/fonts/world/` | Big Shoulders Display、Barlow Condensed、IBM Plex Mono（Google Fonts，拉丁子集） | SIL OFL 1.1 |
 | 僵尸嗓音（24 段） | `public/assets/audio/zombie/` | OpenGameArt | CC0，详见 [assets-audio.md](assets-audio.md) |
+| 《尸潮开镬》尸潮摇滚配乐 | `public/assets/audio/music/horde-rock-v1.mp3` | XD Mivo / Suno 生成 | 非 CC0，已选定曲目，商用授权待核实 |
+| 《雨夜开镬》第一版配乐 | `public/assets/audio/music/rainy-wok-v1.mp3` | XD Mivo / Suno V5 生成 | 非 CC0；Dash 允许本地接入例外，商用授权待核实，见下文 |
 
 招牌、霓虹灯、亮窗、海报、血迹、牌楼彩画等图案不是下载的图片，而是加载时用 Canvas 现画的（`src/chinatown/signs.js`）；
 店铺里的包装、菜单、字画（`shopfit.js`）、街市的货品与档口牌（`market.js`）、车牌和车身文字（`vehicles.js`）也是同样画出来的。
 店名均为按粤式习惯虚构的名字，没有使用现实中的商号；例外是 `src/chinatown/eggs.js` 里的彩蛋，引用了心动、TapTap 和 Cindy 的名字以及心动旗下游戏名（只有文字和简单图形，没有使用官方 Logo 图片）。
+
+## 《雨夜开镬》配乐（生成素材，授权待核实）
+
+- 2026-11-13 经 XD Mivo 的 `audio.suno` / Suno V5 生成。任务 `6af6b6156f6eb2da41428978`，第一版素材 `6af6b644d41397e0bc8a0fad`，
+  Suno ID `a7fea054-10a5-4f8b-9738-cbda62a04d3d`。文件原样保存：2,393,874 bytes、48 kHz 双声道 MP3、102.432 秒。
+  SHA-256：`6828a5d7d6f3bdcd6b01306606dbc35e3edbd4427ef3024465213f5469c3c455`。
+- 创作描述：港式僵尸片＋电子 breakbeat，132 BPM、小调五声音阶动机、切分鼓组、克制低音、少量锣 / 木鱼 / 堂鼓与诡异拨弦；
+  无人声、无枪声或雨声音效，短引子后进入战斗律动，中段减鼓再回归。不指定模仿歌曲或艺术家。生成服务返回两版，Dash 选第一版；第二版没有入库。
+- 这不是 CC0 / OFL 素材。Dash 明确允许作为例外先本地接入，但这不等于确认商用许可。
+  [Suno 官方商用说明](https://help.suno.com/en/articles/9601985) 与 [付费订阅权利说明](https://help.suno.com/en/articles/9601665)
+  将商用权利与付费方案关联；本次 Mivo 回执没有提供其上游账号 / 授权凭据，不能据此认定取得商用授权。发布前需核实 Mivo 对该产物的授权范围。
+- 游戏从第 15 秒起播，在内存中将末尾与第 15–17 秒交叉淡化，循环从第 17 秒继续；不改磁盘源文件，实际衔接听感仍待试玩。
+
+## 《尸潮开镬》尸潮摇滚配乐（生成素材，授权待核实）
+
+- 2026-11-13 根据「平常还是雨夜开镬这种。而尸潮来的时候更激烈更摇滚」制作，XD Mivo / `audio.suno`。
+  任务 `6af6bbc86f6eb2da41428a68`，素材 `6af6bbf94593423a7fe66d84`，Suno ID `e1a575cf-cde4-4222-84d9-312185782ec8`。
+  源 MP3 原样保存：4,149,858 bytes；服务回报 186.72 秒。
+  SHA-256：`a9fde74429a481dcda1d49b946271f8a8efa003742bd01b159e685e12d41ec8e`。
+- 描述要求：132 BPM、电子 breakbeat 融合硬摇滚，强真鼓、失真电吉他切分 riff、低音吉他与密集十六分音符，
+  暗色小调五声音阶，少量中式锣与木鱼，起头即高强度、无长铺垫，无人声。不模仿特定歌曲或艺术家。
+  Dash 已试听选定第一版；游戏中与日常曲的衔接和混音仍待试玩，不保证严格对拍。
+- 服务返回两版，Dash 确认第一版，本地已接入；第二版只交付媒体库。不是 CC0，商用授权同上待核实；Dash 已要求将本次改动提交 PR，生产发布前仍须核实授权，不将提交 PR 视为取得商用许可。
+- 游戏从第 18 秒起播，在内存中将末尾与第 18–20 秒交叉淡化，循环从第 20 秒继续，跳过较轻的前奏，不改磁盘源文件。
+- 之前试做的安静曲《镬影雨巷》已被否决并移出游戏资源，不再随构建发布。
 
 ## Poly Haven 贴图与模型（CC0）
 

@@ -17,6 +17,8 @@ import { uiIcon } from "./chinatown/icons.js";
 import { createTelemetry } from "./telemetry/index.js";
 import { createNavigation, STEP_HEIGHT } from "./chinatown/navigation.js";
 import { createSpawnPicker } from "./chinatown/spawning.js";
+import { createMusic } from "./chinatown/music.js";
+import { createCategoryVolumes } from "./chinatown/audiovolume.js";
 import * as DOORS from "./chinatown/doors.js";
 import { pickLook, sunDirection } from "./chinatown/look.js";
 import * as STREETFX from "./chinatown/streetfx.js";
@@ -59009,6 +59011,8 @@ void main() {
       setIntensity: n,
       setInterior: n,
       setVolume: n,
+      setMusicVolume: n,
+      setEffectsVolume: n,
       setPaused: n,
       debug: () => ({ state: "none" }),
       names: Object.keys(Ir),
@@ -59079,6 +59083,9 @@ void main() {
       m = new Set();
     for (let ie of [...Ez, ...Object.keys(Ir)]) {
       let ae = Ir[ie];
+      // Recorded score replaces synthesis in the game; retain the original
+      // buffers only for the isolated legacy offline audio measurement.
+      if (!t && (ie.startsWith("music_") || ie.startsWith("mus_"))) continue;
       if (!(!ae || m.has(ie))) {
         m.add(ie);
         for (let pe = 0; pe < ae.n; pe++)
@@ -59267,10 +59274,20 @@ void main() {
     for (let ie = 0; ie < 12; ie++) xe("tail", !1);
     for (let ie = 0; ie < 8; ie++) xe("dry", !1);
     for (let ie = 0; ie < 3; ie++) xe("music", !1);
+    const savedAudio = t ? { volume: ji.master } : iL();
+    const effectsReverb = g(1);
+    effectsReverb.connect(C);
+    const categoryVolumes = createCategoryVolumes(
+      e,
+      z,
+      effectsReverb,
+      savedAudio,
+    );
+    w.gain.value = savedAudio.volume;
     let j = { x: 0, y: 1.7, z: 0 },
       O = !1,
       q = !1,
-      ue = 0.9,
+      ue = savedAudio.volume,
       de = (n.game && n.game.state) || "title",
       $ = 0,
       se = 0,
@@ -59487,7 +59504,8 @@ void main() {
         Ze.add(Me));
       return Me;
     }
-    let Bt = rE({
+    let Bt = (t ? rE : createMusic)({
+      game: n,
       ctx: e,
       out: z.music,
       bufs: r,
@@ -59791,7 +59809,7 @@ void main() {
           ctx: e,
           offline: !!t,
           buses: z,
-          reverb: C,
+          reverb: effectsReverb,
           master: w,
           listener: j,
           play: je,
@@ -59818,6 +59836,9 @@ void main() {
       };
       for (let ae of ["pointerdown", "keydown", "touchend", "mousedown"])
         window.addEventListener(ae, ie, { capture: !0, passive: !0 });
+      // Start the title score as soon as autoplay is allowed. Never await
+      // resume(): on first visits it can remain pending until a user gesture.
+      if (!document.hidden) ve();
       document.addEventListener("visibilitychange", () => {
         try {
           document.hidden ? e.suspend() : O && e.resume();
@@ -60217,8 +60238,11 @@ void main() {
             Number.isFinite(ue) || (ue = 0.9),
             (w.gain.value = ue));
         },
+        setMusicVolume: categoryVolumes.setMusicVolume,
+        setEffectsVolume: categoryVolumes.setEffectsVolume,
         setPaused(ie) {
           q = !!ie;
+          Bt.setPaused?.(q);
         },
         names: Object.keys(Ir).filter((ie) => !Ir[ie].ir),
         get intensity() {
@@ -60243,6 +60267,7 @@ void main() {
             city: ct ? ct.debug() : null,
             music: Bt.on,
             score: Bt.debug(),
+            volumes: { volume: ue, ...categoryVolumes.debug() },
             intensity: +ge.toFixed(2),
             interior: +se.toFixed(2),
             gameState: de,
@@ -76528,6 +76553,8 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         <div class="row"><label for="s-sens" data-i18n="set.sens"></label><div class="slider"><input id="s-sens" type="range" min="0.2" max="3" step="0.05"><output data-o="sens"></output></div></div>
         <div class="row row-inline"><label id="l-inv" data-i18n="set.invert"></label><button class="toggle" data-act="invert" aria-labelledby="l-inv" aria-pressed="false"><i></i><span></span></button></div>
         <div class="row"><label for="s-vol" data-i18n="set.volume"></label><div class="slider"><input id="s-vol" type="range" min="0" max="100" step="1"><output data-o="vol"></output></div></div>
+        <div class="row"><label for="s-music" data-i18n="set.musicVolume"></label><div class="slider"><input id="s-music" type="range" min="0" max="100" step="1"><output data-o="music"></output></div></div>
+        <div class="row"><label for="s-effects" data-i18n="set.effectsVolume"></label><div class="slider"><input id="s-effects" type="range" min="0" max="100" step="1"><output data-o="effects"></output></div></div>
         <div class="row"><label for="s-fov" data-i18n="set.fov"></label><div class="slider"><input id="s-fov" type="range" min="60" max="95" step="1"><output data-o="fov"></output></div></div>
         <div class="row row-inline" data-row="fs"><label id="l-fs" data-i18n="set.display"></label><button class="btn small" data-act="fullscreen" aria-labelledby="l-fs fs-t"><span id="fs-t"></span></button></div>
         <p class="panel-note" data-f="qnote"></p>
@@ -76558,6 +76585,8 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       c = (W) => s.querySelector(`[data-f="${W}"]`),
       u = o("#s-sens"),
       f = o("#s-vol"),
+      musicSlider = o("#s-music"),
+      effectsSlider = o("#s-effects"),
       h = o("#s-fov"),
       p = "none",
       d = null;
@@ -76572,6 +76601,9 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         } catch (J) {
           console.error(J);
         }
+      if (!W || W === "musicVolume") n.audio?.setMusicVolume?.(i.musicVolume);
+      if (!W || W === "effectsVolume")
+        n.audio?.setEffectsVolume?.(i.effectsVolume);
       if (!W || W === "view")
         try {
           n.weapon && n.weapon.setView && n.weapon.setView(i.view);
@@ -76615,6 +76647,12 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         (c("modenote").textContent = L10N.t("modeNote." + i.mode)),
         (u.value = i.sens),
         (f.value = Math.round(i.volume * 100)),
+        (musicSlider.value = Math.round(i.musicVolume * 100)),
+        (effectsSlider.value = Math.round(i.effectsVolume * 100)),
+        (o('[data-o="music"]').textContent =
+          Math.round(i.musicVolume * 100) + "%"),
+        (o('[data-o="effects"]').textContent =
+          Math.round(i.effectsVolume * 100) + "%"),
         (h.value = i.fov),
         (o('[data-o="sens"]').textContent = i.sens.toFixed(2) + "\xD7"),
         (o('[data-o="vol"]').textContent = Math.round(i.volume * 100) + "%"),
@@ -76638,6 +76676,18 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
     }),
       f.addEventListener("input", () => {
         ((i.volume = +f.value / 100), m("volume"), x(), cc(i));
+      }),
+      musicSlider.addEventListener("input", () => {
+        i.musicVolume = +musicSlider.value / 100;
+        m("musicVolume");
+        x();
+        cc(i);
+      }),
+      effectsSlider.addEventListener("input", () => {
+        i.effectsVolume = +effectsSlider.value / 100;
+        m("effectsVolume");
+        x();
+        cc(i);
       }),
       h.addEventListener("input", () => {
         ((i.fov = +h.value), m("fov"), x(), cc(i));
@@ -76808,7 +76858,12 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       let J = document.activeElement;
       if (J && J.tagName === "INPUT" && J.type === "range" && s.contains(J)) {
         let G =
-          (+J.step || 1) * (J.id === "s-vol" ? 5 : J.id === "s-sens" ? 2 : 1);
+          (+J.step || 1) *
+          (["s-vol", "s-music", "s-effects"].includes(J.id)
+            ? 5
+            : J.id === "s-sens"
+              ? 2
+              : 1);
         ((J.value = String(
           Math.min(+J.max, Math.max(+J.min, +J.value + W * G)),
         )),

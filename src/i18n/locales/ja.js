@@ -92,6 +92,8 @@ export default {
   "set.on": "オン",
   "set.off": "オフ",
   "set.volume": "マスター音量",
+  "set.musicVolume": "音楽の音量",
+  "set.effectsVolume": "効果音の音量",
   "set.fov": "視野角",
   "set.display": "表示",
   "set.fsEnter": "フルスクリーン",

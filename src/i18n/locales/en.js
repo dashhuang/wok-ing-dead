@@ -96,6 +96,8 @@ export default {
   "set.on": "On",
   "set.off": "Off",
   "set.volume": "Master volume",
+  "set.musicVolume": "Music volume",
+  "set.effectsVolume": "Sound effects volume",
   "set.fov": "Field of view",
   "set.display": "Display",
   "set.fsEnter": "Enter fullscreen",
