@@ -1,7 +1,10 @@
 // The run: one stage of roughly ten minutes in the manner of survivor games.
 //
-// - The dead keep coming on a timeline instead of in set waves; at nine minutes the boss
-//   arrives, and the checkpoint only opens once it is down.
+// - The dead keep coming by the courses of a meal instead of in set waves. Three street
+//   stoves each make one dish: three tosses of the wok (taken off the fire in both hands,
+//   so no weapon), the stove held after each, then the dish packed and taken along. Every
+//   stove lit begins the next course; the third dish packed brings the boss, and the
+//   checkpoint only opens once it is down.
 // - Kills fill the wok-hei bar. Every level offers three tickets: seasonings, or a new weapon.
 //   They are picked in deep slow motion, never a full stop: the player stops to choose
 //   (no walking or firing), with the mouse let go to click one, and no time limit.
@@ -30,8 +33,18 @@ import {
   packWeights,
   eliteStats,
   foodChance,
-  courseAt,
   dishOf,
+  clockStep,
+  stoveCount,
+  newDish,
+  dishTake,
+  dishPack,
+  dishTossed,
+  dishHot,
+  dishStep,
+  dishLeft,
+  dishGrade,
+  timedElite,
 } from "./runflow.js";
 import {
   RUN,
@@ -76,6 +89,7 @@ export function createRun(G, hooks) {
     spawnT: 0,
     eliteAt: 0,
     eliteN: 0,
+    eliteIdle: 0, // timed elites since the last stove was lit
     newPlace: false,
     elites: [],
     boss: null,
@@ -83,8 +97,12 @@ export function createRun(G, hooks) {
     bossDead: false,
     bossRetry: 0,
     summonT: 0,
-    cook: null, // the dish on a stove: { o, pos, t, course, heat, elite, away }
+    clock: 0, // the meal's clock: what the courses are read at (runflow.js, clockStep)
+    cook: null, // the dish on a stove: runflow.js's newDish, plus { o, pos, can, beat }
+    hands: "", // what the cook's hands are full of instead of a weapon: "wok" | "pack"
     stoves: 0, // lit so far
+    served: 0, // dishes packed
+    bossDue: -1, // when the boss is to arrive (S.t), once the last dish is packed
     menu: [], // the specials still to come, in the order they will be served
     bonusHealth: 0, // from the soup special
     bonusCap: 0, // from the stock special
@@ -410,10 +428,11 @@ export function createRun(G, hooks) {
   function spawnTick(dt) {
     S.spawnT -= dt;
     if (S.spawnT > 0) return;
-    const st = stageAt(S.t);
+    const st = stageAt(S.clock);
     const { every, cap } = spawnPace(st, diff(), {
-      cooking: !!S.cook,
-      heat: S.cook ? S.cook.heat : 0,
+      cooking: dishHot(S.cook),
+      heat: S.cook ? S.cook.n : 0,
+      step: S.cook ? S.cook.k : 0,
       crowd,
       room: poolRoom,
     });
@@ -425,19 +444,8 @@ export function createRun(G, hooks) {
     let z;
     if (kind === "brute") z = spawnOne("brute");
     else if (kind === "bloater") z = spawnOne("walker", bloaterOpts());
-    else if (kind === "pack") {
-      // they rise at one spot, a step apart, and come on together
-      const K = RUN.pack;
-      const at = hooks.pickSpawn("walker");
-      if (!at) {
-        S.spawnT = 0.4;
-        return;
-      }
-      for (let i = 0; i < K.size; i++) {
-        const pos = i ? hooks.scatterSpawn(at, K.spread) : at;
-        if (pos) z = spawnAt("walker", pos, packOpts()) || z;
-      }
-    } else if (st.quiet && !S.cook)
+    else if (kind === "pack") z = spawnPack();
+    else if (st.quiet && !S.cook)
       // a quiet course: it rises somewhere out of the way and wanders
       z = hooks.spawn("walker", hooks.pickSpawn("walker", { minDist: 20 }), {
         state: "patrol",
@@ -446,6 +454,18 @@ export function createRun(G, hooks) {
       });
     else z = spawnOne("walker", { runner: rng() < st.runner });
     S.spawnT = z ? spawnGap(every, rng()) : 0.4;
+  }
+  // a pack: they rise at one spot, a step apart, and come on together
+  function spawnPack() {
+    const K = RUN.pack;
+    const at = hooks.pickSpawn("walker");
+    if (!at) return null;
+    let z = null;
+    for (let i = 0; i < K.size; i++) {
+      const pos = i ? hooks.scatterSpawn(at, K.spread) : at;
+      if (pos) z = spawnAt("walker", pos, packOpts()) || z;
+    }
+    return z;
   }
   function spawnElite() {
     const z = spawnOne("brute", eliteOpts(S.eliteN), { minDist: 20 });
@@ -457,10 +477,24 @@ export function createRun(G, hooks) {
     hooks.refreshMarkers();
     return z;
   }
+  // the timed ones: not while a dish is on (it brings its own), nor once the last is packed,
+  // and only so many between one stove and the next (runflow.js, timedElite)
   function eliteTick() {
-    if (S.bossSeen || S.t < S.eliteAt || S.t > RUN.bossAt - 20) return;
-    if (spawnElite()) S.eliteAt += place().eliteEvery || RUN.elite.every;
-    else S.eliteAt = S.t + 2;
+    if (
+      S.bossSeen ||
+      !timedElite({
+        t: S.t,
+        eliteAt: S.eliteAt,
+        cooking: !!S.cook,
+        served: S.served,
+        idle: S.eliteIdle,
+      })
+    )
+      return;
+    if (spawnElite()) {
+      S.eliteIdle++;
+      S.eliteAt += place().eliteEvery || RUN.elite.every;
+    } else S.eliteAt = S.t + 2;
   }
 
   // ---------- the stoves
@@ -471,35 +505,283 @@ export function createRun(G, hooks) {
     } catch {}
     G.events.emit("stove:state", { id: o && o.id, pos: o && o.pos, state });
   };
-  // a dish is on: it cooks while the player stands by it, and the dead keep coming
+  // ---------- the cook's hands
+  // The wok and the packing are held like a weapon (wokhand.js, through the armoury). Until
+  // the armoury is there, or if it never comes, the hands are simply empty.
+  // (wokhand.js is fetched with it: like the arsenal's modules it builds on the engine, which
+  // game.js has only published once it is running)
+  let wokHands = null;
+  loadout.load().then(async (a) => {
+    if (!a) return;
+    try {
+      const { createWokHands } = await import("./wokhand.js");
+      const made = createWokHands(a);
+      // (usable at once; each is also drawn once ahead of time, whenever frames allow)
+      wokHands = made;
+      // (the dish as it stands on a stove is drawn by the street's pass: a few frames of it
+      // a thousandth of its size before the eye, so that the first time it is set down
+      // costs nothing)
+      const d = made.dish;
+      d.scale.setScalar(0.001);
+      d.position.set(0, 0, -0.7);
+      G.camera.add(d);
+      setTimeout(() => {
+        if (d.parent === G.camera) G.camera.remove(d);
+      }, 2500);
+      for (const m of made.models) await a.adopt(m);
+    } catch (e) {
+      console.error(
+        "[run] the wok could not be built: " + ((e && e.stack) || e),
+      );
+    }
+  });
+  // charred: (packing) what goes into the pail has gone black
+  // The dish in the wok of the street stove: the stove draws a mound of its own, but with
+  // the cook's hands there (wokhand.js) what stands in it is the heap that was tossed.
+  let plated = null; // the stove it stands on (the userData of its object)
+  function plate(o) {
+    const u = o && o.object && o.object.userData;
+    if (!wokHands || !u || !u.setDish || plated === u) return;
+    if (plated) plated.setDish(null);
+    u.setDish(wokHands.dish);
+    plated = u;
+  }
+  function unplate() {
+    try {
+      if (plated) plated.setDish(null);
+    } catch {}
+    plated = null;
+  }
+  function fillHands(what, charred = false) {
+    S.hands = what;
+    closeWheel();
+    if (wokHands) {
+      if (what === "wok") wokHands.startToss();
+      else wokHands.startPack(charred);
+    }
+    loadout.carry(wokHands ? wokHands[what] : null);
+  }
+  function freeHands() {
+    if (!S.hands) return;
+    S.hands = "";
+    hud.setHands(false);
+    loadout.uncarry();
+  }
+  // fire off the wok: the dead in front of the cook burn and are thrown back
+  function flare() {
+    const F = RUN.stove.toss.flare;
+    const P = G.player;
+    const dir = tmp.set(P.forward.x, 0, P.forward.z);
+    if (dir.lengthSq() < 1e-4) dir.set(0, 0, -1);
+    dir.normalize();
+    const d = dir.clone();
+    play("wok_flip", { gain: 1 });
+    try {
+      if (wokHands && S.hands === "wok") wokHands.flare(d, F.range);
+    } catch {}
+    const dmg = F.damage * (1 + spiceValue("fire", S.spice.fire));
+    const T = loadout.armory && loadout.armory.targets;
+    if (T) {
+      // (from the eye, levelled: the cone is about who stands in front, not where the cook looks)
+      for (const h of T.inCone(P.eye, d, F.range, F.half)) {
+        T.damage(h.z, dmg, {
+          dir: d.clone(),
+          element: "fire",
+          knock: F.knock,
+          kind: "blast",
+          noChain: true,
+        });
+        if (h.z.alive) T.apply(h.z, "fire", F.burn);
+      }
+      return;
+    }
+    const cos = Math.cos(F.half);
+    for (const z of G.enemies.list) {
+      if (!z.alive) continue;
+      const dx = z.pos.x - P.pos.x;
+      const dz = z.pos.z - P.pos.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > F.range || (dist > 0.8 && (dx * d.x + dz * d.z) / dist < cos))
+        continue;
+      z.damage(dmg, z.pos, d, "body");
+    }
+  }
+
+  // ---------- a dish on a stove
+  // The rules are runflow.js's (newDish, dishStep): three tosses, the dish frying by itself
+  // after each, then packing; a dish left waiting catches, and left longer is charred.
+  // What is the cook's to do is done here: taking the wok up and starting to pack are one
+  // press of the interact key at the stove (no holding: the tossing is what takes the
+  // time), and the wok goes back by itself once tossed and carried within reach.
+  let useWas = false;
   function cookTick(dt) {
     const c = S.cook;
     if (!c) return;
     const K = RUN.stove;
     const P = G.player;
-    const near =
-      P.alive && Math.hypot(P.pos.x - c.pos.x, P.pos.z - c.pos.z) < K.radius;
-    if (near) c.t += dt;
-    c.away = !near;
-    if (
-      !c.elite &&
-      c.course >= K.eliteFrom &&
-      c.t >= K.seconds / 2 &&
-      !S.bossSeen
-    ) {
-      c.elite = true;
-      if (spawnElite()) S.eliteAt = Math.max(S.eliteAt, S.t + K.eliteHold);
+    const I = G.input;
+    const dist = P.alive
+      ? Math.hypot(P.pos.x - c.pos.x, P.pos.z - c.pos.z)
+      : Infinity;
+    const level = Math.abs((c.pos.y || 0) - P.pos.y) < 2.5;
+    const home = level && dist < K.toss.reach;
+    // the cook's part: one press of the key by the stove
+    const can =
+      home && !S.picking && (c.phase === "due" || c.phase === "ready");
+    const useDown = !!(I && I.down && I.down("interact"));
+    const tap =
+      (I && I.pressed && I.pressed("interact")) || (useDown && !useWas);
+    useWas = useDown;
+    if (can && tap) {
+      if (c.phase === "due" && dishTake(c)) {
+        fillHands("wok");
+        setStove(c.o, "toss");
+        smell(c);
+      } else if (dishPack(c)) {
+        fillHands("pack", c.charred);
+        setStove(c.o, "served");
+        play("gear_rustle", { gain: 0.9 });
+        c.beat = 0;
+      }
+      hooks.refreshMarkers();
+      hooks.refreshObjective();
     }
-    hud.setCook({ frac: c.t / K.seconds, away: c.away });
-    if (c.t >= K.seconds) serve(c);
+    c.can = can && (c.phase === "due" || c.phase === "ready");
+    for (const ev of dishStep(c, dt, { home })) {
+      if (ev === "flip") flare();
+      else if (ev === "down") {
+        freeHands();
+        setStove(c.o, "cook");
+        play("wok_down", { gain: 1 });
+        S.spawnT = 0;
+      } else if (ev === "packs") {
+        for (let i = 0; i < K.packs[c.k]; i++) spawnPack();
+      } else if (ev === "elite") {
+        if (!S.bossSeen && spawnElite())
+          S.eliteAt = Math.max(S.eliteAt, S.t + K.eliteHold);
+      } else if (ev === "due") {
+        setStove(c.o, "due");
+        play("run_bell", { gain: 0.8, pitch: 1.2 });
+      } else if (ev === "ready") {
+        setStove(c.o, "ready");
+        play("run_bell", { gain: 1 });
+      } else if (ev === "scorched") {
+        hud.toast(L10N.t("run.toast.scorched"), "warn");
+        play("run_bell", { gain: 0.7, pitch: 0.55 });
+      } else if (ev === "charred") {
+        // (whatever it was waiting for, it can only be packed now)
+        setStove(c.o, "ready");
+        hud.toast(L10N.t("run.toast.charred"), "warn");
+        play("run_bell", { gain: 0.8, pitch: 0.4 });
+      } else if (ev === "served") serve(c);
+      if (ev !== "flip" && ev !== "served") {
+        hooks.refreshObjective();
+        hooks.refreshMarkers();
+      }
+    }
+    if (S.cook !== c) return;
+    // the hands (the model may only have arrived after they were filled)
+    if (S.hands && wokHands && loadout.carried !== wokHands[S.hands])
+      loadout.carry(wokHands[S.hands]);
+    if (wokHands && S.hands === "wok") {
+      wokHands.setToss(c.t / K.toss.seconds, K.toss.flips, dishTossed(c));
+      wokHands.steam(dt);
+      // the stove it came off burns open meanwhile
+      tmp.set(c.pos.x, (c.pos.y || 0) + 0.9, c.pos.z);
+      wokHands.burner(tmp, dt);
+    } else if (wokHands && S.hands === "pack") {
+      const u = c.t / K.pack;
+      wokHands.setPack(u);
+      if (!c.charred) wokHands.steam(dt, wokHands.pack);
+      // the beats of it, heard: the lid, the ticket, the bag
+      const beats = [
+        [0.6, "wok_down", 0.5, 1.6],
+        [0.66, "wok_staple", 1, 1],
+        [0.76, "gear_rustle", 1, 1],
+      ];
+      while (c.beat < beats.length && u >= beats[c.beat][0]) {
+        const [, name, gain, pitch] = beats[c.beat++];
+        play(name, { gain, pitch });
+      }
+    }
+    // on its stove it is the heap that was tossed, shivering as it fries (harder when it
+    // wants tossing again), and black once it is charred
+    if (wokHands) {
+      plate(c.o);
+      wokHands.charDish(c.charred);
+      if (c.phase === "fry" || c.phase === "due" || c.phase === "ready")
+        wokHands.sizzle(dt, c.charred ? 0 : c.phase === "due" ? 2.4 : 1);
+    }
+    // a dish that has caught says so where it stands: black smoke off the wok
+    if (wokHands && (c.caught || c.charred) && c.phase !== "pack") {
+      tmp.set(c.pos.x, (c.pos.y || 0) + 1.1, c.pos.z);
+      wokHands.smoke(tmp, dt, c.charred);
+    }
+    // the line under the course name: what to do now. It is the only place that says it:
+    // the radio does not repeat it, and the mark on the stove only shows the way back
+    const waits = c.phase === "due" || c.phase === "ready";
+    const last = K.fry.length - 1;
+    let key = c.phase;
+    let s = 0;
+    let urgent = false;
+    let mark = "";
+    if (c.phase === "toss") {
+      const tossed = dishTossed(c);
+      key = tossed ? "back" : "toss" + Math.min(c.k, last);
+      mark = tossed ? "back" : "";
+    } else if (c.phase === "fry") {
+      key = "fry" + Math.min(c.k, last);
+      s = K.fry[c.k] - c.t;
+      mark = "fry";
+    } else if (waits) {
+      key = mark = c.charred ? "charred" : c.caught ? "late" : c.phase;
+      s = dishLeft(c) || 0;
+      urgent = c.charred || c.caught || s < 6;
+    }
+    s = Math.max(0, Math.ceil(s));
+    hud.setCook({ key, s, urgent });
+    // (the mark only says where the stove is: what to do is said once, in the line)
+    const markText = mark ? L10N.t("run.mark.wok") : "";
+    if (markText !== c.mark) {
+      c.mark = markText;
+      hooks.refreshMarkers();
+    }
+    hud.setHands(!!S.hands);
   }
+  // The dead already in the street get wind of the dish: those within RUN.stove.smell of the
+  // stove at this toss stop wandering and come. Further with every toss: the street does not
+  // empty itself onto the cook the moment the wok is first in hand.
+  function smell(c) {
+    const reach = RUN.stove.smell;
+    const r = reach[Math.min(c.k, reach.length - 1)];
+    try {
+      for (const z of G.enemies.list)
+        if (z.alive && Math.hypot(z.pos.x - c.pos.x, z.pos.z - c.pos.z) < r)
+          z.dull = false;
+      G.enemies.alert(c.pos, r);
+    } catch {}
+  }
+  // what the interact prompt should say by the stove: { text } or null (game.js asks)
+  function stovePrompt() {
+    const c = S.cook;
+    if (!c || !c.can) return null;
+    return {
+      text: L10N.t(c.phase === "due" ? "run.prompt.toss" : "run.prompt.pack"),
+    };
+  }
+  // packed: the dish is the cook's, and it pays
   function serve(c) {
+    unplate();
     S.cook = null;
     S.sirens++;
+    S.served++;
+    freeHands();
     hud.setCook(null);
     setStove(c.o, "served");
+    // (the timed elites start again, but not on the heels of this)
+    S.eliteAt = Math.max(S.eliteAt, S.t + RUN.stove.eliteAfter);
     const dish = S.menu.shift() || RUN.dishes[0];
-    const d = dishOf(dish, c.course);
+    const d = dishOf(dish, dishGrade(c), c.charred);
     const P = G.player;
     if (d.health) S.bonusHealth += d.health;
     if (d.cap) S.bonusCap += d.cap;
@@ -518,19 +800,36 @@ export function createRun(G, hooks) {
       } catch {}
       dropEnvelope(tmp);
     }
-    hud.toast(
-      L10N.t("run.dish." + dish, {
-        n: d.health || Math.round(d.cap * 100) || d.envelopes,
-      }),
-      "gold",
-    );
-    hooks.radio(L10N.t("radio.served"), 3.6);
-    play("complete", { gain: 0.5, pitch: 1.2 });
+    if (c.charred) hud.toast(L10N.t("run.dish.charred"), "warn");
+    else {
+      hud.toast(
+        L10N.t("run.dish." + dish, {
+          n: d.health || Math.round(d.cap * 100) || d.envelopes,
+        }),
+        "gold",
+      );
+      if (c.late) hud.toast(L10N.t("run.dish.scorched"), "warn");
+    }
+    play("complete", { gain: 0.5, pitch: c.charred ? 0.7 : 1.2 });
+    G.events.emit("run:dish", {
+      n: S.served,
+      dish,
+      late: c.late,
+      charred: c.charred,
+      t: S.t,
+    });
+    if (S.served >= stoveCount()) {
+      // the last one: the smell of all three brings the house special
+      S.bossDue = S.t + RUN.boss.after;
+      hooks.radio(L10N.t("radio.lastDish"), 4);
+    } else hooks.radio(L10N.t("radio.served"), 3.6);
+    hooks.refreshObjective();
+    hooks.refreshMarkers();
   }
   function bossTick(dt) {
     if (S.bossDead) return;
     if (!S.bossSeen) {
-      if (S.t < RUN.bossAt) return;
+      if (S.bossDue < 0 || S.t < S.bossDue) return;
       S.bossRetry -= dt;
       if (S.bossRetry > 0) return;
       const B = RUN.boss;
@@ -541,7 +840,7 @@ export function createRun(G, hooks) {
       }
       S.boss = z;
       S.bossSeen = true;
-      // the ride out brings a bowl of soup: nine minutes of wounds are not carried into this
+      // the ride out brings a bowl of soup: three stoves' worth of wounds are not carried into this
       if (B.heal && G.player.alive) {
         G.player.heal(G.player.maxHealth);
         hud.toast(L10N.t("run.toast.soup"), "gold");
@@ -832,7 +1131,7 @@ export function createRun(G, hooks) {
     // tickets, death or a pause (the run's frames stopped) put the wheel away
     const gap = G.time.frame - WK.frame > 1;
     WK.frame = G.time.frame;
-    if (S.picking || S.pickHold > 0 || !G.player.alive) {
+    if (S.picking || S.pickHold > 0 || S.hands || !G.player.alive) {
       closeWheel();
       WK.pending = false; // the press that was going on does not count as a tap
       return;
@@ -1158,7 +1457,7 @@ export function createRun(G, hooks) {
     if (!S.active || !e) return;
     S.kills++;
     const rank = e.rank || "";
-    addXp(killXp(rank, e.type, !!S.cook));
+    addXp(killXp(rank, e.type, dishHot(S.cook)));
     const pos = e.pos || (e.enemy && e.enemy.pos);
     if (!pos) return;
     const A = RUN.ammo;
@@ -1248,6 +1547,7 @@ export function createRun(G, hooks) {
     S.pending = 0;
     S.queue.length = 0;
     G.time.scale = S.scale = 1;
+    freeHands();
     loadout.rest();
     bank(false);
   });
@@ -1273,6 +1573,11 @@ export function createRun(G, hooks) {
     get extractOpen() {
       return S.extractOpen;
     },
+    // a dish is on a stove: the next stove cannot be lit until it is packed
+    get cooking() {
+      return !!S.cook;
+    },
+    stovePrompt,
     // the firing range's panel is worked with the mouse: letting it go there is not a pause
     get mouseFree() {
       return !!range;
@@ -1292,6 +1597,7 @@ export function createRun(G, hooks) {
     },
     reset() {
       const pre = preset();
+      unplate();
       G.input.setSecondary(false);
       Object.assign(S, {
         active: true,
@@ -1305,13 +1611,18 @@ export function createRun(G, hooks) {
         spawnT: 1.2,
         eliteAt: RUN.elite.first,
         eliteN: 0,
+        eliteIdle: 0,
         elites: [],
         boss: null,
         bossSeen: false,
         bossDead: false,
         bossRetry: 0,
-        cook: null, // the dish on a stove: { o, pos, t, course, heat, elite, away }
+        clock: 0,
+        cook: null,
+        hands: "",
         stoves: 0, // lit so far
+        served: 0,
+        bossDue: -1,
         menu: pickN(RUN.dishes, RUN.dishes.length), // dealt afresh every run
         bonusHealth: 0, // from the soup special
         bonusCap: 0, // from the stock special
@@ -1343,7 +1654,8 @@ export function createRun(G, hooks) {
       hud.setRunLayout(true);
       hud.setSpices(spiceList());
       hud.setXp(0, 1);
-      hud.setClock(RUN.bossAt, "starter", 0);
+      hud.setCourse(range ? "" : "starter");
+      hud.setBags(range ? -1 : 0, stoveCount());
       if (pre.weapon)
         api.debug.set(pre.weapon.id, pre.weapon.level, pre.weapon.branch);
       if (range) range.begin();
@@ -1360,7 +1672,9 @@ export function createRun(G, hooks) {
         return;
       }
       S.active = false;
+      unplate();
       S.cook = null;
+      S.hands = "";
       S.bonusHealth = S.bonusCap = 0;
       hud.setCook(null);
       S.picking = null;
@@ -1378,6 +1692,7 @@ export function createRun(G, hooks) {
     // reached the truck: let the street run at full speed behind the receipt
     finish() {
       closeWheel();
+      freeHands();
       S.cook = null;
       hud.setCook(null);
       if (S.picking) hud.closeCards(-1);
@@ -1414,6 +1729,11 @@ export function createRun(G, hooks) {
         if (G.input.fire) G.input.fire = false;
         else WK.noFire = false;
       }
+      // hands full of the wok or the packing: walking, but no running and nothing to fire
+      if (S.hands && G.input) {
+        const I = G.input;
+        I.fire = I.ads = I.sprint = false;
+      }
       const target = S.picking
         ? S.picking.slow
         : wheel.open
@@ -1431,6 +1751,11 @@ export function createRun(G, hooks) {
         range.update(dt, real);
       } else {
         S.t += dt;
+        S.clock = clockStep(S.clock, dt, {
+          lit: S.stoves,
+          served: S.served,
+          cooking: dishHot(S.cook),
+        });
         cookTick(dt);
         spawnTick(dt);
         eliteTick();
@@ -1442,20 +1767,18 @@ export function createRun(G, hooks) {
       loadout.update();
       lowTick(real);
 
-      const st = stageAt(S.t);
-      hud.setClock(
-        S.bossSeen || range ? -1 : RUN.bossAt - S.t,
-        S.bossSeen || (range && !range.course) ? "" : st.id,
-        0,
+      hud.setCourse(
+        S.bossSeen || (range && !range.course) ? "" : stageAt(S.clock).id,
       );
+      hud.setBags(range || S.bossDead ? -1 : S.served, stoveCount());
       hud.setXp(S.xp / RUN.xp.need(S.level), S.level + 1);
       const cur = loadout.cur;
       const it = loadout.item(cur);
       hud.setWeaponLevel(it ? it.level : 1, MAX_LEVEL);
       // blades and other things without a magazine show no round count
       const arm = loadout.armory;
-      G.input.setSecondary(!!arm && arm.hasSecondary);
-      hud.setNoMag(!!arm && arm.held && !arm.mag);
+      G.input.setSecondary(!!arm && !arm.holding && arm.hasSecondary);
+      hud.setNoMag(!!arm && (arm.holding || (arm.held && !arm.mag)));
       hud.setWeapons(
         loadout.owned().map((id) => ({
           id,
@@ -1480,34 +1803,35 @@ export function createRun(G, hooks) {
           : null,
       );
     },
-    // a stove was lit (the game's objective code calls this): the dish goes on
+    // a stove was lit (the game's objective code calls this): the dish goes on, and the
+    // wok comes straight up for its first toss
     onStove(relay) {
       // (nothing cooks on the firing range: it has no timeline for a dish to run on)
-      if (!S.active || range || !relay || !relay.o) return;
+      if (!S.active || range || !relay || !relay.o || S.cook) return;
       S.cook = {
+        ...newDish(S.stoves),
         o: relay.o,
         pos: relay.o.pos,
-        t: 0,
-        course: Math.min(courseAt(S.t), RUN.stove.heal.length - 1),
-        heat: S.stoves,
-        elite: false,
-        away: false,
+        mark: "",
+        can: false,
+        beat: 0,
       };
       S.stoves++;
+      S.eliteIdle = 0;
       S.spawnT = 0;
-      setStove(relay.o, "cook");
-      // every wanderer in the street smells it and comes
-      try {
-        for (const z of G.enemies.list) if (z.alive) z.dull = false;
-        G.enemies.alert(relay.o.pos, 400);
-      } catch {}
+      setStove(relay.o, "toss");
+      if (G.player.alive) fillHands("wok");
+      smell(S.cook);
     },
-    objectiveKey() {
-      return S.bossDead
-        ? "obj.extract"
-        : S.bossSeen
-          ? "run.obj.boss"
-          : "run.obj.survive";
+    /** What the objective line says now. */
+    objective() {
+      if (S.bossDead) return L10N.t("obj.extract");
+      if (S.bossSeen) return L10N.t("run.obj.boss");
+      const left = stoveCount() - S.served;
+      if (left <= 0) return L10N.t("run.obj.bossDue");
+      // (what to do with the dish that is on is said under the course name; how many are
+      // packed, by the bags beside it)
+      return L10N.t(S.cook ? "run.obj.dish" : "run.obj.light");
     },
     // extra compass and world markers; pos objects are live, so elites are tracked as they move
     markers() {
@@ -1537,6 +1861,15 @@ export function createRun(G, hooks) {
             pos: z.pos,
             kind: "elite",
           });
+      // the stove with the dish on it: how long it has, or what it wants (cookTick words it)
+      const c = S.cook;
+      if (c && c.mark)
+        out.push({
+          id: "wok",
+          short: c.mark,
+          pos: c.pos,
+          kind: "relay",
+        });
       if (S.boss && S.boss.alive)
         out.push({
           id: "boss",
@@ -1547,7 +1880,11 @@ export function createRun(G, hooks) {
       return out;
     },
     intensity(alive) {
-      return S.bossSeen || S.cook || S.t > 420 ? 1 : alive > 0 ? 0.6 : 0.15;
+      return S.bossSeen || dishHot(S.cook) || S.served >= stoveCount()
+        ? 1
+        : alive > 0
+          ? 0.6
+          : 0.15;
     },
     /** For the receipts: numbers of the run and the names of weapons it unlocked. */
     placeOpen,
@@ -1556,6 +1893,7 @@ export function createRun(G, hooks) {
         kills: S.kills,
         level: S.level + 1,
         sirens: S.sirens,
+        dishes: S.served,
         weapons: loadout.owned().length,
         unlocked: [
           ...(S.newPlace ? [L10N.t("stage.docks.open")] : []),
@@ -1566,9 +1904,41 @@ export function createRun(G, hooks) {
     // test helpers (window.__G.run.debug)
     debug: {
       addXp,
+      // t: the meal's clock. At or past RUN.bossAt it also counts every dish as packed, so
+      // the boss comes at once.
       setTime(t) {
-        S.t = t;
-        S.eliteAt = Math.max(S.eliteAt, t + 5);
+        S.clock = t;
+        S.eliteAt = Math.max(S.eliteAt, S.t + 5);
+        if (t >= RUN.bossAt && S.bossDue < 0) {
+          if (S.cook) setStove(S.cook.o, "served");
+          unplate();
+          S.cook = null;
+          freeHands();
+          hud.setCook(null);
+          S.served = stoveCount();
+          S.bossDue = S.t;
+        }
+      },
+      // the dish on the stove, moved on to the end of what it is doing now (a toss made, a
+      // fry done, a wait run out so that it catches or chars, the packing done)
+      skipDish() {
+        const c = S.cook;
+        if (!c) return null;
+        const K = RUN.stove;
+        if (c.phase === "toss") c.t = Math.max(c.t, K.toss.seconds - 0.02);
+        else if (c.phase === "fry") c.t = K.fry[c.k] - 0.02;
+        else if (c.phase === "due" || c.phase === "ready")
+          c.wait = (c.caught ? K.burn + K.char : K.burn) - 0.02;
+        else if (c.phase === "pack") c.t = K.pack - 0.02;
+        return c.phase;
+      },
+      flare,
+      get wokReady() {
+        return !!wokHands;
+      },
+      // the cook's hands (wokhand.js), for measuring grips
+      get wokHands() {
+        return wokHands;
       },
       envelope() {
         dropEnvelope(G.player.pos.clone().add(new V3(0, 0, -2.5)));
@@ -1639,6 +2009,8 @@ export function createRun(G, hooks) {
       },
     });
   L10N.onLocale(() => {
+    // (the mark on the stove is worded here: have it worded again)
+    if (S.cook) S.cook.mark = null;
     if (S.active) hooks.refreshMarkers();
   });
   return api;
