@@ -6,6 +6,8 @@ export function createSettingsStore(defaultFov) {
       sens: 1,
       invertY: false,
       volume: 0.8,
+      musicVolume: 1,
+      effectsVolume: 1,
       fov: defaultFov,
       difficulty: "standard",
       mode: "mission",
@@ -32,6 +34,9 @@ export function createSettingsStore(defaultFov) {
         settings.invertY = !!saved.invertY;
         if (Number.isFinite(saved.volume))
           settings.volume = Math.min(1, Math.max(0, saved.volume));
+        for (const key of ["musicVolume", "effectsVolume"])
+          if (Number.isFinite(saved[key]))
+            settings[key] = Math.min(1, Math.max(0, saved[key]));
         if (Number.isFinite(saved.fov))
           settings.fov = Math.min(95, Math.max(60, saved.fov));
         if (openDifficulties.includes(saved.difficulty))

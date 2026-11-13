@@ -92,6 +92,8 @@ export default {
   "set.on": "開",
   "set.off": "關",
   "set.volume": "主音量",
+  "set.musicVolume": "音樂音量",
+  "set.effectsVolume": "音效音量",
   "set.fov": "視野",
   "set.display": "顯示",
   "set.fsEnter": "進入全螢幕",
