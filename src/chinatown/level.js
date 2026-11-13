@@ -768,6 +768,7 @@ export async function createLevel(G) {
       radius: 2.6,
     },
     enemySpawns,
+    spawnRegions: ctx.spawnRegions || [],
     zones,
     interiorBoxes,
     cinematicPath,

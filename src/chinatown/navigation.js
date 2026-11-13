@@ -36,7 +36,8 @@ export function createNavigation({ boxes, bounds, groundY, quayX, vector }) {
     edges = new Uint8Array(size);
   const cost = new Float32Array(size);
   const regions = new Uint32Array(size);
-  let nextRegion = 0;
+  let nextRegion = 0,
+    revision = 0;
   let buckets,
     dirty = true,
     full = true;
@@ -135,6 +136,7 @@ export function createNavigation({ boxes, bounds, groundY, quayX, vector }) {
   }
   function refresh() {
     dirty = false;
+    revision++;
     buckets = Array.from({ length: bw * bh }, () => []);
     // noNav used to hide solid props from routing. Physical obstacles must now
     // participate, otherwise a path and the mover disagree at precisely those props.
@@ -383,6 +385,10 @@ export function createNavigation({ boxes, bounds, groundY, quayX, vector }) {
 
   const api = {
     cell: CELL,
+    get revision() {
+      ready();
+      return revision;
+    },
     invalidate(box) {
       dirty = true;
       if (box) changes.push(box);

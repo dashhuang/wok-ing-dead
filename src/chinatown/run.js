@@ -429,16 +429,13 @@ export function createRun(G, hooks) {
       // they rise at one spot, a step apart, and come on together
       const K = RUN.pack;
       const at = hooks.pickSpawn("walker");
+      if (!at) {
+        S.spawnT = 0.4;
+        return;
+      }
       for (let i = 0; i < K.size; i++) {
-        tmp.copy(at);
-        if (i) {
-          tmp.x += (rng() - 0.5) * 2 * K.spread;
-          tmp.z += (rng() - 0.5) * 2 * K.spread;
-          try {
-            if (!G.physics.nav.isWalkable(tmp.x, tmp.z)) tmp.copy(at);
-          } catch {}
-        }
-        z = spawnAt("walker", tmp, packOpts()) || z;
+        const pos = i ? hooks.scatterSpawn(at, K.spread) : at;
+        if (pos) z = spawnAt("walker", pos, packOpts()) || z;
       }
     } else if (st.quiet && !S.cook)
       // a quiet course: it rises somewhere out of the way and wanders

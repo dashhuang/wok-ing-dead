@@ -6,6 +6,7 @@ import * as L10N from "./i18n/index.js";
 import { createRun } from "./chinatown/run.js";
 import { createTelemetry } from "./telemetry/index.js";
 import { createNavigation, STEP_HEIGHT } from "./chinatown/navigation.js";
+import { createSpawnPicker } from "./chinatown/spawning.js";
 
 (() => {
   var bT = Object.defineProperty;
@@ -84469,8 +84470,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         Ue = cs.stagger(Y);
       (ye.forEach((ze, Ge) => {
         let _e = O(ze);
-        ((Te += _e.x - i.pos.x),
-          (Re += _e.z - i.pos.z),
+        ((Te += _e ? _e.x - i.pos.x : 0),
+          (Re += _e ? _e.z - i.pos.z : 0),
           g.queue.push({ type: ze, pos: _e, at: g.time + 1.2 + Ge * Ue }));
       }),
         (g.waveOn = !0),
@@ -84617,12 +84618,19 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           Y && ce(Y);
         },
       };
+    const spawnPicker = createSpawnPicker(n, {
+      sites: () => j("walker"),
+      clock: () => g.time,
+    });
+    C.spawnDirector = spawnPicker;
     // The set meal is a run (src/chinatown/run.js): a timeline of the dead, level-ups and
     // pickups. Its meshes are created here, before the renderer pre-compiles shaders.
     let RUN = null;
     try {
       ((RUN = createRun(n, {
         pickSpawn: (Y, he) => O(Y, he),
+        scatterSpawn: (pos, radius) =>
+          spawnPicker.scatter(pos, radius, { minDist: xi.spawnFar }),
         spawn: (Y, he, V) => q(Y, he, V),
         alive: () => se(),
         refreshMarkers: () => J(),
@@ -84727,6 +84735,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         (g.lowSaid = !1),
         (g.extractHint = 0),
         g.used.clear(),
+        spawnPicker.reset(),
         (g.wave = 0),
         (g.waveOn = !1),
         (g.breakT = cs.firstDelay),
@@ -84938,6 +84947,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         preferHidden: ne = !0,
       } = {},
     ) {
+      if (Y !== "gull")
+        return spawnPicker.pick({ minDist: he, from: V, preferHidden: ne });
       let ye = j(Y),
         Te = null,
         Re = -1e9;
@@ -84983,9 +84994,21 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       return (Y === "gull" && Ue.y < 2.5 && (Ue.y = 6 + n.rng() * 3), Ue);
     }
     function q(Y, he, V) {
+      if (!he) return null;
+      // Holdout queues a spawn ahead of time; the player may have walked into
+      // sight/range of that point since it was picked. Re-pick instead of popping in.
+      if (
+        Y !== "gull" &&
+        V?.state === "alert" &&
+        !spawnPicker.safe(he, { minDist: xi.spawnFar })
+      ) {
+        he = O(Y);
+        if (!he) return null;
+      }
       let ne = null;
       try {
         ne = n.enemies.spawn(Y, he, V);
+        if (ne && Y !== "gull") spawnPicker.note(ne, he);
       } catch (ye) {
         console.error("[game] enemies.spawn threw", ye);
       }
@@ -85009,8 +85032,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         ye = 0;
       (V.forEach((Re, Ue) => {
         let Ve = O(Re);
-        ((ne += Ve.x - i.pos.x),
-          (ye += Ve.z - i.pos.z),
+        ((ne += Ve ? Ve.x - i.pos.x : 0),
+          (ye += Ve ? Ve.z - i.pos.z : 0),
           g.queue.push({
             type: Re,
             pos: Ve,
@@ -85034,6 +85057,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           ne.at = g.time + 1;
           continue;
         }
+        if (!ne.pos) ne.pos = O(ne.type);
         if (
           !q(ne.type, ne.pos, { state: "alert", target: i.pos }) &&
           !n.enemies.stub &&
