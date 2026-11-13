@@ -683,7 +683,7 @@ export function createRun(G, hooks) {
     )
       I.requestLock();
     play("run_pick", { gain: 1 });
-    G.events.emit("run:pick", { card: c });
+    G.events.emit("run:pick", { card: c, offered: pk.cards });
   }
   function pickTick(real) {
     S.pickHold = Math.max(0, S.pickHold - real);

@@ -30,6 +30,8 @@ jobs:
       - run: npm ci
       - name: Syntax and formatting
         run: npm run check
+      - name: Telemetry contract and queue tests
+        run: npm run test:telemetry
       - name: Production build
         run: npm run build
       - name: Arsenal build

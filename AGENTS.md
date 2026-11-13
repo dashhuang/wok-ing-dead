@@ -4,7 +4,7 @@
 
 ## 项目是什么
 
-《行尸走镬 Wok-ing Dead》：雨夜唐人街打僵尸的浏览器 FPS（Three.js + Vite，纯前端，没有后端）。
+《行尸走镬 Wok-ing Dead》：雨夜唐人街打僵尸的浏览器 FPS（Three.js + Vite，玩法纯前端；游玩日志由 Vercel Functions + Neon 保存，见 docs/telemetry.md）。
 基于从 Claude artifact 提取的「Saltline」发布包改造而来，目标是 3A 品质、摆脱原版的复制感。
 
 - 线上：https://wok-ing-dead.vercel.app ，GitHub：`dashhuang/wok-ing-dead`（私有）。
@@ -35,6 +35,7 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
 | --- | --- |
 | `src/game.js` | 反压缩后的原版发布包（含内嵌 Three.js r180）。变量名是压缩名（`ov`、`hT`、`pT`…），靠 architecture.md 的入口表和搜索字符串定位 |
 | `src/chinatown/` | 唐人街关卡的全部新模块：布局、建筑、店铺、街市、车辆、招牌、灯光、僵尸、音效；套餐（肉鸽关卡）的规则 `run.js`、纯规则 `runflow.js` 和数值 `runtune.js`、武器与弹药 `loadout.js`、武器轮盘 `wheel.js`、僵尸数值 `zombietune.js`、接入试验场武器的 `armory.js` / `armtargets.js`、第二关的补充 `docks.js` |
+| `src/telemetry/`、`api/`、`server/telemetry/` | 游玩日志客户端、Vercel 接口与校验/存储；数据库迁移和查询脚本在 `scripts/telemetry/`，日志测试用 `npm run test:telemetry` |
 | `src/i18n/` | 语言选择和四份语言包（`locales/`，英文是基准） |
 | `src/style.css` | 全部界面样式，设计变量在开头 |
 | `public/assets/` | 贴图、GLB、僵尸、字体、音效（来源和许可见 docs/assets.md） |
