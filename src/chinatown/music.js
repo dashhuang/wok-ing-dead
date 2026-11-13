@@ -202,10 +202,10 @@ export function createMusic({ ctx, out, running, game }) {
       crossfade(target, now);
       const level =
         state === "dead"
-          ? 0.12
+          ? 0.24
           : state === "playing"
-            ? 0.6 + weight * 0.12
-            : 0.3;
+            ? 1.2 + weight * 0.24
+            : 0.6;
       mix.gain.setTargetAtTime(level * (now < duckUntil ? 0.5 : 1), now, 0.4);
     },
     debug() {
