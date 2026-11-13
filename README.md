@@ -126,6 +126,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `upstream/` | 提取时的原件和来源记录，不应直接编辑 |
 
 实现导读见 [架构与代码导航](docs/architecture.md)，素材来源和许可见 [素材来源与许可](docs/assets.md)。
+Dash 定下的方向见 [决定与偏好](docs/decisions.md)，各功能的进度和待验证项见 [现状](docs/status.md)，踩过的坑见 [踩过的坑](docs/pitfalls.md)。
 
 ## 调试
 
