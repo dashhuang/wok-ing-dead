@@ -638,37 +638,9 @@ export async function createLevel(G) {
   enemySpawns.forEach((s) => settle(s.pos));
   // a spawn the dead cannot walk out of is no use: keep only those connected to the gate
   try {
-    const g = nav._grid();
-    const cell = (x, z) => {
-      const cx = Math.floor((x - g.minX) / g.cell),
-        cz = Math.floor((z - g.minZ) / g.cell);
-      return cx < 0 || cz < 0 || cx >= g.w || cz >= g.h ? -1 : cz * g.w + cx;
-    };
-    const seen = new Uint8Array(g.w * g.h);
-    const queue = [cell(playerStart.pos.x, playerStart.pos.z)];
-    seen[queue[0]] = 1;
-    while (queue.length) {
-      const c = queue.pop();
-      const cx = c % g.w,
-        cz = (c - cx) / g.w;
-      for (const [dx, dz] of [
-        [1, 0],
-        [-1, 0],
-        [0, 1],
-        [0, -1],
-      ]) {
-        const nx = cx + dx,
-          nz = cz + dz;
-        if (nx < 0 || nz < 0 || nx >= g.w || nz >= g.h) continue;
-        const n = nz * g.w + nx;
-        if (seen[n] || g.blocked[n]) continue;
-        seen[n] = 1;
-        queue.push(n);
-      }
-    }
+    const reachable = nav.reachableFrom(playerStart.pos);
     for (let i = enemySpawns.length - 1; i >= 0; i--) {
-      const c = cell(enemySpawns[i].pos.x, enemySpawns[i].pos.z);
-      if (c < 0 || !seen[c]) enemySpawns.splice(i, 1);
+      if (!reachable(enemySpawns[i].pos)) enemySpawns.splice(i, 1);
     }
   } catch (err) {
     console.warn("[chinatown] spawn reachability check skipped", err);
@@ -796,6 +768,7 @@ export async function createLevel(G) {
       radius: 2.6,
     },
     enemySpawns,
+    spawnRegions: ctx.spawnRegions || [],
     zones,
     interiorBoxes,
     cinematicPath,

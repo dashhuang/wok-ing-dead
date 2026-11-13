@@ -30,7 +30,8 @@
     "verify": "npm run check && npm run build && npm run test:e2e",
     "test:telemetry": "node --test tests/telemetry/*.test.mjs",
     "telemetry:migrate": "node scripts/telemetry/migrate.mjs",
-    "prepare": "git config core.hooksPath .githooks || true"
+    "prepare": "git config core.hooksPath .githooks || true",
+    "test:navigation": "node --test tests/navigation/*.test.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",

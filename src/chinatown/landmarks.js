@@ -642,6 +642,27 @@ export function buildLandmarks(ctx, PLAN) {
       T = 0.45;
     const gx0 = 18.2,
       gx1 = 25.8; // gatehouse
+    const sideDoor = { from: 19.4, to: 22 };
+    // Spawn pressure uses the very same openings that the walls below leave free.
+    (ctx.spawnRegions ||= []).push({
+      id: "temple",
+      x0: x0 + T / 2,
+      z0: z0 + T / 2,
+      x1,
+      z1,
+      entrances: [
+        {
+          id: "front",
+          a: { x: gx0, z: z0 + T / 2 },
+          b: { x: gx1, z: z0 + T / 2 },
+        },
+        {
+          id: "side",
+          a: { x: x0 + T / 2, z: sideDoor.from },
+          b: { x: x0 + T / 2, z: sideDoor.to },
+        },
+      ],
+    });
     // courtyard paving
     kit.box(granite, x0 + T, 0, z0 + T, x1, K, 23.4, { skip: "b" });
     kit.solid(x0 + T, -0.2, z0 + T, x1, K, 23.4, "concrete");
@@ -701,10 +722,10 @@ export function buildLandmarks(ctx, PLAN) {
     }
     compoundWall(x0, z0 + T / 2, gx0, z0 + T / 2);
     compoundWall(gx1, z0 + T / 2, x1, z0 + T / 2);
-    compoundWall(x0 + T / 2, z0 + T, x0 + T / 2, 19.4);
-    compoundWall(x0 + T / 2, 22, x0 + T / 2, z1);
+    compoundWall(x0 + T / 2, z0 + T, x0 + T / 2, sideDoor.from);
+    compoundWall(x0 + T / 2, sideDoor.to, x0 + T / 2, z1);
     // side doorway on the lane: plain red posts and a lintel
-    for (const z of [19.4, 22])
+    for (const z of [sideDoor.from, sideDoor.to])
       kit.box(
         M.lacquer,
         x0 - 0.01,
@@ -727,7 +748,15 @@ export function buildLandmarks(ctx, PLAN) {
       21.86,
       { skip: "" },
     );
-    kit.solid(x0, 2.6, 19.4, x0 + T, wallH + 0.5, 22, "concrete");
+    kit.solid(
+      x0,
+      2.6,
+      sideDoor.from,
+      x0 + T,
+      wallH + 0.5,
+      sideDoor.to,
+      "concrete",
+    );
     for (const sd of ["w", "e"]) {
       const f = B.frame(sd, x0, 19.2, x0 + T, 22.2);
       B.eaveRoof(f, -0.3, f.len + 0.3, wallH + 0.3, 0.6, M.tileGreen, 0.5, {
