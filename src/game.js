@@ -4,7 +4,14 @@ import { createSettingsStore } from "./settings.js";
 import { presetToBoot } from "./bootguard.js";
 import * as L10N from "./i18n/index.js";
 import { createRun } from "./chinatown/run.js";
-import { STOCK_GUNS } from "./chinatown/stockguns.js";
+import {
+  STOCK_GUNS,
+  coneOf,
+  bloomAfterShot,
+  bloomAfter,
+  roundDamage,
+  reloadPace,
+} from "./chinatown/stockguns.js";
 import { createComms } from "./chinatown/comms.js";
 import { uiIcon } from "./chinatown/icons.js";
 import { createTelemetry } from "./telemetry/index.js";
@@ -61262,18 +61269,31 @@ void main() {
         reset() {
           e.shots = e.hits = e.kills = 0;
         },
+        // gun: the rules of the round (chinatown/stockguns.js): what the head takes, the falloff,
+        // how many of the dead it goes through. The ray tests here only find what it reaches.
         playerShot(
           i,
           s,
-          { damage: o = 28, range: r = 300, impulse: a = 1 } = {},
+          {
+            damage: o = 28,
+            range: r = 300,
+            impulse: a = 1,
+            gun: g = null,
+          } = {},
         ) {
           e.shots++;
           let l = n.physics.raycast(i, s, r),
-            c = n.enemies.raycast(i, s, l ? l.dist : r);
-          if (c) {
+            w = l ? l.dist : r,
+            k = null,
+            left = g ? g.pierce || 0 : 0,
+            last = null;
+          for (;;) {
+            let c = n.enemies.raycast(i, s, w, k);
+            if (!c) break;
             e.hits++;
-            let u = c.part === "weak" ? 2.2 : 1,
-              f = c.enemy.damage(o * u, c.point, s, c.part) === !0,
+            let weak = c.part === "weak",
+              u = g ? roundDamage(g, o, c.dist, weak) : o * (weak ? 2.2 : 1),
+              f = c.enemy.damage(u, c.point, s, c.part) === !0,
               h = {
                 point: c.point,
                 normal: c.normal || s.clone().negate(),
@@ -61285,16 +61305,16 @@ void main() {
                 from: "player",
                 killed: f,
               };
-            return (
-              n.events.emit("impact", h),
+            (n.events.emit("impact", h),
               n.events.emit("player:hitEnemy", {
                 enemy: c.enemy,
                 part: c.part,
                 killed: f,
-                weak: c.part === "weak",
+                weak,
               }),
-              h
-            );
+              (last = h));
+            if (left-- <= 0) return h;
+            (k || (k = new Set())).add(c.enemy);
           }
           if (l) {
             let u = {
@@ -61309,7 +61329,7 @@ void main() {
             };
             return (n.events.emit("impact", u), u);
           }
-          return null;
+          return last;
         },
         enemyShot(i, s, { damage: o = 6, range: r = 200 } = {}) {
           let a = n.physics.raycast(i, s, r),
@@ -65046,9 +65066,10 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
       },
     },
     ft = {
-      // (the carbine's reload: its two lengths are in chinatown/stockguns.js, the keys below are timed to them)
-      tac: STOCK_GUNS.rifle.reload.tac,
-      empty: STOCK_GUNS.rifle.reload.empty,
+      // (the lengths the carbine's reload animation was made to; how long a reload really takes
+      // is chinatown/stockguns.js, and the animation's clock is paced to fit: rig.reloadPace)
+      tac: 2.24,
+      empty: 2.72,
       atMag: 0.36,
       magout: 0.4,
       clear: 0.52,
@@ -65079,9 +65100,9 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
       partial: 0.32,
     },
     It = {
-      // (the sidearm's reload, as above)
-      tac: STOCK_GUNS.pistol.reload.tac,
-      empty: STOCK_GUNS.pistol.reload.empty,
+      // (the sidearm's reload animation, as above)
+      tac: 1.5,
+      empty: 1.9,
       release: 0.12,
       magout: 0.18,
       swap: 0.48,
@@ -69049,7 +69070,8 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         flashLight: 45,
         flashScale: 1,
         smoke: !0,
-        spread: { ...STOCK_GUNS.rifle.spread },
+        // (the table's own object: the range's number panel edits it while the game runs)
+        spread: STOCK_GUNS.rifle.spread,
       },
       views: Uy,
       view: 0,
@@ -69061,6 +69083,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       },
       motion: bh.rifle,
       reloadTime: (B) => (B ? ft.empty : ft.tac),
+      reloadPace: (B) => reloadPace(STOCK_GUNS.rifle, B, B ? ft.empty : ft.tac),
       reset() {
         ((de = 9),
           ($ = !1),
@@ -70703,7 +70726,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         flashLight: 30,
         flashScale: 0.55,
         smoke: !1,
-        spread: { ...STOCK_GUNS.pistol.spread },
+        spread: STOCK_GUNS.pistol.spread,
       },
       views: Xy,
       view: 0,
@@ -70715,6 +70738,8 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       },
       motion: bh.pistol,
       reloadTime: (ge) => (ge ? It.empty : It.tac),
+      reloadPace: (ge) =>
+        reloadPace(STOCK_GUNS.pistol, ge, ge ? It.empty : It.tac),
       reset() {
         ((le = 9),
           (xe = !1),
@@ -71481,7 +71506,11 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         Z.copy(B.eye || X.position));
       let ye = null;
       try {
-        ye = n.combat.playerShot(Z, C, { damage: Y.damage, range: Y.range });
+        ye = n.combat.playerShot(Z, C, {
+          damage: Y.damage,
+          range: Y.range,
+          gun: STOCK_GUNS[re.id],
+        });
       } catch {}
       (ye && ye.point
         ? F.copy(ye.point)
@@ -71510,7 +71539,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
           weapon: re.id,
         }),
         re.recoil(a.burst, u0(1, 0.55, a.adsE) * (B.crouching ? 0.85 : 1), B),
-        (a.bloom = Math.min(1, a.bloom + Y.spread.shot)),
+        (a.bloom = bloomAfterShot(Y.spread, a.bloom)),
         (a.flashT = a.flashDur = 0.036 + r() * 0.02));
       let Re = re.flash,
         Ue = Re.material.uniforms;
@@ -71760,7 +71789,10 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
           ? ($e.t = l.reloadT)
           : $e.fresh
             ? ($e.fresh = !1)
-            : ($e.t += B * (E.reloadScale || 1)),
+            : ($e.t +=
+                B *
+                (E.reloadScale || 1) *
+                ($e.rig.reloadPace ? $e.rig.reloadPace($e.empty) : 1)),
           Y.reload($e, $e.t),
           $e.t >= $e.T &&
             l.reloadT == null &&
@@ -71807,7 +71839,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       (a.cooldown < 0 && (a.cooldown = Math.max(a.cooldown, -0.001)),
         a.t - a.lastShot > 0.24 &&
           (a.burst > 0 && (a.recPhase = r() * 6.28), (a.burst = 0)),
-        (a.bloom = Math.max(0, a.bloom - B * he.spread.decay)),
+        (a.bloom = bloomAfter(he.spread, a.bloom, B)),
         he.smoke &&
           a.t - a.lastShot > 0.11 &&
           a.t - a.lastShot < 0.11 + B * 1.5 &&
@@ -71836,14 +71868,15 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         (E.ads = a.adsE),
         (a.adsWant = Ve));
       let ze = X.speed || 0,
-        Ge = Is(ze / 6),
         _e = he.spread,
-        Ne =
-          u0(_e.hip, _e.ads, a.adsE) +
-          Ge * u0(_e.moveHip, _e.moveAds, a.adsE) +
-          a.bloom * u0(_e.bloomHip, _e.bloomAds, a.adsE) +
-          (X.onGround === !1 ? _e.air : 0) -
-          (X.crouching ? _e.crouch * (1 - a.adsE) : 0);
+        // (the cone of fire: chinatown/stockguns.js)
+        Ne = coneOf(_e, {
+          ads: a.adsE,
+          speed: ze,
+          bloom: a.bloom,
+          air: X.onGround === !1,
+          crouch: X.crouching,
+        });
       ((a.spreadS = j0(a.spreadS, Ne, 18, B)),
         (E.spread = a.spreadS),
         ye ||

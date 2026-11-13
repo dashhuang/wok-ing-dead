@@ -18,6 +18,7 @@
 // them too, so what a round costs on its firing range is what it costs in a run. What a level
 // multiplies damage by is the arsenal's own table (LEVELS), the one the lab shows.
 import { LEVELS, levelMul } from "../../arsenal/src/data/levels.js";
+import { STOCK_GUNS } from "./stockguns.js";
 
 export const AMMO = {
   // cap: units carried (the "portion" seasoning raises it), pack: units in one dropped pack,
@@ -74,9 +75,6 @@ export function createLoadout(G, on = {}) {
   let carried = null;
   let mods = { damage: 1, rate: 1, reload: 1 };
   let infusions = [];
-  const baseDef = {};
-  for (const [id, rig] of Object.entries((G.weapon && G.weapon.rigs) || {}))
-    baseDef[id] = { damage: rig.def.damage, rpm: rig.def.rpm };
 
   const rifleSlot = () => G.weapon.slots[0];
   const perOf = (id) => {
@@ -185,15 +183,25 @@ export function createLoadout(G, on = {}) {
 
   // ---------- numbers that follow level and seasonings
   // The arsenal's weapons take level and seasonings inside their own controller (the same
-  // code the lab runs): setMods below is all they need. The game's own two rigs are tuned here.
+  // code the lab runs): setMods below is all they need. The game's own two rigs are tuned here,
+  // from their table (stockguns.js) every time: an edit on the range's number panel goes
+  // through applyStats -> setMods and lands here at once.
+  function setStock(id, mul, rate) {
+    const rig = G.weapon.rigs[id];
+    const S = STOCK_GUNS[id];
+    if (!rig || !S) return;
+    rig.def.damage = S.damage * mul;
+    rig.def.rpm = S.rpm * rate;
+    rig.def.range = S.range;
+    rig.def.auto = S.auto;
+    rig.def.magSize = rig.slot.magSize = S.mag;
+    rig.slot.ammo = Math.min(rig.slot.ammo, S.mag);
+  }
   function tune(id) {
     const it = inv.get(id);
     if (!it || !ARMS[id].own) return;
-    const rig = G.weapon.rigs[id];
-    rig.def.damage =
-      // (the game's own guns never fork: they climb by the level table's `bare` column)
-      baseDef[id].damage * levelMul(it.level, true) * mods.damage;
-    rig.def.rpm = baseDef[id].rpm * mods.rate;
+    // (the game's own guns never fork: they climb by the level table's `bare` column)
+    setStock(id, levelMul(it.level, true) * mods.damage, mods.rate);
   }
   function tuneAll() {
     for (const id of inv.keys()) tune(id);
@@ -201,11 +209,7 @@ export function createLoadout(G, on = {}) {
     if (armory) armory.combat.setMods(mods);
   }
   function untune() {
-    for (const [id, base] of Object.entries(baseDef)) {
-      const rig = G.weapon.rigs[id];
-      rig.def.damage = base.damage;
-      rig.def.rpm = base.rpm;
-    }
+    for (const id of Object.keys(STOCK_GUNS)) setStock(id, 1, 1);
     G.weapon.reloadScale = 1;
   }
 
