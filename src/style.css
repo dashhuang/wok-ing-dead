@@ -2394,12 +2394,15 @@ kbd {
 .m-title {
   inset: 0;
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(min-content, 1fr) auto;
   grid-template-areas:
     "top top"
     "main legend"
     "note note";
   column-gap: 40px;
+  row-gap: 20px;
+  overflow: auto;
+  overscroll-behavior: contain;
   padding: calc(34px + var(--sat)) max(var(--gr), 4.2vw) calc(30px + var(--sab))
     max(var(--gl), 5vw);
 }
@@ -3673,25 +3676,6 @@ kbd {
     -webkit-mask: none;
     mask: none;
   }
-  /* No room under the order on a phone held sideways, so the way into the settings sits
-     beside the button (the controls are a tab of the same panel). */
-  .m-title-main {
-    position: relative;
-  }
-  .m-order .btn.primary {
-    width: calc(100% - 104px);
-  }
-  .m-links {
-    position: absolute;
-    right: 12px;
-    bottom: 12px;
-    width: 92px;
-    height: 44px;
-    margin: 0;
-    padding: 0;
-    align-items: center;
-    justify-content: center;
-  }
   .seg.m-modes button {
     padding: 7px 10px;
   }
@@ -3746,32 +3730,126 @@ kbd {
   }
 }
 
-/* A phone held sideways: short and wide. The branch and the spice level share one line of a
-   wider ticket, so the lockup above is not squeezed off the top. */
-@media (max-height: 560px) and (min-width: 620px) {
-  /* (as wide as the ticket, so the settings link beside its button stays inside it) */
-  .m-title-main {
-    max-width: 600px;
-  }
-  .m-order {
-    display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-    column-gap: 10px;
-    max-width: 600px;
-  }
-  .m-order > * {
-    grid-column: 1 / -1;
-  }
-  .m-order > .m-spice {
-    grid-column: auto;
+/* Keep every title-page control in flow. Short viewports may scroll down, never
+   push the wordmark above the header. Width and height both matter on phones. */
+@media (max-width: 1000px), (max-height: 560px) {
+  .m-title {
     grid-template-columns: minmax(0, 1fr);
-    margin: 8px 0 10px;
+    grid-template-rows: auto minmax(min-content, 1fr);
+    grid-template-areas: "top" "main";
+    gap: 16px;
+    padding: calc(16px + var(--sat)) var(--gr) calc(16px + var(--sab)) var(--gl);
   }
-  .m-order > .m-spice > span {
+  .m-top {
+    gap: 8px 12px;
+    min-width: 0;
+  }
+  .m-open {
     display: none;
   }
-  .m-difficulty-note {
-    margin: -4px 0 8px;
+  .m-doors,
+  .m-langs {
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+  .m-door {
+    white-space: normal;
+    line-height: 1.25;
+    padding: 6px 10px;
+  }
+  .m-lang,
+  .m-door {
+    min-height: 36px;
+  }
+  .m-title-main {
+    width: 100%;
+    max-width: 600px;
+  }
+  .m-word {
+    --w: min(11vw, 9vh, 74px);
+  }
+  .m-order {
+    max-width: none;
+  }
+  .m-order .btn.primary {
+    min-height: 44px;
+  }
+  .m-links {
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    margin-top: 8px;
+  }
+  .m-link {
+    min-height: 36px;
+  }
+  .m-title .m-note,
+  .m-title .m-legend {
+    display: none;
+  }
+  .m-spice {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .m-spice .seg {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .m-spice .seg button {
+    min-width: 0;
+    min-height: 36px;
+    padding: 6px 4px;
+    font-size: 12px;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+  }
+  .m-spice .chili {
+    display: none;
+  }
+  .seg.m-modes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .seg.m-modes button {
+    min-width: 0;
+    min-height: 44px;
+    overflow-wrap: anywhere;
+  }
+}
+@media (max-width: 1000px) and (max-height: 780px), (max-height: 560px) {
+  .m-premise,
+  .m-modes small {
+    display: none;
+  }
+}
+/* Sideways phones put the brand beside the order instead of stacking both.
+   Settings stay below the ticket, so translations cannot overlap the start button. */
+@media (min-width: 620px) and (max-height: 560px) {
+  .m-title-main {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    align-items: center;
+    gap: 8px 24px;
+    max-width: 900px;
+    align-self: center;
+  }
+  .m-word {
+    --w: min(6vw, 13vh, 64px);
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .m-tagline {
+    display: none;
+  }
+  .m-order {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+  }
+  .m-spice > span {
+    display: none;
+  }
+  .m-links {
+    grid-column: 2;
+    margin: 0;
   }
 }
 
