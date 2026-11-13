@@ -251,7 +251,7 @@ export async function createCombat(lab) {
     },
     /**
      * Instant ray from the eye. Draws the tracer from the muzzle to wherever it ends.
-     * { dir, range, pierce, ricochet, damage: n | (z) => n, headMul, forceHead, falloff: [start, end, min],
+     * { dir, range, pierce, ricochet, damage: n | (z, metres travelled) => n, headMul, forceHead, falloff: [start, end, min],
      *   knock, launch: n | (z, metres travelled) => n, stagger, element,
      *   tracer: {...} | false, impact: {...} | false, onHit(z, hit) }
      */
@@ -274,7 +274,10 @@ export async function createCombat(lab) {
         if (zh && (!wh || zh.dist < wh.dist)) {
           skip.add(zh.z);
           const travelled = (o.range ?? 200) - left + zh.dist;
-          let dmg = typeof o.damage === "function" ? o.damage(zh.z) : o.damage;
+          let dmg =
+            typeof o.damage === "function"
+              ? o.damage(zh.z, travelled)
+              : o.damage;
           if (o.falloff)
             dmg *=
               1 -

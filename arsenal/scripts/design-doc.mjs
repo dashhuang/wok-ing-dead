@@ -267,8 +267,8 @@ ${EXISTING.map(
     `| ${w.name}（本体的枪，没有岔路） | ${cell(w.id, "base", 1)} | ${cell(w.id, "base", 3)} | | ${cell(w.id, "base", 5)} | |`,
 ).join("\n")}
 
-LK-9 和 LK-4 是本体自己的枪（\`src/game.js\` 造的），试验场里没有它们的模型：测试台用一个替身（\`arsenal/src/kit/standin.js\`）
-按本体的数值表（\`src/chinatown/stockguns.js\`，本体也读这张表）打一发直线子弹，和本体一样爆头 ×2.2、不衰减、不穿透。
+LK-9 和 LK-4 是本体自己的枪（\`src/game.js\` 造的），试验场里没有它们的模型：测试台用一个替身（\`arsenal/src/kit/standin.js\`）开火。
+它们的数字和开火规则只有一份（\`src/chinatown/stockguns.js\`），本体和测试台调用同一段代码。
 它们没有岔路，所以每级伤害倍率用等级表的 \`bare\` 一列（${LEVELS.map((l) => "×" + l.bare).join(" / ")}，有岔路的是 ${LEVELS.map((l) => "×" + l.dmg).join(" / ")}），补上岔路那一截。
 
 怎么读这张表：
