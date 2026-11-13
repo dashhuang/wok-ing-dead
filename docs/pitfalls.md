@@ -55,6 +55,11 @@
 - **iPhone 把 WebGL 的显存也算在网页进程头上**：Mac 上图形进程单独占几 GB，iPhone 上图形进程只有几百 MB、网页进程 2 GB。
   所以省显存和省 JS 里的副本同样有效。three.js 上传贴图后默认还留着原图（解码图片、画布），手持设备上由 `texmem.js` 释放；
   新做的画布贴图画完以后不再改，就 `markStatic(tex)`；会在游戏中继续画的（贴花、屏幕）不要标。
+- **释放了原图，就补不回丢失的 WebGL 上下文**：iOS 在内存吃紧时（比如同时开着另一个很重的标签页）会收回 WebGL 上下文再还回来，
+  three.js 这时会把所有贴图重新上传，被释放的贴图只剩一个黑像素，街道变暗、招牌消失（2026-11-13 Dash 在 iPhone 上看到「贴图很少，很多黑的」）。
+  所以开着释放时，`texmem.js` 在 `webglcontextrestored` 时直接重新载入页面。本机复现：WebKit 里
+  `renderer.getContext().getExtension("WEBGL_lose_context")` 先 `loseContext()` 再 `restoreContext()`。
+  释放之前恢复也不完整（地面和枪发暗），阴影缓存、探针、渲染目标都没人重建。
 - **武器库的模型开机就全部建好**：所有武器、所有岔路的画布都会上传，不管带没带（例如符纸 30 张、关刀龙纹 4 张）。手机档用 `createKit({ canvasScale: 0.5 })`；
   画布里的绘制不要用 `setTransform`（会冲掉这个缩放），用 `save` / `transform` / `restore`。
 - 本机量内存：Playwright 的 WebKit（`npx playwright install webkit`）带 iPhone UA 打开，`vmmap -summary <WebContent pid>` 看

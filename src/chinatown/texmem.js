@@ -15,10 +15,19 @@
 // already has on the GPU that replaces one pixel, so the picture stays as it was.
 //
 // game.js calls afterUpload() from three.js's upload of a 2D texture (next to onUpdate).
+//
+// The one time everything is uploaded again is when the browser takes the WebGL context away
+// and gives it back (iOS does this to a page under memory pressure, for instance with another
+// heavy tab open). three.js then re-uploads every texture from its picture, and the released
+// ones come back as a single black pixel: the street goes dark and the signs disappear. With
+// releasing on, a restored context therefore reloads the page. (Before releasing, a restored
+// context already came back with a dark street and weapon: nothing else rebuilds the shadow
+// caches, probes and render targets either.)
 
 let on = false;
 let spent = null;
 let warned = false;
+let reloading = false;
 
 /** Turns releasing on or off (on for handheld devices; see game.js). */
 export function releaseTextureImages(value) {
@@ -26,6 +35,16 @@ export function releaseTextureImages(value) {
   if (on && !spent) {
     spent = document.createElement("canvas");
     spent.width = spent.height = 1;
+  }
+  if (on && !reloading) {
+    const view = document.getElementById("view");
+    if (view) {
+      reloading = true;
+      view.addEventListener("webglcontextrestored", () => {
+        console.warn("[texmem] WebGL context restored: reloading the page");
+        location.reload();
+      });
+    }
   }
 }
 
