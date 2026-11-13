@@ -40,7 +40,7 @@ node scripts/assets/build-chinatown.mjs <缓存目录> public/assets
 用 FBX2glTF 转换后由 `scripts/assets/build-zombies.mjs` 处理：统一骨骼名、材质改为普通 PBR、贴图压到 2K WebP、动作单独成文件。
 
 另有七个角色，开局时不下载。其中五个已经进了套餐（`src/chinatown/runtune.js` 的 `RUN.bodies`：`mutant` 关底、`skeletonzombie` 和 `yaku`
-两种精英、`parasite` 胀尸、`prisoner` 成群的快尸），一局开始后才下载，贴图按画质缩小（`low` 512、`medium` 1024）；`whiteclown` 和 `pumpkinhulk` 风格和唐人街不搭，
+两种精英、`parasite` 胀尸、`prisoner` 成群的快尸），一局开始后才下载，贴图按画质缩小（`low` 和 `medium` 都是 1024，更高用原图）；`whiteclown` 和 `pumpkinhulk` 风格和唐人街不搭，
 只留在靶场（`/?range=1` 的「模型」）里。同样是 Mixamo 的角色，
 同样的转换流程，动作沿用上面那九段（`prisoner` 和 `mutant` 没有手指骨骼，手指不动）：
 
