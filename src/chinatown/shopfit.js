@@ -1898,11 +1898,11 @@ export function createShopfit({ kit, ctx, M, P, fbox }) {
     plane(x0, R.fl, z, 1, 0, 0, 0, 1, 0, x1 - x0, 2.02, 0x030303, null, {
       e: 1,
     });
-    box(x0 - 0.06, R.fl, -R.D, x0, R.fl + 2.08, -R.D + 0.05, 0x3a2416, {
+    box(x0 - 0.06, R.fl, -R.D, x0, R.fl + 2.02, -R.D + 0.05, 0x3a2416, {
       tx: { all: TX.wood },
       skip: "db",
     });
-    box(x1, R.fl, -R.D, x1 + 0.06, R.fl + 2.08, -R.D + 0.05, 0x3a2416, {
+    box(x1, R.fl, -R.D, x1 + 0.06, R.fl + 2.02, -R.D + 0.05, 0x3a2416, {
       tx: { all: TX.wood },
       skip: "db",
     });
