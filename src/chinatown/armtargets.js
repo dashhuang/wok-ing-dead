@@ -22,12 +22,14 @@ export function createGameTargets(G, lab, fx, E, root) {
     fx,
     E,
     rng: G.rng && G.rng.fork ? G.rng.fork() : Math.random,
-    hurt(m, dmg, o, direct) {
+    hurt(m, dmg, o, direct, launch) {
       const gz = m.gz;
       const part = o.head ? "weak" : "body";
-      // (a weapon has already done its sums: the zombie only sees a body or a head hit)
+      // (a weapon has already done its sums: the zombie only sees a body or a head hit, and,
+      // if this is the hit that kills it, how its body is thrown)
       const killed =
-        gz.damage(dmg, o.point || null, direct ? o.dir : null, part) === true;
+        gz.damage(dmg, o.point || null, direct ? o.dir : null, part, launch) ===
+        true;
       // the game's own feedback: hit marker, blood and the sound of it landing
       if (o.kind !== "dot" && o.kind !== "share") {
         G.events.emit("player:hitEnemy", {
@@ -49,6 +51,8 @@ export function createGameTargets(G, lab, fx, E, root) {
             dir: o.dir,
             from: "player",
             killed,
+            // how much of its health this one hit took (for how much it bleeds)
+            power: dmg / (gz.maxHp || dmg),
           });
       }
       return killed;

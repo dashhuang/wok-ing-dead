@@ -209,6 +209,55 @@ export async function createArmory(G) {
   const fx = lab.fx;
   const targets = combat.targets;
 
+  // ---------------------------------------------------------------- blood
+  // Every hit on the dead bleeds and every kill bursts, whichever weapon did it: the game's
+  // own two guns as well as the armoury's (both announce a hit as an "impact" on an enemy,
+  // and a death as "enemy:killed"). This is on top of the game's own small puff.
+  {
+    const E = lab.effects;
+    const UP = new V3(0, 1, 0);
+    const at = new V3();
+    G.events.on("impact", (e) => {
+      if (!e || e.surface !== "enemy" || e.killed || !e.point) return;
+      const gz = e.enemy;
+      // more for the head, and for a hit that takes a large share of its health
+      const power = Math.min(1, e.power ?? 0.3);
+      E.blood(
+        e.point,
+        e.dir || UP,
+        (e.part === "weak" ? 1.3 : 0.9) * (0.6 + 1.4 * power),
+        { quiet: true, ground: gz ? gz.pos.y : 0 },
+      );
+    });
+    G.events.on("enemy:killed", (e) => {
+      const gz = e && e.enemy;
+      if (!gz) return;
+      const head = e.part === "weak";
+      at.copy(gz.pos);
+      at.y += (head ? 1.62 : 1.15) * gz.scale;
+      E.gore(at, e.dir || UP, {
+        size: gz.scale,
+        head,
+        ground: gz.pos.y,
+        thrown: !!e.thrown,
+        quiet: true,
+      });
+    });
+    // a thrown body comes down: the thud of it, and what it leaves where it lands
+    G.events.on("enemy:landed", (e) => {
+      if (!e || !e.pos) return;
+      audio && audio.world("fall", e.pos, { gain: 0.9, gap: 0.06 });
+      fx.decal({
+        kind: "splat",
+        pos: at.copy(e.pos).clone(),
+        size: 0.8 + Math.random() * 0.5,
+        color: [0.72, 0.01, 0.01],
+        life: 22,
+        alpha: 0.85,
+      });
+    });
+  }
+
   // ---------------------------------------------------------------- materials: brightness and blending
   const stageGain = ARMORY_TUNE.stageGain[G.stage] || 1;
   const FX_GAIN = ARMORY_TUNE.fxGain * stageGain;

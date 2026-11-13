@@ -10,6 +10,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { rand, srand } from "../fx/core.js";
 import { FONT_KAI } from "../kit/index.js";
 import { createStatus, clearStatus } from "./status.js";
+import { STATUS } from "../data/status.js";
 import { ZOMBIES } from "../../../src/chinatown/zombietune.js";
 
 const CHARACTERS = [
@@ -187,16 +188,21 @@ export async function createTargets(lab, fx, E) {
     list,
     fx,
     E,
-    hurt(z, dmg, o, direct) {
+    hurt(z, dmg, o, direct, launch) {
       z.hp -= dmg;
-      if (direct && o.blood !== false)
-        E.blood(o.point || z.chest, o.dir, o.head ? 1.4 : 0.8);
+      // (a hit that kills bursts instead: see kill())
+      if (direct && o.blood !== false && z.hp > 0)
+        E.blood(
+          o.point || z.chest,
+          o.dir,
+          (o.head ? 1.3 : 0.9) * (0.6 + 1.4 * Math.min(1, dmg / z.maxHp)),
+        );
       // any hit knocks a walker off its stride for a moment, as in the game
       const flinch = ZOMBIES[z.type].flinch;
       if (flinch && z.pin <= 0)
         z.stagger = Math.max(z.stagger, o.head ? flinch.weak : flinch.body);
       if (z.hp > 0) return false;
-      kill(z, o);
+      kill(z, o, launch);
       return true;
     },
   });
@@ -441,11 +447,26 @@ export async function createTargets(lab, fx, E) {
     },
   };
 
-  function kill(z, o) {
+  // launch: { speed, up } throws the body (see STATUS.launch); the game's zombies do the same
+  function kill(z, o, launch) {
     z.alive = false;
     z.state = "dead";
     z.dead = 0;
     z.mixer.timeScale = 1;
+    z.lift = z.liftV = 0;
+    z.vel.set(0, 0, 0);
+    z.fly = null;
+    if (o.dir) {
+      E.gore(o.head ? z.headPos : z.chest, o.dir, {
+        size: z.scale,
+        head: !!o.head,
+        thrown: !!launch,
+      });
+      if (launch) {
+        _a.set(o.dir.x, 0, o.dir.z).normalize().multiplyScalar(launch.speed);
+        z.fly = { x: _a.x, z: _a.z, up: launch.up, air: true };
+      }
+    }
     const facing = _a.set(
       Math.sin(z.holder.rotation.y),
       0,
@@ -478,6 +499,28 @@ export async function createTargets(lab, fx, E) {
       if (!z.alive) {
         z.dead += dt;
         z.mixer.update(dt);
+        const f = z.fly;
+        if (f) {
+          // through the air, down under gravity, then a skid (between the alley's walls)
+          const half = stage.range.bounds.halfW - 0.5;
+          z.pos.x = Math.max(-half, Math.min(half, z.pos.x + f.x * dt));
+          z.pos.z += f.z * dt;
+          if (f.air) {
+            f.up -= STATUS.launch.gravity * dt;
+            z.lift = Math.max(0, z.lift + f.up * dt);
+            if (z.lift === 0 && f.up < 0) {
+              f.air = false;
+              f.x *= 0.55;
+              f.z *= 0.55;
+            }
+          } else {
+            const k = Math.exp(-STATUS.launch.skid * dt);
+            f.x *= k;
+            f.z *= k;
+            if (f.x * f.x + f.z * f.z < 0.01) z.fly = null;
+          }
+          z.holder.position.set(z.pos.x, z.lift, z.pos.z);
+        }
         // all corpses sink after a while and come back at the far end
         refresh(z);
         rules.corpse(z, dt, z.dead);
