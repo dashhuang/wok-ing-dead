@@ -22,7 +22,28 @@ class Buf {
     return this.p.length / 3 - 1;
   }
   tri(a, b, c) {
-    this.i.push(a, b, c);
+    // Rounded stations and sampled patches can turn back on themselves. Use the
+    // authored surface normals to keep each triangle facing out (in for the liner),
+    // including the second half of a warped quad. Collapsed rows have no surface.
+    const A = a * 3,
+      B = b * 3,
+      C = c * 3;
+    const ux = this.p[B] - this.p[A],
+      uy = this.p[B + 1] - this.p[A + 1],
+      uz = this.p[B + 2] - this.p[A + 2],
+      vx = this.p[C] - this.p[A],
+      vy = this.p[C + 1] - this.p[A + 1],
+      vz = this.p[C + 2] - this.p[A + 2];
+    const nx = uy * vz - uz * vy,
+      ny = uz * vx - ux * vz,
+      nz = ux * vy - uy * vx;
+    if (Math.hypot(nx, ny, nz) < 1e-8) return;
+    const facing =
+      nx * (this.n[A] + this.n[B] + this.n[C]) +
+      ny * (this.n[A + 1] + this.n[B + 1] + this.n[C + 1]) +
+      nz * (this.n[A + 2] + this.n[B + 2] + this.n[C + 2]);
+    if (facing < 0) this.i.push(a, c, b);
+    else this.i.push(a, b, c);
   }
   // flat quad, counter-clockwise seen from the front
   quad(a, b, c, d) {
@@ -41,7 +62,8 @@ class Buf {
     this.vert(b, n);
     this.vert(c, n);
     this.vert(d, n);
-    this.i.push(i, i + 1, i + 2, i, i + 2, i + 3);
+    this.tri(i, i + 1, i + 2);
+    this.tri(i, i + 2, i + 3);
   }
   // box from two corners
   box(x0, y0, z0, x1, y1, z1) {
@@ -490,25 +512,12 @@ function loft(spec) {
     );
     for (let iu = 0; iu < nu; iu++)
       for (let iv = 0; iv < nv; iv++) {
-        const a = pts[iu][iv],
-          b = pts[iu + 1][iv],
-          d = pts[iu][iv + 1];
-        const ux = b.p[0] - a.p[0],
-          uy = b.p[1] - a.p[1],
-          uz = b.p[2] - a.p[2],
-          vx = d.p[0] - a.p[0],
-          vy = d.p[1] - a.p[1],
-          vz = d.p[2] - a.p[2];
-        const facing =
-          (uy * vz - uz * vy) * a.n[0] +
-          (uz * vx - ux * vz) * a.n[1] +
-          (ux * vy - uy * vx) * a.n[2];
         const i0 = idx[iu][iv],
           i1 = idx[iu + 1][iv],
           i2 = idx[iu + 1][iv + 1],
           i3 = idx[iu][iv + 1];
-        if (facing >= 0) buf.i.push(i0, i1, i2, i0, i2, i3);
-        else buf.i.push(i0, i2, i1, i0, i3, i2);
+        buf.tri(i0, i1, i2);
+        buf.tri(i0, i2, i3);
       }
   };
   // a patch on the nose or tail between two heights and two lateral positions (wraps the corners)
