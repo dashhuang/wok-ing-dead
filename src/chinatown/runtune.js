@@ -13,6 +13,7 @@ export const RUN = {
   // runner = share of walkers that sprint, brute = share of heavies, bloater = share that burst.
   // quiet: what rises does not come for the player; it wanders the street (ZOMBIES.wander)
   // until someone comes close, hurts it or fires nearby.
+  // pack = share of spawns that are a pack of the fast dead (RUN.pack) instead of one walker.
   stages: [
     {
       id: "starter",
@@ -32,6 +33,7 @@ export const RUN = {
       runner: [0.3, 0.5],
       brute: 0.06,
       bloater: [0.03, 0.07],
+      pack: [0.01, 0.025],
     },
     {
       id: "mains",
@@ -41,6 +43,7 @@ export const RUN = {
       runner: [0.5, 0.6],
       brute: 0.1,
       bloater: 0.08,
+      pack: 0.03,
     },
     {
       id: "highheat",
@@ -50,6 +53,7 @@ export const RUN = {
       runner: [0.65, 0.75],
       brute: 0.14,
       bloater: 0.1,
+      pack: 0.04,
     },
     {
       id: "signature",
@@ -59,6 +63,7 @@ export const RUN = {
       runner: [0.7, 0.7],
       brute: 0.06,
       bloater: 0.08,
+      pack: 0.025,
     },
   ],
   // Where the meal is served (G.stage). The street is the numbers here as written. The docks
@@ -156,7 +161,29 @@ export const RUN = {
   // The first one comes while every weapon is still at level one, so it is the weakest:
   // a heavy's claw and a little slower than one. Each one after it has hpGrow more health
   // (in heavies' worth) and hits dmgGrow harder.
+  // Who plays whom. The names are the bodies of zombietune.js (EXTRA_BODIES); scale replaces
+  // the part's own scale, because these models are not the size of the soldier that played
+  // every part before. They are fetched when a run starts (on the low preset one at a time;
+  // how large their maps are kept is in BODY_TEX); until a part's body is there it is played by
+  // the usual body with its coloured glow, as it always was.
+  bodies: {
+    glow: 0.1, // share of a part's coloured glow that is kept on its own body
+    boss: { body: "mutant", scale: 1.3 },
+    elite: { body: "skeletonzombie", scale: 1.12 },
+    hunter: { body: "yaku", scale: 0.9 },
+    bloater: { body: "parasite", scale: 1.05 },
+    pack: { body: "prisoner" },
+  },
+  // A pack: a handful of the fast dead rising at one spot and coming on together. Each is
+  // easy to put down and quicker than a runner; the answer is something that hits several.
+  pack: { size: 3, hp: 0.55, speed: 1.12, spread: 1.6 },
   elite: {
+    // Elites come in turn as these kinds; the numbers multiply the elite's own below.
+    // "hunter": less to it, but it runs a person down and hits harder.
+    kinds: [
+      { id: "elite" },
+      { id: "hunter", hp: 0.5, speed: 1.3, damage: 1.15 },
+    ],
     first: 110,
     every: 65,
     hp: 3,

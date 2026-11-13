@@ -315,40 +315,97 @@ export function createRun(G, hooks) {
   }
   function spawnOne(type, opts = {}, where) {
     const pos = hooks.pickSpawn(type, where);
-    return hooks.spawn(type, pos, {
-      state: "alert",
-      target: G.player.pos,
-      ...opts,
-    });
+    return spawnAt(type, pos, opts);
   }
-  // What makes one of the dead a bloater, an elite or the boss: the timeline below and the
-  // firing range both spawn them through these, so there is one recipe for each.
+  // (a part played by one of the new bodies falls back to the usual one when every rig of
+  // that body is already up)
+  function spawnAt(type, pos, opts = {}) {
+    const { plain, ...rest } = opts;
+    const base = { state: "alert", target: G.player.pos };
+    return (
+      hooks.spawn(type, pos, { ...base, ...rest }) ||
+      (plain ? hooks.spawn(type, pos, { ...base, ...plain }) : null)
+    );
+  }
+  // The model that plays a part (RUN.bodies), once it has been fetched and unless the firing
+  // range has put one model in every part (zombies.cast). opts.plain keeps what the part
+  // was without it.
+  function withBody(part, opts) {
+    const b = RUN.bodies[part];
+    const E = G.enemies;
+    if (!b || E.cast || !E.has || !E.has(b.body)) return opts;
+    // (the glow that marked a part on the usual body would drown these models: a trace of
+    // it is left, the model itself says who it is)
+    const glow =
+      opts.glow && RUN.bodies.glow > 0
+        ? opts.glow.map((v, i) => (i < 3 ? v * RUN.bodies.glow : v))
+        : null;
+    return {
+      ...opts,
+      body: b.body,
+      scale: b.scale ?? opts.scale,
+      glow,
+      plain: opts,
+    };
+  }
+  function fetchBodies() {
+    const E = G.enemies;
+    if (!E.ensure) return;
+    const names = [
+      ...new Set(
+        Object.values(RUN.bodies)
+          .map((b) => b && b.body)
+          .filter(Boolean),
+      ),
+    ];
+    const failed = (e) =>
+      console.warn("[run] a body could not be fetched: " + e);
+    // A phone gets them one after another: each arrives with full-size maps that are only
+    // then made smaller, and five at once would be a couple of hundred megabytes for a moment.
+    if (G.quality && G.quality.name === "low")
+      names
+        .reduce((p, n) => p.then(() => E.ensure([n])), Promise.resolve())
+        .catch(failed);
+    else E.ensure(names).catch(failed);
+  }
   function bloaterOpts() {
     const B = RUN.bloater;
-    return {
+    return withBody("bloater", {
       rank: "bloater",
       runner: true,
       hpMul: B.hp,
       scale: B.scale,
       glow: B.glow,
-    };
+    });
   }
   // n: how many elites came before this one (each is tougher than the last)
   function eliteOpts(n) {
     const E = RUN.elite;
-    return { rank: "elite", ...eliteStats(n), scale: E.scale, glow: E.glow };
+    const { kind, ...stats } = eliteStats(n);
+    return withBody(kind, {
+      rank: "elite",
+      ...stats,
+      // (without its own body a hunter is the same soldier, a size smaller)
+      scale: E.scale * (kind === "hunter" ? 0.85 : 1),
+      glow: E.glow,
+    });
+  }
+  // one of a pack: quick, and easy to put down
+  function packOpts() {
+    const K = RUN.pack;
+    return withBody("pack", { runner: true, hpMul: K.hp, speedMul: K.speed });
   }
   function bossOpts() {
     const B = RUN.boss;
     const tune = (G.enemies.TUNE && G.enemies.TUNE.brute) || { hp: 320 };
-    return {
+    return withBody("boss", {
       rank: "boss",
       hpMul: (diff().bossHp * (place().bossHp || 1)) / tune.hp,
       scale: B.scale,
       dmgMul: B.damage * (diff().bossHit || 1),
       speedMul: B.speed * (diff().bossSpeed || 1),
       glow: B.glow,
-    };
+    });
   }
   function spawnTick(dt) {
     S.spawnT -= dt;
@@ -368,7 +425,22 @@ export function createRun(G, hooks) {
     let z;
     if (kind === "brute") z = spawnOne("brute");
     else if (kind === "bloater") z = spawnOne("walker", bloaterOpts());
-    else if (st.quiet && !S.cook)
+    else if (kind === "pack") {
+      // they rise at one spot, a step apart, and come on together
+      const K = RUN.pack;
+      const at = hooks.pickSpawn("walker");
+      for (let i = 0; i < K.size; i++) {
+        tmp.copy(at);
+        if (i) {
+          tmp.x += (rng() - 0.5) * 2 * K.spread;
+          tmp.z += (rng() - 0.5) * 2 * K.spread;
+          try {
+            if (!G.physics.nav.isWalkable(tmp.x, tmp.z)) tmp.copy(at);
+          } catch {}
+        }
+        z = spawnAt("walker", tmp, packOpts()) || z;
+      }
+    } else if (st.quiet && !S.cook)
       // a quiet course: it rises somewhere out of the way and wanders
       z = hooks.spawn("walker", hooks.pickSpawn("walker", { minDist: 20 }), {
         state: "patrol",
@@ -1300,6 +1372,7 @@ export function createRun(G, hooks) {
       applyStats();
       chooseCaches();
       placeCases();
+      fetchBodies();
       // (the firing range starts empty: its panel puts the dead where they are wanted)
       if (!range) scatterWanderers(RUN.opening);
       hud.show(true);
@@ -1549,6 +1622,20 @@ export function createRun(G, hooks) {
       give: (id) => takeWeapon(id),
       food() {
         dropFood(G.player.pos.clone().add(new V3(0, 0, -2.5)));
+      },
+      // one of a part, set down at pos and standing still: "bloater", "pack", "boss", or
+      // "elite" with n (which elite it would be: even ones are the usual kind, odd hunters)
+      bring(part, pos, n = 0) {
+        const o =
+          part === "boss"
+            ? bossOpts()
+            : part === "elite"
+              ? eliteOpts(n)
+              : part === "bloater"
+                ? bloaterOpts()
+                : packOpts();
+        const type = part === "boss" || part === "elite" ? "brute" : "walker";
+        return spawnAt(type, pos, { ...o, state: "patrol", passive: true });
       },
       // put a weapon at a given level and form straight into the hands
       async set(id, level = 1, branch = "a") {

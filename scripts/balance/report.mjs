@@ -74,7 +74,8 @@ function timeline() {
     const desk = spawnPace(st, diff, crowdOf(POOL.desktop));
     const phone = spawnPace(st, diff, crowdOf(POOL.phone));
     const rate = 1 / desk.every;
-    const plain = 1 - st.brute - st.bloater;
+    // (a pack is RUN.pack.size bodies for one spawn)
+    const plain = 1 - st.brute - st.bloater - st.pack;
     rows.push({
       minute: m + 1,
       id: st.id,
@@ -84,12 +85,14 @@ function timeline() {
       runner: st.runner,
       brute: st.brute,
       bloater: st.bloater,
+      pack: st.pack,
       // when three heavies are up, a roll for a heavy raises a bloater instead
       bloaterMax: st.brute + st.bloater,
       hpIn:
         rate *
         (plain * walker +
           st.bloater * walker * RUN.bloater.hp +
+          st.pack * RUN.pack.size * walker * RUN.pack.hp +
           st.brute * brute),
     });
   }
@@ -182,6 +185,13 @@ function enemyRows() {
     ["行尸（走）", w.hp, w.damage, w.speed, dps(w)],
     ["行尸（跑）", r.hp, r.damage, r.speed, dps(r)],
     ["胀尸", r.hp * RUN.bloater.hp, `自爆 ${RUN.bloater.hurt}`, r.speed, 0],
+    [
+      `快尸（${RUN.pack.size} 只一群）`,
+      r.hp * RUN.pack.hp,
+      r.damage,
+      r.speed * RUN.pack.speed,
+      dps(r),
+    ],
     ["重型", b.hp, b.damage, b.speed, dps(b)],
     [
       "第 1 只精英",
@@ -259,6 +269,7 @@ export function build() {
         "跑尸",
         "重型",
         "胀尸",
+        "快尸群",
         "每秒涌入血量",
       ],
       TL.map((r) => [
@@ -271,6 +282,7 @@ export function build() {
         r.bloater === r.bloaterMax
           ? pct(r.bloater)
           : `${pct(r.bloater)}（重型满 ${RUN.bruteCap} 只时 ${pct(r.bloaterMax)}）`,
+        pct(r.pack),
         num(r.hpIn),
       ]),
     ),
