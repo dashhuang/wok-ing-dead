@@ -914,7 +914,7 @@ export async function createZombies(G) {
       const dist = Math.hypot(goal.x - z.pos.x, goal.z - z.pos.z);
       z.repathT = dist < 6 ? rand(0.25, 0.45) : rand(0.6, 1.1);
       const destination = crowd.goal(z, goal);
-      z.path = n.findPath(z.pos, destination);
+      z.path = n.findPath(z.pos, destination, { approach: true });
       z.pathI = 0;
     }
     // No route is not permission to run straight into the obstacle. Wait for a
