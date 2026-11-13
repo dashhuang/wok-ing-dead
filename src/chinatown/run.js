@@ -96,7 +96,7 @@ export function createRun(G, hooks) {
     bossRetry: 0,
     summonT: 0,
     clock: 0, // the meal's clock: what the courses are read at (runflow.js, clockStep)
-    cook: null, // the dish on a stove: runflow.js's newDish, plus { o, pos, grab }
+    cook: null, // the dish on a stove: runflow.js's newDish, plus { o, pos, can, beat }
     hands: "", // what the cook's hands are full of instead of a weapon: "wok" | "pack"
     stoves: 0, // lit so far
     served: 0, // dishes packed
@@ -573,10 +573,10 @@ export function createRun(G, hooks) {
   // ---------- a dish on a stove
   // The rules are runflow.js's (newDish, dishStep): three tosses, a hold after each, then
   // packing. What is the cook's to do is done here: taking the wok up and starting to pack
-  // are a short hold of the interact key at the stove, and the wok goes back by itself once
-  // tossed and carried within reach.
-  const GRAB = 0.35; // seconds the key is held to take the wok up, or to start packing
-  function cookTick(dt, real) {
+  // are one press of the interact key at the stove (no holding: the tossing is what takes
+  // the time), and the wok goes back by itself once tossed and carried within reach.
+  let useWas = false;
+  function cookTick(dt) {
     const c = S.cook;
     if (!c) return;
     const K = RUN.stove;
@@ -590,24 +590,24 @@ export function createRun(G, hooks) {
     // the cook's part: hold the key by the stove
     const can =
       home && !S.picking && (c.phase === "due" || c.phase === "ready");
-    if (can && I && I.down && I.down("interact")) {
-      c.grab += real / GRAB;
-      if (c.grab >= 1) {
-        c.grab = 0;
-        if (c.phase === "due" && dishTake(c)) {
-          fillHands("wok");
-          setStove(c.o, "toss");
-        } else if (dishPack(c)) {
-          fillHands("pack");
-          setStove(c.o, "served");
-          play("gear_rustle", { gain: 0.9 });
-          c.beat = 0;
-        }
-        hooks.refreshMarkers();
-        hooks.refreshObjective();
+    const useDown = !!(I && I.down && I.down("interact"));
+    const tap =
+      (I && I.pressed && I.pressed("interact")) || (useDown && !useWas);
+    useWas = useDown;
+    if (can && tap) {
+      if (c.phase === "due" && dishTake(c)) {
+        fillHands("wok");
+        setStove(c.o, "toss");
+      } else if (dishPack(c)) {
+        fillHands("pack");
+        setStove(c.o, "served");
+        play("gear_rustle", { gain: 0.9 });
+        c.beat = 0;
       }
-    } else c.grab = Math.max(0, c.grab - real * 4);
-    c.can = can;
+      hooks.refreshMarkers();
+      hooks.refreshObjective();
+    }
+    c.can = can && (c.phase === "due" || c.phase === "ready");
     for (const ev of dishStep(c, dt, { near: dist < K.radius, home })) {
       if (ev === "flip") flare();
       else if (ev === "tossed") {
@@ -684,13 +684,12 @@ export function createRun(G, hooks) {
       whole: dishFrac(c),
     });
   }
-  // what the interact prompt should say by the stove: { text, t } or null (game.js asks)
+  // what the interact prompt should say by the stove: { text } or null (game.js asks)
   function stovePrompt() {
     const c = S.cook;
     if (!c || !c.can) return null;
     return {
       text: L10N.t(c.phase === "due" ? "run.prompt.toss" : "run.prompt.pack"),
-      t: Math.min(1, c.grab),
     };
   }
   // packed: the dish is the cook's, and it pays
@@ -1704,7 +1703,7 @@ export function createRun(G, hooks) {
           served: S.served,
           cooking: dishHot(S.cook),
         });
-        cookTick(dt, real);
+        cookTick(dt);
         spawnTick(dt);
         eliteTick();
         bossTick(dt);
@@ -1759,7 +1758,6 @@ export function createRun(G, hooks) {
         ...newDish(S.stoves),
         o: relay.o,
         pos: relay.o.pos,
-        grab: 0,
         can: false,
         beat: 0,
       };

@@ -169,6 +169,7 @@ export default {
   "hud.objective": "目標",
   "hud.sirens": "竈",
   "hud.holdTo": "{key} 長押しで{action}",
+  "hud.pressTo": "{key} で{action}",
   "hud.vitals": "体力",
   "hud.reloading": "リロード中",
   "hud.reload": "リロード",

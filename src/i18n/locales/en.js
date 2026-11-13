@@ -173,6 +173,7 @@ export default {
   "hud.objective": "Objective",
   "hud.sirens": "Stoves",
   "hud.holdTo": "Hold {key} — {action}",
+  "hud.pressTo": "Press {key} — {action}",
   "hud.vitals": "Vitals",
   "hud.reloading": "Reloading",
   "hud.reload": "Reload",

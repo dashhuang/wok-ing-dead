@@ -237,16 +237,17 @@ LK-9 和 LK-4、命中体积、夜街的曝光和特效亮度都是真的，没�
     彩色发光压到 `RUN.bodies.glow`。模型没到、该模型的骨架都在场上、或靶场指定了别的模型（`zombies.cast`）时，
     照旧用原来的角色加发光（`spawnAt` 的 `plain`）。精英按 `RUN.elite.kinds` 轮流（`runflow.js` 的 `eliteKind`）；
     快尸是 `spawnKind` 返回的 `pack`，一次在同一个刷怪点放 `RUN.pack.size` 只。
-  - 三口灶沿用原版「切断警报器」的目标机制（`level.objectives`、按住 E、`objective:done`）：模型是 `stove.js` 的
+  - 三口灶沿用原版「切断警报器」的目标机制（`level.objectives`、`objective:done`；原版是按住 E，套餐里按一下就点着）：模型是 `stove.js` 的
     `buildStove`（金龙街在 `landmarks.js` 里摆，码头在 `docks.js` 里换掉原来的继电器柜），状态经 `userData.setState`
     设置。按住完成时 `game.js` 调 `RUN.onStove`：`run.js` 用 `runflow.js` 的 `newDish` 记下 `S.cook`，把游走的行尸全部引来。
     一道菜是三次颠锅、每次之后守一段灶、最后打包，规则都在 `runflow.js` 的 `dishStep`（时长、每段开场来什么在 `RUN.stove`）：
     - 颠锅：锅拿在手上（`S.hands = "wok"`，手上的武器收起，不能开枪也不能冲刺，可以走），`toss.seconds` 秒里颠 `toss.flips` 次，
       每次 `flare()` 朝身前喷火（伤害、灼烧层数、击退在 `toss.flare`）。颠完要走回灶边 `toss.reach` 米内，锅自动放回，这段守灶才开始。
-      第一次颠锅在起灶的同时开始；后两次要回灶边按住 E（`run.js` 的 `GRAB` 秒）。
+      第一次颠锅在起灶的同时开始；后两次要回灶边按一下 E。套餐里起灶、拿锅、打包都是按一下，没有按住的进度圈
+      （提示条的 `setPrompt(文字, 0, true)`），进度就是手上的颠锅和打包动作本身。
     - 守灶：只在离灶 `radius` 米内计时；第二段开场来几群快尸（`packs`），第三段来一只精英（`elite`）。
     - 该颠不颠超过 `burn` 秒，这道菜「糊了」，奖励降一档（`dishGrade`），不算失败。
-    - 三段守完回灶边按住 E 打包（`S.hands = "pack"`，`pack` 秒），包完 `serve` 发奖。三种招牌每局洗一次（`S.menu`）。
+    - 三段守完回灶边按一下 E 打包（`S.hands = "pack"`，`pack` 秒），包完 `serve` 发奖。三种招牌每局洗一次（`S.menu`）。
     - 灶上有菜时不能点别的灶（`RUN.cooking`），灶边的提示条来自 `RUN.stovePrompt()`，目标文字来自 `RUN.objective()`。
     刷怪加码（`spawnPace` 的 `cooking` / `heat`）只在菜还「烫」着的时候（`dishHot`：从起灶到第三段守完）。
     灶的声音在 `audio.js`（听 `stove:state`）；原来的警报声保留代码但关掉了（`SIREN.on`）。

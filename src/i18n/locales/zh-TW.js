@@ -166,6 +166,7 @@ export default {
   "hud.objective": "目標",
   "hud.sirens": "爐灶",
   "hud.holdTo": "按住 {key}　{action}",
+  "hud.pressTo": "按 {key}　{action}",
   "hud.vitals": "生命",
   "hud.reloading": "換彈中",
   "hud.reload": "換彈",

@@ -701,6 +701,10 @@ kbd {
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
 }
+/* one press does it: no ring to fill */
+.h-prompt.tap .fg {
+  display: none;
+}
 .h-prompt.busy .h-plabel {
   color: var(--jade);
 }
@@ -1189,6 +1193,12 @@ kbd {
   box-shadow: 0 0 8px rgba(232, 195, 124, 0.7);
   transform-origin: 0 50%;
   transition: transform 0.12s linear;
+}
+/* a toss and the packing show their own progress, in the cook's hands */
+.rl-cook.p-toss .rl-cook-bar,
+.rl-cook.p-back .rl-cook-bar,
+.rl-cook.p-pack .rl-cook-bar {
+  display: none;
 }
 /* under it, thin: how far through the whole dish */
 .rl-cook-w {

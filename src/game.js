@@ -83538,7 +83538,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           );
         });
       },
-      setPrompt(he, V = 0) {
+      // tap: one press does it (no ring to fill): a run's stoves
+      setPrompt(he, V = 0, tap = !1) {
         let ne = !!he;
         if (
           (ne !== oe.promptOn &&
@@ -83557,7 +83558,11 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           ((oe.promptKey = ye),
           (_.textContent = ye),
           _.classList.toggle("wide", ye.length > 1));
-        let Te = L10N.t("hud.holdTo", { key: ye, action: he });
+        E.classList.toggle("tap", !!tap);
+        let Te = L10N.t(tap ? "hud.pressTo" : "hud.holdTo", {
+          key: ye,
+          action: he,
+        });
         Te !== oe.promptText && ((oe.promptText = Te), (T.textContent = Te));
         let Re = Math.round(V * 200) / 200;
         Re !== oe.promptT &&
@@ -85331,9 +85336,15 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     }
     function ge(Y) {
       let he = i.alive ? me() : null;
+      // In a run a stove is lit with one press of the key, not by holding it: the wok comes
+      // straight up, and tossing it is what takes the time.
+      let useDown = r.down("interact"),
+        useTap = r.pressed("interact") || (useDown && !g.useWas);
+      g.useWas = useDown;
+      if (runOn() && he && useTap) (ce(he), (he = null));
       for (let ne of g.relays)
         ne.cut ||
-          (ne === he && r.down("interact")
+          (ne === he && !runOn() && r.down("interact")
             ? (ne.cutting || ((ne.cutting = !0), W(ne.o, "cutting")),
               (ne.t += Y / xi.cutSeconds),
               n.events.emit("objective:progress", {
@@ -85351,9 +85362,9 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       let sp = !he && runOn() && i.alive ? RUN.stovePrompt() : null;
       he && !he.cut
         ? o.setPrompt &&
-          o.setPrompt(L10N.t("obj.prompt", { id: he.short }), Is(he.t))
+          o.setPrompt(L10N.t("obj.prompt", { id: he.short }), Is(he.t), runOn())
         : sp
-          ? o.setPrompt && o.setPrompt(sp.text, sp.t)
+          ? o.setPrompt && o.setPrompt(sp.text, 0, !0)
           : o.setPrompt && o.setPrompt(null);
       let V = s.extraction;
       if (V && V.pos) {
