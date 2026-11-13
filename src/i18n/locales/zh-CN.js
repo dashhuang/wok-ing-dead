@@ -48,6 +48,7 @@ export default {
   "view.1": "贴近",
   "view.2": "四分之三",
   "view.3": "紧凑",
+  "quality.fast": "流畅",
   "quality.low": "低",
   "quality.medium": "中",
   "quality.high": "高",

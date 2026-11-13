@@ -111,7 +111,7 @@ export function createTelemetry(G) {
       outcome,
       duration: round(G.game.run.time),
       activeSeconds: round(run.activeSeconds),
-      quality: G.quality?.name || "unknown",
+      quality: G.quality?.key || G.quality?.name || "unknown",
       input: G.input.touch
         ? "touch"
         : G.input.device === "pad"
@@ -187,7 +187,7 @@ export function createTelemetry(G) {
         choices: [],
       };
       frames = createFrameStats();
-      qualityStart = G.quality?.name || "unknown";
+      qualityStart = G.quality?.key || G.quality?.name || "unknown";
       autoDrops = 0;
       lastFrame = 0;
       lastTick = performance.now();
