@@ -1,7 +1,7 @@
 export default {
   "doc.title": "Wok-ing Dead ─ チャイナタウン",
   "brand.name": "Wok-ing Dead",
-  "brand.tagline": "炒める、戦う、退かない。",
+  "brand.tagline": "チャイナタウン、大炎上。",
   "brand.sub": "チャイナタウン · 雨の夜",
   "lang.label": "言語",
 

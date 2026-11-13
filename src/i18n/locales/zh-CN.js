@@ -1,7 +1,7 @@
 export default {
   "doc.title": "守护夜排档 · 唐人街",
   "brand.name": "守护夜排档",
-  "brand.tagline": "炒、打、不撤。",
+  "brand.tagline": "唐人街，炸锅了。",
   "brand.sub": "唐人街 · 雨夜",
   "lang.label": "语言",
 
