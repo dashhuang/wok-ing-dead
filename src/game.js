@@ -4,6 +4,8 @@ import { createSettingsStore } from "./settings.js";
 import { presetToBoot } from "./bootguard.js";
 import * as L10N from "./i18n/index.js";
 import { createRun } from "./chinatown/run.js";
+import { createComms } from "./chinatown/comms.js";
+import { uiIcon } from "./chinatown/icons.js";
 import { createTelemetry } from "./telemetry/index.js";
 import { createNavigation, STEP_HEIGHT } from "./chinatown/navigation.js";
 import { createSpawnPicker } from "./chinatown/spawning.js";
@@ -67647,7 +67649,8 @@ void main() {
       u = 0,
       f = [],
       h = new Set(),
-      p = !1;
+      p = !1,
+      secondary = !1;
     function d(ne) {
       if (m.device !== ne) {
         m.device = ne;
@@ -67696,6 +67699,14 @@ void main() {
       },
       setPrompt(ne) {
         ((p = !!ne), R && R.btn.interact.classList.toggle("on", !!ne));
+      },
+      setSecondary(on) {
+        secondary = !!on;
+        if (R && R.btn.ads.hidden === secondary) R.btn.ads.hidden = !secondary;
+        if (!secondary) {
+          R && R.btn.ads.classList.remove("active");
+          v("touch", "ads", false);
+        }
       },
       onModeChange(ne) {
         f.push(ne);
@@ -67894,10 +67905,10 @@ void main() {
           ]
             .map(
               ([a, k]) =>
-                `<button class="t-btn t-${a}" data-a="${a}" data-i18n-aria="touch.${k}" aria-label="${L10N.t("touch." + k)}"><span data-i18n="touch.${k}">${L10N.t("touch." + k)}</span></button>`,
+                `<button class="t-btn t-${a}" data-a="${a}" data-i18n-aria="touch.${k}" aria-label="${L10N.t("touch." + k)}">${uiIcon(a === "ads" ? "secondary" : a)}</button>`,
             )
             .join("") +
-          `<button class="t-btn t-pause" data-a="pause" data-i18n-aria="touch.pause" aria-label="${L10N.t("touch.pause")}"><span>II</span></button>`),
+          `<button class="t-btn t-pause" data-a="pause" data-i18n-aria="touch.pause" aria-label="${L10N.t("touch.pause")}">${uiIcon("pause")}</button>`),
         t.appendChild(ne));
       let ye = (Re) => ne.querySelector(Re),
         Te = {
@@ -67914,6 +67925,7 @@ void main() {
             pause: ye(".t-pause"),
           },
         };
+      Te.btn.ads.hidden = !secondary;
       for (let Re in Te.btn) {
         let Ue = Te.btn[Re];
         Ue.addEventListener(
@@ -83118,14 +83130,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       H = L.querySelector(".h-alt"),
       N = si("div", "h-marks");
     (t.append(N, i, c, m, b, x, y, E, w, S, R, L), e.appendChild(t));
-    let Z = si(
-      "div",
-      "comms",
-      `<span class="comms-who" data-i18n="hud.who">${L10N.t("hud.who")}</span><span class="comms-t"></span>`,
-    );
-    (Z.setAttribute("role", "status"), Z.setAttribute("aria-live", "polite"));
-    let Q = Z.querySelector(".comms-t");
-    e.appendChild(Z);
+    const comms = createComms(n, e);
     let W = !1,
       J = 420,
       G = innerWidth,
@@ -83156,11 +83161,6 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       le = "",
       xe = 0,
       j = 0,
-      O = [],
-      q = null,
-      ue = 0,
-      de = 0,
-      $ = 0,
       se = 0,
       fe = 0,
       me = [],
@@ -83272,12 +83272,12 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           let ne = si(
               "div",
               "h-cm " + (V.kind || "relay"),
-              `<i></i><b>${V.short || ""}</b><span></span>`,
+              `<i></i><b title="${V.short || ""}">${V.icon ? uiIcon(V.icon) : V.short || ""}</b><span></span>`,
             ),
             ye = si(
               "div",
               "h-wm " + (V.kind || "relay"),
-              `<i></i><b>${V.short || ""}</b><span></span>`,
+              `<i></i><b title="${V.short || ""}">${V.icon ? uiIcon(V.icon) : V.short || ""}</b><span></span>`,
             );
           return (
             a.appendChild(ne),
@@ -83329,10 +83329,10 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           E.classList.toggle("busy", Re > 0));
       },
       radio(he, V = 4.5) {
-        he && O.push({ text: he, secs: V });
+        comms.push(he, V);
       },
       clearRadio() {
-        ((O.length = 0), (q = null), Z.classList.remove("on"));
+        comms.clear();
       },
       warn(he, V = 3) {
         ((m.textContent = he),
@@ -83372,7 +83372,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         } catch {}
       },
       reset() {
-        ((O.length = 0), (q = null), Z.classList.remove("on"));
+        comms.clear();
         for (let he of me) he.el.remove();
         me.length = 0;
         for (let he of g) he.life = 0;
@@ -83386,7 +83386,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       update: re,
     };
     function re(he) {
-      if ((Y(he), !W)) return;
+      if ((comms.update(he), !W)) return;
       let V = n.player,
         ne = n.weapon || {},
         ye = n.camera,
@@ -83597,26 +83597,6 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
               !Ke.out &&
               ((Ke.out = !0), Ke.el.classList.add("out")));
       }
-    }
-    function Y(he) {
-      if (!q) {
-        if (!O.length) return;
-        ((q = O.shift()),
-          (ue = 0),
-          (de = 0),
-          ($ = q.secs),
-          (Q.textContent = ""),
-          Z.classList.add("on"),
-          n.events.emit("radio:line", { text: q.text }));
-      }
-      let V = q.text;
-      if (ue < V.length) {
-        de += he * 58;
-        let ne = Math.min(V.length, Math.floor(de));
-        ne !== ue && ((ue = ne), (Q.textContent = V.slice(0, ne)));
-      } else
-        (($ -= he),
-          $ <= 0 && ((q = null), O.length || Z.classList.remove("on")));
     }
     return (L10N.onLocale(() => X.relocalize()), B(), X);
   }

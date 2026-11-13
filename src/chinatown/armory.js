@@ -539,6 +539,12 @@ export async function createArmory(G) {
     get weapon() {
       return cur ? combat.weapon : null;
     },
+    get hasSecondary() {
+      const w = api.weapon;
+      // Branch hints describe the unlocked action. Require its handler too: the
+      // firework's charge hint belongs to primary fire, not secondary fire.
+      return !!(w && w.beh.alt && w.beh.hint?.[w.branch]);
+    },
     /**
      * Take a weapon in hand. o: { level, branch, rounds }. Resolves once it is up (the model
      * is built on first use).

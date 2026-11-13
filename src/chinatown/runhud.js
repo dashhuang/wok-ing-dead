@@ -4,6 +4,7 @@
 // order tickets shown on a level-up (seasonings, a new weapon, or the fork of a weapon).
 // Plain DOM next to the game's own HUD; all wording comes from the locale files.
 import * as L10N from "../i18n/index.js";
+import { ammoIcon, uiIcon } from "./icons.js";
 
 const el = (tag, cls, html) => {
   const e = document.createElement(tag);
@@ -85,6 +86,8 @@ export function createRunHud(G) {
   const wlv = el("div", "rl-wlv");
   const ammoBlock = G.hud && G.hud.root && G.hud.root.querySelector(".h-ammo");
   const altLine = ammoBlock && ammoBlock.querySelector(".h-alt");
+  const ammoKind = el("span", "rl-ammo-kind");
+  ammoBlock?.querySelector(".h-ammo-row")?.prepend(ammoKind);
   if (ammoBlock) ammoBlock.insertBefore(wlv, altLine || null);
 
   const last = {
@@ -102,6 +105,7 @@ export function createRunHud(G) {
     spices: "",
     weapons: "",
     pools: "",
+    ammoKind: "",
   };
   let live = []; // toasts: { el, life }
   let open = null; // { cards, onPick }
@@ -184,7 +188,7 @@ export function createRunHud(G) {
       const pool = touch && w.ammo && poolList.find((p) => p.type === w.ammo);
       const lead = touch
         ? pool
-          ? `<em class="rl-wg-n a-${w.ammo}${pool.have <= 0 ? " dry" : ""}" data-pool="${w.ammo}">${pool.have}</em>`
+          ? `<em class="rl-wg-n a-${w.ammo}${pool.have <= 0 ? " dry" : ""}" title="${L10N.t("run.ammo." + w.ammo)}">${ammoIcon(w.ammo)}<span data-pool="${w.ammo}">${pool.have}</span></em>`
           : ""
         : i < 9
           ? `<kbd>${i + 1}</kbd>`
@@ -216,15 +220,26 @@ export function createRunHud(G) {
     pools.innerHTML = poolList
       .map(
         (p) =>
-          `<span class="rl-pool a-${p.type}${p.cur ? " cur" : ""}${p.have <= 0 ? " dry" : ""}"><b>${L10N.t("run.ammo." + p.type + ".s")}</b><em>${p.have}</em><i style="--f:${Math.max(0, Math.min(1, p.have / Math.max(1, p.cap))).toFixed(3)}"></i></span>`,
+          `<span class="rl-pool a-${p.type}${p.cur ? " cur" : ""}${p.have <= 0 ? " dry" : ""}"><b title="${L10N.t("run.ammo." + p.type)}" aria-label="${L10N.t("run.ammo." + p.type)}">${ammoIcon(p.type)}</b><em>${p.have}</em><i style="--f:${Math.max(0, Math.min(1, p.have / Math.max(1, p.cap))).toFixed(3)}"></i></span>`,
       )
       .join("");
+    const current = poolList.find((p) => p.cur)?.type || "";
+    const kindKey = current + L10N.locale();
+    if (kindKey !== last.ammoKind) {
+      last.ammoKind = kindKey;
+      ammoKind.className = "rl-ammo-kind a-" + (current || "none");
+      ammoKind.innerHTML = ammoIcon(current);
+      ammoKind.title = current
+        ? L10N.t("run.ammo." + current)
+        : L10N.t("run.wheel.free");
+      ammoKind.setAttribute("aria-label", ammoKind.title);
+    }
     // (touch) the same numbers on the weapons of the weapon bar
     for (const el of weapons.querySelectorAll("[data-pool]")) {
       const p = poolList.find((q) => q.type === el.dataset.pool);
       if (!p) continue;
       el.textContent = p.have;
-      el.classList.toggle("dry", p.have <= 0);
+      el.parentElement.classList.toggle("dry", p.have <= 0);
     }
   }
   function drawSpices() {
@@ -394,6 +409,22 @@ export function createRunHud(G) {
       toasts.appendChild(t);
       live.push({ el: t, life: 2.6 });
       while (live.length > 4) live.shift().el.remove();
+      return t;
+    },
+    ammoToast(type, amount, kind = "ammo") {
+      const label = L10N.t("run.toast." + kind, {
+        a: L10N.t("run.ammo." + type),
+        n: Math.round(amount),
+      });
+      const low = kind === "low";
+      const t = api.toast(
+        ammoIcon(type) +
+          `<b>${low ? "" : "+"}${Math.round(amount)}</b>` +
+          (low ? uiIcon("warning") : ""),
+        `ammo-toast a-${type}${low ? " warn" : ""}`,
+      );
+      t.title = label;
+      t.setAttribute("aria-label", label);
     },
     reset() {
       for (const t of live) t.el.remove();
