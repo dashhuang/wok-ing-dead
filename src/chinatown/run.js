@@ -541,7 +541,7 @@ export function createRun(G, hooks) {
       );
     }
   });
-  // charred: (packing) what goes into the pail is charcoal
+  // charred: (packing) what goes into the pail has gone black
   // The dish in the wok of the street stove: the stove draws a mound of its own, but with
   // the cook's hands there (wokhand.js) what stands in it is the heap that was tossed.
   let plated = null; // the stove it stands on (the userData of its object)
@@ -711,7 +711,7 @@ export function createRun(G, hooks) {
       }
     }
     // on its stove it is the heap that was tossed, shivering as it fries (harder when it
-    // wants tossing again), and coal once it is charred
+    // wants tossing again), and black once it is charred
     if (wokHands) {
       plate(c.o);
       wokHands.charDish(c.charred);
