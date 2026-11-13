@@ -14,6 +14,7 @@
 npm run arsenal          # http://127.0.0.1:5311/
 npm run arsenal:build    # 产物在 arsenal/dist/
 npm run arsenal:single   # 单文件展柜 arsenal/dist-single/arsenal-showcase.html（约 1 MB，可直接发到手机上打开）
+                         # 游戏的陈列馆（线上的 /gallery/）就是这个展柜：npm run build 时由 scripts/showcase.mjs 生成，多一个「← 首页」
 npm run arsenal:test     # 试验场自己的测试：全部形态冒烟 + 真实点击和按键（约 2 分钟，首次运行前 npx playwright install chromium）
 node arsenal/scripts/design-doc.mjs   # 改了武器数据或本体的数值表之后重新生成设计文档
 node arsenal/scripts/check-data.mjs   # 卡片上的数值和实际开火的数值对不对得上（npm run check 也会跑）
@@ -105,6 +106,7 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
 | `scripts/design-doc.mjs` | 从设计数据和本体的数值表生成 `docs/weapons-roguelike.md` |
 | `scripts/check-data.mjs` | 核对卡片上的基础数值和实际开火的数值、武器在本体的弹药表里是否齐全 |
 | `scripts/single.mjs` | 生成单文件展柜 |
+| `scripts/showcase.mjs` | 把展柜做成一个自带全部代码的页面。单文件展柜和游戏的陈列馆（`dist/gallery/`，由本体的 `vite.config.js` 在构建时调用）都用它；给了 `home`（游戏在哪）就多出回首页的链接，「靶场 ↗」也改成去那个游戏 |
 | `scripts/extract-hands.mjs` | 从本体的打包文件里抽出手部模块（解析后按引用关系取出需要的声明），本体代码不改 |
 | `scripts/balance.json` | 实测的结果（清群和单体两场，连同考法和标准线），设计文档的数值表和本体的平衡报告都读它（由 `tools/balance.mjs --write` 更新） |
 | `tests/`、`playwright.config.js` | 试验场的 Playwright 测试，见下面「测试与工具」 |

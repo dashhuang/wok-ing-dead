@@ -47,7 +47,7 @@ Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值
 | 路径 | 说明 |
 | --- | --- |
 | `src/game.js` | 反压缩后的原版发布包（含内嵌 Three.js r180）。变量名是压缩名（`ov`、`hT`、`pT`…），靠 architecture.md 的入口表和搜索字符串定位 |
-| `src/chinatown/` | 唐人街关卡的全部新模块：布局、建筑、店铺、街市、车辆、招牌、灯光、僵尸、音效；套餐（肉鸽关卡）的规则 `run.js`、纯规则 `runflow.js` 和数值 `runtune.js`、武器与弹药 `loadout.js`、武器轮盘 `wheel.js`、僵尸数值 `zombietune.js`、接入试验场武器的 `armory.js` / `armtargets.js`、第二关的补充 `docks.js` |
+| `src/chinatown/` | 唐人街关卡的全部新模块：布局、建筑、店铺、街市、车辆、招牌、灯光、僵尸、音效；套餐（肉鸽关卡）的规则 `run.js`、纯规则 `runflow.js` 和数值 `runtune.js`、武器与弹药 `loadout.js`、武器轮盘 `wheel.js`、僵尸数值 `zombietune.js`、接入试验场武器的 `armory.js` / `armtargets.js`、首页 / 靶场 / 陈列馆之间跳转的地址 `doors.js` |
 | `src/telemetry/`、`api/`、`server/telemetry/` | 游玩日志客户端、Vercel 接口与校验/存储；数据库迁移和查询脚本在 `scripts/telemetry/`，日志测试用 `npm run test:telemetry` |
 | `src/i18n/` | 语言选择和四份语言包（`locales/`，英文是基准） |
 | `src/style.css` | 全部界面样式，设计变量在开头 |
@@ -66,6 +66,7 @@ Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值
   （`python scripts/assets/build-ui-fonts.py <字体目录>`，需要 fonttools、brotli 和 Google Fonts 源文件，见 docs/assets.md）。
   做不了就在交付时明确说「字体子集还没重建」。
 - **文案语气**：菜单是唐人街炒锅餐馆的厨房双关（点单票、辣度、「开镬」「出餐！」「凉了。」）；HUD 和无线电台词保持严肃。
+  例外是炒菜那一行提示和它的弹出提示（`run.cook.*`、糊了和烧焦的 `run.toast.*` / `run.dish.*`）：用后厨喊话的口气，不报「1/3」这类计数。
 - **性能约定**（详见 architecture.md）：手机靠 `low` 档；世界和武器两遍渲染的灯光布局必须一致；不用 transmission 材质；
   静态网格标 `userData.staticShadow`，之后改动要调 `G.render.invalidateStaticShadows()`。
 - **存档键不改名**：设置和纪录用 `saltline.*`，语言用 `wokingdead.lang`。
@@ -76,6 +77,8 @@ Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值
   - **靶场在游戏里**：`/?range=1`（`src/chinatown/range.js`），是关掉时间线的套餐加一块调试面板，街道、僵尸、画面都是真的。
     调武器手感、调料、状态、僵尸数值、特效亮度都在这里做；面板状态记在地址里，开发服务器存盘刷新后回到同一个场面，
     「数值」一栏可以边玩边改共用数值表，再用「复制改动」把结果写回文件。面板是调试工具：只有中文、用系统字体、不进语言包。
+    **陈列馆也在游戏里**：`/gallery/` 是试验场的展柜，`npm run build` 时自动生成进 `dist/gallery/`（`vite.config.js` 的插件调
+    `arsenal/scripts/showcase.mjs`）；首页顶栏有两个入口，三个页面互相跳转的地址在 `src/chinatown/doors.js`。
     试验场（`arsenal/`）只用来看模型和握法；它里面的「测试台」（`?mode=fp`）是给自动测试和测量脚本用的简化巷子，不要拿它调手感。
   - **不要在任何一边再写一份规则或数字**。测试台缺什么，就把本体那部分抽成两边共用的代码，而不是在 `arsenal/` 里照抄。
   - 这三张表所在的文件不能导入游戏对象或 DOM（试验场和 node 脚本都要能直接导入）。试验场不引用 `src/game.js`。
@@ -123,7 +126,7 @@ Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值
   游戏由用户自己在 Vercel 预览地址或线上实际玩。交付时说明“没有在浏览器里验证”，并写出用户试玩时该重点看哪里。
 - 用户明确要求在浏览器里验证时，按下面做：用真实鼠标点击和按键走入口，不能只靠 `?autostart=1` 或直接调用 `G.game.start()`
   （曾经标题页按钮被透明元素挡住，脚本直达的检查全部通过，用户一上手就点不动）。界面改动走一遍：标题页 → 开镬 → 选主菜 → 数字键换武器 →
-  Esc 暂停 → 设置里换语言 → 继续 → 死亡重试 → 通关再开（第二关码头暂时没有在用，不用验证），桌面、手机竖屏、手机横屏各看一次。
+  Esc 暂停 → 设置里换语言 → 继续 → 死亡重试 → 通关再开，桌面、手机竖屏、手机横屏各看一次。
 - 手动验证用 `npm run build` + `npx vite preview --port 5185` 之类的独立端口，不要用开发服务器：别的会话改文件会触发热重载打断测试。
   端口约定：dev 5173、arsenal 5311（测试 5312）、e2e 5199。
 - **这台 Mac 有人在用：浏览器自动化不能真的锁定鼠标。** Chromium 在 macOS 上执行 `requestPointerLock()` 会移动系统光标（无头模式也会），

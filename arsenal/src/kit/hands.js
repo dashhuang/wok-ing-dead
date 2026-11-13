@@ -427,7 +427,10 @@ export function createArms(kit) {
       _p.lerp(AWAY_VIEW[side], e);
       _q.slerp(AWAY_TURN[side], e);
     }
-    const hurt = EASED[side] ? strain : (r) => r.violation;
+    // (o.eased: both hands hold something that is not a weapon, and neither has a trigger to
+    // stay on: each may be judged by its wrist)
+    const eased = o.eased ? !!o.eased[side] : EASED[side];
+    const hurt = eased ? strain : (r) => r.violation;
     // The hand bone: turned round from grip space, its wrist behind the palm. The hand may
     // have turned a little on its grip (see GIVE): about the palm, and round the middle of
     // what it holds, which stays where it is.
@@ -572,7 +575,7 @@ export function createArms(kit) {
       }
     } else {
       const rate = Math.min(1, dt * 14);
-      swing(rate, EASED[side] ? POLE_TRAVEL : 0);
+      swing(rate, eased ? POLE_TRAVEL : 0);
       settle(Math.min(1, dt * 10));
     }
     arm.solve(_sh, _wrist, _qh, pole, null);
@@ -590,7 +593,8 @@ export function createArms(kit) {
     arms,
     POSES,
     /**
-     * solve(model, { mode: "fp" | "show", dt, trigger, away: { left, right }, visible })
+     * solve(model, { mode: "fp" | "show", dt, trigger, away: { left, right }, visible,
+     *                eased: { left, right } (which wrists are eased; default: the support hand's) })
      * Call after the weapon's own update, once per frame.
      */
     solve(model, o = {}) {

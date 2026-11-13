@@ -6,6 +6,7 @@
 //   yaw= pitch= dist=   fix the showcase camera (radians / metres) and stop the turntable
 //   ui=0            hide the interface (clean screenshots)
 //   spice=chili:2,fire:3   the run's seasonings at those levels   ammo=meal   the run's pools
+//   home=<address>  the game this lab was opened from: shows the way back to its title page
 import * as THREE from "three";
 import { createKit } from "./kit/index.js";
 import { createStage } from "./render/stage.js";
@@ -28,6 +29,20 @@ window.addEventListener("unhandledrejection", (e) =>
 
 // The single-file build (scripts/single.mjs) defines this: showcase only, no asset folder.
 const SOLO = typeof __ARSENAL_SOLO__ !== "undefined" && __ARSENAL_SOLO__;
+// Where the game is, when this showcase is a room of it. The game's build puts the showcase
+// at gallery/ and says "../" (showcase.mjs); a game on a dev server sends its own address in
+// ?home= (vite.config.js). Only ever a web address: it becomes a link.
+const HOME = (() => {
+  const h =
+    typeof __ARSENAL_HOME__ !== "undefined" ? __ARSENAL_HOME__ : q.get("home");
+  if (!h) return null;
+  try {
+    const u = new URL(h, location.href);
+    return /^https?:$/.test(u.protocol) ? u.href : null;
+  } catch {
+    return null;
+  }
+})();
 const kit = createKit();
 const stage = createStage(canvas, kit, { bareRange: SOLO });
 const models = new Map();
@@ -42,6 +57,7 @@ const lab = {
   weapons: WEAPONS,
   arms,
   solo: SOLO,
+  home: HOME,
   state: {
     weapon: null,
     branch: "base",

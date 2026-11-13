@@ -3,7 +3,6 @@
 // retry. Shortcuts like ?autostart skip the title page and once hid a fully blocked Deploy
 // button, so this test must keep going through the menus.
 // Each test loads the whole street (about a minute), so checks share a page where they can.
-// The second stage (the docks) is not covered yet: it is not in use.
 import { test, expect } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { parseSnapshot } from "../../server/telemetry/schema.js";
@@ -27,12 +26,12 @@ test.beforeEach(async ({ page }) => {
 const state = (page) => page.evaluate(() => window.__G?.game?.state);
 
 /**
- * Lists the visible menu buttons on screen (and the branch buttons of the title page) and
+ * Lists the visible menu buttons on screen and
  * whether a click at each one's centre would land on it (nothing drawn on top).
  */
 const probeButtons = (page) =>
   page.evaluate(() =>
-    [...document.querySelectorAll("[data-act], .seg button[data-p]")]
+    [...document.querySelectorAll("[data-act]")]
       .filter(
         (b) =>
           b.checkVisibility({
@@ -47,7 +46,7 @@ const probeButtons = (page) =>
         const inView = x >= 0 && y >= 0 && x <= innerWidth && y <= innerHeight;
         const hit = inView && document.elementFromPoint(x, y);
         return {
-          act: b.dataset.act || `branch:${b.dataset.p}`,
+          act: b.dataset.act,
           hit: hit
             ? `${hit.tagName.toLowerCase()}.${hit.className}`
             : "nothing",
@@ -158,8 +157,13 @@ test("a player can start, arm, level up, pause, die and retry with real input", 
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(e.message));
 
-  await page.goto("/?lang=zh-CN&q=low");
+  await page.goto("/?lang=zh-CN&q=low&lvl=harbor");
+  // Old map links also enter the street; there is no branch selector.
+  await expect(page.locator("[data-p]")).toHaveCount(0);
   await waitForTitle(page);
+  expect(await page.evaluate(() => window.__G.level.playerStart.pos.x)).toBe(
+    -33.5,
+  );
   await expectButtonsReachable(page);
 
   // The title page at phone sizes, on the same page load.
@@ -253,6 +257,21 @@ test("a player can start, arm, level up, pause, die and retry with real input", 
     await page.mouse.up({ button: "right" });
   }
 
+  // Finishing the street no longer advertises a second map. Replay still uses real input.
+  await page.evaluate(() => {
+    const G = window.__G;
+    G.run.state.extractOpen = true;
+    G.player.pos.copy(G.level.extraction.pos);
+  });
+  await expect.poll(() => state(page)).toBe("complete");
+  await waitForScreen(page, "complete");
+  expect(
+    await page.evaluate(() => window.__G.run.summary().unlocked),
+  ).not.toContain("Saltline Docks branch");
+  await clickAct(page, "redeploy");
+  await expect.poll(() => state(page)).toBe("playing");
+  await chooseFirstWeapon(page, 1);
+
   const runtime = await page.evaluate(() => ({
     fatal: window.__fatal,
     errors: window.__errors,
@@ -323,6 +342,102 @@ test("the lab's address parameters arm a real run", async ({ page }) => {
   await page.keyboard.up("Enter");
   await page.keyboard.press("KeyR");
   await expect.poll(async () => (await run()).fuel).toBeLessThan(start.fuel);
+
+  const runtime = await page.evaluate(() => ({
+    fatal: window.__fatal,
+    errors: window.__errors,
+  }));
+  expect(runtime.fatal).toBeNull();
+  expect(runtime.errors).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+// A dish, cooked with the real key: one press lights the stove and lifts the wok, the wok
+// goes back by itself once tossed, the dish fries with nobody by it, one press takes the wok
+// up again when it is time and one packs it. (Frying is hurried along; the presses are real.)
+test("a stove cooks a dish: toss, fry, toss again, pack", async ({ page }) => {
+  const pageErrors = [];
+  page.on("pageerror", (e) => pageErrors.push(e.message));
+
+  await page.goto("/?lang=en&q=low&w=rifle");
+  await waitForTitle(page);
+  await clickAct(page, "deploy");
+  await expect.poll(() => state(page)).toBe("playing");
+  await expect.poll(() => inHand(page)).toBe("rifle");
+
+  // by the first stove, facing it, with nothing about to interrupt
+  await page.evaluate(() => {
+    const G = window.__G;
+    const o = G.level.objectives[0];
+    G.player.invulnerable = true;
+    G.player.pos.set(o.pos.x + 1.6, G.player.pos.y, o.pos.z + 0.4);
+    G.player.yaw = Math.PI / 2;
+    setInterval(() => {
+      for (const z of G.enemies.list) if (z.alive) z.ctl.pin = 5;
+    }, 100);
+  });
+  const dish = () =>
+    page.evaluate(() => {
+      const S = window.__G.run.state;
+      const c = S.cook;
+      return {
+        phase: c ? c.phase : "",
+        toss: c ? c.k : -1,
+        hands: S.hands,
+        served: S.served,
+        late: c ? c.late : 0,
+        // (the line under the course name is what tells the player all this)
+        line: document.querySelector(".rl-cook-n").textContent,
+        carrying: window.__G.run.loadout.carrying,
+      };
+    });
+  const skip = () => page.evaluate(() => window.__G.run.debug.skipDish());
+  const press = async () => {
+    await page.keyboard.down("KeyE");
+    await page.waitForTimeout(250);
+    await page.keyboard.up("KeyE");
+  };
+
+  // one press: the stove is lit and the wok is in the cook's hands, the rifle put away
+  await expect.poll(() => page.locator(".h-prompt.on.tap").count()).toBe(1);
+  await press();
+  await expect.poll(async () => (await dish()).phase).toBe("toss");
+  let d = await dish();
+  expect(d).toMatchObject({ hands: "wok", carrying: true, toss: 0 });
+  expect(d.line).not.toBe("");
+  // nothing fires while it is up
+  const rounds = await page.evaluate(() => window.__G.weapon.ammo);
+  await page.keyboard.down("Enter");
+  await page.waitForTimeout(500);
+  await page.keyboard.up("Enter");
+  expect(await page.evaluate(() => window.__G.weapon.ammo)).toBe(rounds);
+
+  // tossed, it goes back on the stove by itself and fries; the hands are free again
+  await expect.poll(async () => (await dish()).phase).toBe("fry");
+  await expect.poll(() => inHand(page)).toBe("rifle");
+  expect((await dish()).hands).toBe("");
+
+  for (const toss of [1, 2]) {
+    // it fries wherever the cook is, then wants its next toss: one press at the stove
+    await skip();
+    await expect.poll(async () => (await dish()).phase).toBe("due");
+    await press();
+    await expect.poll(async () => (await dish()).phase).toBe("toss");
+    expect((await dish()).toss).toBe(toss);
+    await expect.poll(async () => (await dish()).phase).toBe("fry");
+  }
+
+  // the last fry over, it waits to be packed: one press, and the dish is the cook's
+  await skip();
+  await expect.poll(async () => (await dish()).phase).toBe("ready");
+  await press();
+  await expect.poll(async () => (await dish()).hands).toBe("pack");
+  await expect.poll(async () => (await dish()).served).toBe(1);
+  d = await dish();
+  expect(d).toMatchObject({ phase: "", hands: "", carrying: false, late: 0 });
+  await expect.poll(() => inHand(page)).toBe("rifle");
+  // and the first bag under the course name is filled in
+  await expect.poll(() => page.locator(".rl-bags i.on").count()).toBe(1);
 
   const runtime = await page.evaluate(() => ({
     fatal: window.__fatal,
