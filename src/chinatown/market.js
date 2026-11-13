@@ -2320,7 +2320,10 @@ export function buildMarket(ctx, PLAN) {
   };
 
   // ================= THE SHED =================
-  kit.box(floor, x0, 0, z0, x1, K, z1, { skip: "b" });
+  // Recess the slab edge under the wall so floor tile cannot fight with the brick.
+  kit.box(floor, x0 + 0.005, 0, z0 + 0.005, x1 - 0.005, K, z1 - 0.005, {
+    skip: "b",
+  });
   kit.solid(x0, -0.2, z0, x1, K, z1, "concrete");
 
   // walls: brick outside, tiled dado and plaster inside; openings are [from, to, head height]
@@ -2332,28 +2335,32 @@ export function buildMarket(ctx, PLAN) {
     let s = 0;
     const seg = (a, b, y0, y1) => {
       if (b - a < 0.02) return;
-      if (!o.noOuter) B.fbox(f, brick, a, y0, -T / 2, b, y1, 0, { skip: "bi" });
-      B.fbox(
-        f,
-        y0 < 2.2 ? tile : wallIn,
-        a,
-        y0,
-        -T,
-        b,
-        Math.min(y1, DADO),
-        -T / 2,
-        {
-          skip: "bo",
-        },
-      );
+      // Adjacent walls cover these end caps at the shed corners.
+      const ends = (a === 0 ? "l" : "") + (b === W ? "r" : "");
+      if (!o.noOuter)
+        B.fbox(f, brick, a, y0, -T / 2, b, y1, 0, { skip: "bi" + ends });
+      if (y0 < DADO)
+        B.fbox(
+          f,
+          y0 < 2.2 ? tile : wallIn,
+          a,
+          y0,
+          -T,
+          b,
+          Math.min(y1, DADO),
+          -T / 2,
+          {
+            skip: "bo" + ends,
+          },
+        );
       if (y1 > DADO)
         B.fbox(f, wallIn, a, Math.max(y0, DADO), -T, b, y1, -T / 2, {
-          skip: "bo",
+          skip: "bo" + ends,
         });
       // a band of dark green tile caps the dado
       if (y0 < 2.2)
         B.fbox(f, tileTrim, a, DADO - 0.1, -T - 0.012, b, DADO, -T, {
-          skip: "o",
+          skip: "o" + ends,
         });
       const pa = B.P(f, a, y0, -T),
         pb = B.P(f, b, y1, 0);
@@ -2370,18 +2377,18 @@ export function buildMarket(ctx, PLAN) {
     for (const [a, b, head] of openings) {
       seg(s, a, 0, eave);
       seg(a, b, head, eave);
-      // steel frame round the opening
-      B.fbox(f, M.steel, a - 0.08, 0, -T - 0.02, a, head, 0.03, {
+      // Steel wraps inside the masonry reveal; its underside must also stand clear.
+      B.fbox(f, M.steel, a - 0.08, 0, -T - 0.02, a + 0.01, head - 0.01, 0.03, {
         skip: "b",
       });
-      B.fbox(f, M.steel, b, 0, -T - 0.02, b + 0.08, head, 0.03, {
+      B.fbox(f, M.steel, b - 0.01, 0, -T - 0.02, b + 0.08, head - 0.01, 0.03, {
         skip: "b",
       });
       B.fbox(
         f,
         M.steel,
         a - 0.08,
-        head,
+        head - 0.01,
         -T - 0.02,
         b + 0.08,
         head + 0.34,
@@ -2740,7 +2747,7 @@ export function buildMarket(ctx, PLAN) {
       kit.box(conc, cx - 0.2, K, cz - 0.2, cx + 0.2, eave, cz + 0.2, {
         skip: "b",
       });
-      kit.box(tile, cx - 0.22, K, cz - 0.22, cx + 0.22, K + 1.6, cz + 0.22, {
+      kit.box(tile, cx - 0.22, K, cz - 0.22, cx + 0.22, K + 1.5, cz + 0.22, {
         skip: "b",
       });
       kit.box(

@@ -306,39 +306,60 @@ export function createBuilder(kit, signs, ctx) {
       cast: false,
       skip: "bi",
     });
-    fbox(f, fm, s0, y + wh - t, d, s1, y + wh, d + 0.05, {
+    fbox(f, fm, s0 + t, y + wh - t, d, s1 - t, y + wh, d + 0.05, {
       cast: false,
       skip: "i",
     });
-    fbox(f, fm, s0, y, d, s1, y + t, d + 0.05, { cast: false, skip: "i" });
+    fbox(f, fm, s0 + t, y, d, s1 - t, y + t, d + 0.05, {
+      cast: false,
+      skip: "i",
+    });
     if (ww > 1.0)
-      fbox(f, fm, sc - t / 2, y, d, sc + t / 2, y + wh, d + 0.045, {
+      fbox(f, fm, sc - t / 2, y + t, d, sc + t / 2, y + wh - t, d + 0.045, {
         cast: false,
         skip: "bi",
       });
+    // Crossbars meet the stiles rather than drawing a second face over them.
     if (wh > 1.3)
-      fbox(
-        f,
-        fm,
-        s0,
-        y + wh * 0.62,
-        d,
-        s1,
-        y + wh * 0.62 + t * 0.8,
-        d + 0.045,
-        { cast: false, skip: "i" },
-      );
+      for (const [left, right] of ww > 1.0
+        ? [
+            [s0 + t, sc - t / 2],
+            [sc + t / 2, s1 - t],
+          ]
+        : [[s0 + t, s1 - t]])
+        fbox(
+          f,
+          fm,
+          left,
+          y + wh * 0.62,
+          d,
+          right,
+          y + wh * 0.62 + t * 0.8,
+          d + 0.045,
+          { cast: false, skip: "i" },
+        );
+    // Trim lips stand clear of the masonry reveal, including its horizontal faces.
     // sill and lintel in the trim colour
     const tm = M.trim(skin.trim);
-    fbox(f, tm, s0 - 0.09, y - 0.09, -0.02, s1 + 0.09, y, 0.09, {
+    fbox(f, tm, s0 - 0.09, y - 0.09, -0.02, s1 + 0.09, y + 0.01, 0.09, {
       cast: false,
       skip: "i",
     });
     if (o.lintel !== false)
-      fbox(f, tm, s0 - 0.07, y + wh, -0.02, s1 + 0.07, y + wh + 0.16, 0.045, {
-        cast: false,
-        skip: "i",
-      });
+      fbox(
+        f,
+        tm,
+        s0 - 0.07,
+        y + wh - 0.01,
+        -0.02,
+        s1 + 0.07,
+        y + wh + 0.16,
+        0.045,
+        {
+          cast: false,
+          skip: "i",
+        },
+      );
     if (lit && o.spill !== false && rnd() < 0.5)
       emit(f, sc, y + wh * 0.5, 0.5, 0xffc27a, 0.5, 5, { soft: true });
     return lit;
@@ -688,11 +709,11 @@ export function createBuilder(kit, signs, ctx) {
         cast: false,
         skip: "i",
       });
-      fbox(f, M.steel, a, 0, -0.16, a + 0.06, top, -0.08, {
+      fbox(f, M.steel, a, 0, -0.16, a + 0.06, top - 0.3, -0.08, {
         cast: false,
         skip: "bi",
       });
-      fbox(f, M.steel, b - 0.06, 0, -0.16, b, top, -0.08, {
+      fbox(f, M.steel, b - 0.06, 0, -0.16, b, top - 0.3, -0.08, {
         cast: false,
         skip: "bi",
       });
@@ -772,20 +793,23 @@ export function createBuilder(kit, signs, ctx) {
         cast: false,
         skip: "i",
       });
-      fbox(f, fm, w0, top - 0.07, -0.14, w1, top, -0.06, {
+      fbox(f, fm, w0 + 0.06, top - 0.07, -0.14, w1 - 0.06, top, -0.06, {
         cast: false,
         skip: "i",
       });
-      fbox(f, fm, w0, 0.55, -0.14, w1, 0.61, -0.06, { cast: false, skip: "i" });
+      fbox(f, fm, w0 + 0.06, 0.55, -0.14, w1 - 0.06, 0.61, -0.06, {
+        cast: false,
+        skip: "i",
+      });
       if (w1 - w0 > 2.4)
         fbox(
           f,
           fm,
           (w0 + w1) / 2 - 0.03,
-          0.55,
+          0.61,
           -0.14,
           (w0 + w1) / 2 + 0.03,
-          top,
+          top - 0.07,
           -0.06,
           { cast: false, skip: "i" },
         );
@@ -800,11 +824,21 @@ export function createBuilder(kit, signs, ctx) {
         cast: false,
         skip: "i",
       });
-      fbox(f, fm, door0, top - 0.5, -0.2, door1, top - 0.42, -0.12, {
-        cast: false,
-        skip: "i",
-      });
-      fbox(f, fm, door0, 0, -0.2, door1, 0.12, -0.12, {
+      fbox(
+        f,
+        fm,
+        door0 + 0.07,
+        top - 0.5,
+        -0.2,
+        door1 - 0.07,
+        top - 0.42,
+        -0.12,
+        {
+          cast: false,
+          skip: "i",
+        },
+      );
+      fbox(f, fm, door0 + 0.07, 0, -0.2, door1 - 0.07, 0.12, -0.12, {
         cast: false,
         skip: "i",
       });
@@ -854,15 +888,20 @@ export function createBuilder(kit, signs, ctx) {
         });
       }
     } else if (type === "door") {
+      // Fit narrow shop bays too: reversed wall bounds create overlapping masonry.
       // stair door to the flats above
-      const d0 = mid - 0.6,
-        d1 = mid + 0.6;
-      fbox(f, wm, a, 0, -WALL_T, d0, top, 0, { skip: "bit" });
-      fbox(f, wm, d1, 0, -WALL_T, b, top, 0, { skip: "bit" });
+      const halfDoor = Math.min(0.6, (b - a) / 2);
+      const d0 = mid - halfDoor,
+        d1 = mid + halfDoor;
+      if (d0 > a) fbox(f, wm, a, 0, -WALL_T, d0, top, 0, { skip: "bit" });
+      if (d1 < b) fbox(f, wm, d1, 0, -WALL_T, b, top, 0, { skip: "bit" });
       fquad(f, M.frame(skin.frame), d0, 0.16, d1, 2.25, -0.26, null, {
         cast: false,
       });
-      fbox(f, tm, d0, 0, -0.3, d1, 0.16, 0.12, { cast: false, skip: "bi" });
+      fbox(f, tm, d0 + 0.005, 0, -0.3, d1 - 0.005, 0.16, 0.12, {
+        cast: false,
+        skip: "bi",
+      });
       fquad(
         f,
         signs.mats.lattice,
@@ -901,10 +940,11 @@ export function createBuilder(kit, signs, ctx) {
       );
     } else {
       // black doorway: something can come out of it
-      const d0 = mid - 0.75,
-        d1 = mid + 0.75;
-      fbox(f, wm, a, 0, -WALL_T, d0, top, 0, { skip: "bit" });
-      fbox(f, wm, d1, 0, -WALL_T, b, top, 0, { skip: "bit" });
+      const halfDoor = Math.min(0.75, (b - a) / 2);
+      const d0 = mid - halfDoor,
+        d1 = mid + halfDoor;
+      if (d0 > a) fbox(f, wm, a, 0, -WALL_T, d0, top, 0, { skip: "bit" });
+      if (d1 < b) fbox(f, wm, d1, 0, -WALL_T, b, top, 0, { skip: "bit" });
       fquad(f, M.void, d0, 0, d1, top, -1.2, null, { cast: false });
       fbox(f, M.void, d0 - 0.02, 0, -1.2, d0, top, -WALL_T, {
         cast: false,

@@ -705,10 +705,28 @@ export function buildLandmarks(ctx, PLAN) {
     compoundWall(x0 + T / 2, 22, x0 + T / 2, z1);
     // side doorway on the lane: plain red posts and a lintel
     for (const z of [19.4, 22])
-      kit.box(M.lacquer, x0, 0, z - 0.14, x0 + T, wallH + 0.3, z + 0.14, {
-        skip: "b",
-      });
-    kit.box(M.lacquer, x0, 2.6, 19.4, x0 + T, wallH + 0.3, 22, { skip: "" });
+      kit.box(
+        M.lacquer,
+        x0 - 0.01,
+        0,
+        z - 0.14,
+        x0 + T + 0.01,
+        wallH + 0.3,
+        z + 0.14,
+        {
+          skip: "b",
+        },
+      );
+    kit.box(
+      M.lacquer,
+      x0 - 0.01,
+      2.6,
+      19.54,
+      x0 + T + 0.01,
+      wallH + 0.3,
+      21.86,
+      { skip: "" },
+    );
     kit.solid(x0, 2.6, 19.4, x0 + T, wallH + 0.5, 22, "concrete");
     for (const sd of ["w", "e"]) {
       const f = B.frame(sd, x0, 19.2, x0 + T, 22.2);
@@ -1507,7 +1525,7 @@ export function buildLandmarks(ctx, PLAN) {
         skip: "",
       });
     }
-    kit.box(post, 38.9, 4.0, 3.3, 39.3, 4.3, 8.7, { skip: "" });
+    kit.box(post, 38.9, 4.0, 3.44, 39.3, 4.3, 8.56, { skip: "" });
     kit.box(hazard, 38.86, 3.3, 3.44, 38.9, 3.95, 8.56, { skip: "" });
     // lit box in the middle of the striped lintel
     const sg = signs.neon({
