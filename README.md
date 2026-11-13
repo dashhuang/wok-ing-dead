@@ -8,7 +8,7 @@
 
 本项目基于从 https://claude.ai/artifact/BGY1SztrAYcJQHSsnHHGmp 提取的浏览器 FPS「Saltline」（下载日期 2026-11-11），
 保留原版的渲染、武器、输入和任务框架，把场景从集装箱码头换成唐人街，把敌人从机器人换成僵尸，并重做了名称、界面和文案。
-原版港口地图现在是第二关「咸水码头」（标题页的「分店」里选，地址是 `?lvl=harbor`）。
+目前只有金龙街地图；旧的 `?lvl=harbor` 链接也会进入唐人街。港区场景的[可读参考代码](references/saltline-harbor/README.md)和 `upstream/artifact.html` 原始发布包均保留。
 
 ## 开始开发
 
@@ -44,8 +44,6 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 ## 玩法
 
 - **套餐**：一关约十分钟的肉鸽关卡（幸存者类）。规则在 `src/chinatown/run.js`，全部数值在 `src/chinatown/runtune.js` 的 `RUN` 里。
-  - **两家分店**：金龙街；通关一次后「咸水码头」开张（原版港口地图：地方开阔，奔尸更多，精英来得更密，关底更硬）。
-    换分店会重新载入页面。
   - **三口灶**：死者不分波，持续涌来：前菜、热炒、大菜、猛火四道，越往后越多、越快，热炒起混入会自爆的「胀尸」。
     每点一口灶进入下一道。一口灶炒一道菜：颠三次锅（锅端在手上，开不了枪，可以走，每颠一下朝身前喷火），每次颠完放回灶上，菜自己炒，
     这段时间人可以走开，但到点要回来接着颠，回来晚了会糊，放太久就烧焦；三次之后打包带走。三袋外卖齐了，关底「招牌菜」上桌，放倒它出口才开，撤离即通关。
@@ -103,7 +101,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `src/chinatown/lights.js` | 局部光源调度（固定数量的点光源在所有发光体之间轮换）和枪灯 |
 | `src/chinatown/kit.js` | 材质、几何批量合并、GLB 道具、碰撞的工具库 |
 | `src/chinatown/zombies.js` | 僵尸：骨骼动画、寻路、感知、近战、分部位命中；精英、关底、胀尸是带倍率和自发光的变体；受定身、减速、恐惧、击退的控制 |
-| `src/chinatown/run.js` | 套餐（肉鸽关卡）的全部规则：时间线刷怪、镬气与调料、弹药掉落与补给箱、武器箱、红包与岔路、精英、关底、分店差异、解锁 |
+| `src/chinatown/run.js` | 套餐（肉鸽关卡）的全部规则：时间线刷怪、镬气与调料、弹药掉落与补给箱、武器箱、红包与岔路、精英、关底、解锁 |
 | `src/chinatown/runtune.js` | 套餐的全部数值 `RUN`（纯数据，武器试验场也读它） |
 | `src/chinatown/runflow.js` | 套餐的纯规则：时间线、刷什么、击杀给多少镬气、掉什么弹药。游戏和数值模拟器（`scripts/balance/`）共用 |
 | `src/chinatown/zombietune.js` | 僵尸的数值表（纯数据，试验场的测试台也读它） |
@@ -115,8 +113,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `src/chinatown/armtargets.js` | 让 `arsenal/` 的战斗逻辑打在游戏的僵尸上。规则（伤害、状态、反应、附魔调料）不在这里，在两边共用的 `arsenal/src/combat/status.js` |
 | `src/chinatown/runhud.js` | 关卡界面：倒计时与菜名、镬气条、调料、关底血条、提示、小票、武器栏、弹药池 |
 | `src/chinatown/pickups.js` | 弹药包、红包、武器箱和补给箱指示灯的模型 |
-| `src/chinatown/supplies.js` | 补给箱的位置：金龙街十二处（烘进街景），咸水码头十二处 |
-| `src/chinatown/docks.js` | 第二关在原版港口地图之上补的东西：补给箱，以及让僵尸走得进撤离区的导航修正 |
+| `src/chinatown/supplies.js` | 补给箱的位置：金龙街十二处（烘进街景） |
 | `src/chinatown/audio.js` | 僵尸语音、城市环境声、警报器、命中确认与套餐里的拾取和小票声；把试验场的武器声音并进游戏的声音表 |
 | `src/engine/three.js` | 把内嵌的 Three.js 以 `three` 的名字导出，供官方加载器使用 |
 | `src/settings.js` | 设置存储 |
@@ -138,7 +135,7 @@ Dash 定下的方向见 [决定与偏好](docs/decisions.md)，各功能的进�
 - `window.__stats()`：渲染统计和当前游戏状态。
 - `/?autostart=1&noaudio=1`：跳过标题直接进入任务，便于冒烟验证。
 - `/?cam=x,y,z,lx,ly,lz`：固定相机，`&noweapon=1` 隐藏武器，方便截图检查场景。
-- `/?q=low|medium|high|ultra`：指定画质档位；`/?lvl=harbor`：第二关咸水码头（原版港口地图）；`/?unlock=all`：全部武器和分店解锁。
+- `/?q=low|medium|high|ultra`：指定画质档位；`/?unlock=all`：全部武器解锁。
 - `/?bench=1`：沿镜头路径巡航并统计帧耗时。
 - `window.__G.run`：套餐关卡。`state` 是当前局的状态，`tune` 是全部数值，`loadout` 是武器和弹药；`debug.addXp(n)`、
   `debug.setTime(秒)`、`debug.envelope()`、`debug.pack("heavy")`、`debug.give("flamer")`、`debug.set("shotgun", 5, "b")`

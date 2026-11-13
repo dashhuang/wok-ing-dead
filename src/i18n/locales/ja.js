@@ -465,23 +465,4 @@ export default {
   "run.spice.rice": "もち米",
   "run.spice.rice.d": "頭に当てると {c}% で封印、三枚で金縛り",
   "run.listSep": "、",
-  // ---- branches (stages); "@docks" lines replace the plain ones on the docks
-  "title.stage": "店舗",
-  "stage.street": "金龍街",
-  "stage.docks": "塩水埠頭",
-  "stage.docks.open": "塩水埠頭店",
-  "stage.locked": "金龍街でセットを一度出し切ると、埠頭店が開く。",
-  "stage.loading": "厨房を移動中……",
-  "title.premise@docks":
-    "死者は船で上陸し、埠頭を占拠した。迎えの船は、持ち帰り三袋が揃うまで来ない。メニューは同じだが、開けた場所だ。遠くから見つかり、走る奴も多い。三つの竈に火を入れ、三品を炒めて包めば看板料理が出る。仕留めて、南東の岸壁から船に乗れ。",
-  "radio.intro@docks":
-    "夜警、こちらランタン管制。埠頭は陥落した。迎えの船は、持ち帰り三袋が揃うまで南東の岸壁に着かない。ヤードに竈が三つある。竈ひとつで一品、仕上がったら包め──弾は節約しろ。ランプの点いた補給箱に在庫がある。ランプの色が弾薬の種類だ。",
-  "radio.cut1@docks": "竈に火が入った。ヤードじゅうに匂いが届く——来るぞ。",
-  "radio.cut2@docks": "二つ目の竈。コンテナの陰から溢れてくる。",
-  "radio.all@docks":
-    "三基とも停止。船は南東の岸壁でエンジンをかけて待っている。急げ。",
-  "radio.done@docks": "夜警、乗船完了。埠頭封鎖完了。よくやった。",
-  "radio.boss@docks":
-    "船は着いた。だがデカいのも付いて来た。仕留めなければ乗れない。",
-  "radio.bossDown@docks": "倒れた。船は南東の岸壁だ。急げ。",
 };

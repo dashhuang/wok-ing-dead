@@ -25,9 +25,6 @@ export const ARMORY_TUNE = {
   fxGain: 0.3,
   glowGain: 0.35, // emissive parts on the weapons themselves (neon tubes, pilot lights, runes)
   handGain: 1, // the lab darkens the gloves for its own lighting; the game needs them as they are
-  // The docks are in evening daylight and the eye adapts to it: everything that glows is
-  // raised by this much there, or it reads as unlit.
-  stageGain: { docks: 2.4 },
 };
 
 export async function createArmory(G) {
@@ -274,8 +271,7 @@ export async function createArmory(G) {
   }
 
   // ---------------------------------------------------------------- materials: brightness and blending
-  const stageGain = ARMORY_TUNE.stageGain[G.stage] || 1;
-  const FX_GAIN = ARMORY_TUNE.fxGain * stageGain;
+  const FX_GAIN = ARMORY_TUNE.fxGain;
   const gain = { value: FX_GAIN };
   const seen = new WeakSet();
   function adopt(m) {
@@ -351,8 +347,7 @@ export async function createArmory(G) {
     const glows = kit.mats.glowMats;
     for (; glowScaled < glows.length; glowScaled++) {
       const m = glows[glowScaled];
-      m.userData.glow =
-        (m.userData.glow || 1) * ARMORY_TUNE.glowGain * stageGain;
+      m.userData.glow = (m.userData.glow || 1) * ARMORY_TUNE.glowGain;
       m.emissiveIntensity = m.userData.glow;
       m.userData.armKeep = true;
     }
