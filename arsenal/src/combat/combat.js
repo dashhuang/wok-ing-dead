@@ -217,6 +217,31 @@ export async function createCombat(lab) {
         .sub(pos)
         .normalize();
     },
+    /**
+     * The velocity for something launched from `pos` (a muzzle: off to one side of the eye and
+     * below it) so that it goes where the crosshair is: through the point the line of the
+     * crosshair first meets, a zombie or the street, and not alongside that line.
+     * o: { spread (radians, as spread()), dir (the line to follow instead of the crosshair's:
+     *      one nail of a fan), gravity (the projectile's: it is aimed that much high, so the
+     *      drop is paid for out to `zero` metres and shows beyond), zero, range }
+     */
+    launch(pos, speed, o = {}) {
+      const dir = o.dir || ctx.spread(o.spread || 0);
+      const range = o.range ?? 60;
+      const zh = targets.raycast(aim.origin, dir, range);
+      const wh = stage.range.raycast(aim.origin, dir, range);
+      // (something right in front of the muzzle: do not turn the shot across the screen for it)
+      const d = Math.max(
+        2.5,
+        Math.min(zh ? zh.dist : range, wh ? wh.dist : range),
+      );
+      const at = V().copy(aim.origin).addScaledVector(dir, d);
+      if (o.gravity) {
+        const t = Math.min(at.distanceTo(pos), o.zero ?? 30) / speed;
+        at.y += 0.5 * o.gravity * t * t;
+      }
+      return at.sub(pos).normalize().multiplyScalar(speed);
+    },
     world(origin, dir, max) {
       return stage.range.raycast(origin, dir, max);
     },
