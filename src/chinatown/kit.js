@@ -415,6 +415,9 @@ export async function createKit(G) {
         // small stuff is left out of the wet-street reflection pass (layer 2 = main view only)
         if (b.mat.userData.noReflect) mesh.layers.set(2);
         if (o.renderOrder) mesh.renderOrder = o.renderOrder;
+        // (a material can ask to be drawn before or after the other see-through ones)
+        if (b.mat.userData.renderOrder)
+          mesh.renderOrder = b.mat.userData.renderOrder;
         root.add(mesh);
         tris += b.idx.length / 3;
       }
