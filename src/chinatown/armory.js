@@ -44,7 +44,10 @@ export async function createArmory(G) {
   const builderOf = (id) => builders[`../../arsenal/src/weapons/${id}.js`];
   const { byId, WEAPONS } = dataMod;
 
-  const kit = kitMod.createKit();
+  // half-resolution labels and papers on the low preset (see createKit)
+  const kit = kitMod.createKit({
+    canvasScale: G.quality && G.quality.name === "low" ? 0.5 : 1,
+  });
   const arms = handsMod.createArms(kit);
   // (the weapons' sounds go out through the game's own sound system: its volume, its buses)
   const audio =

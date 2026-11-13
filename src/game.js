@@ -22,6 +22,7 @@ import { createTelemetry } from "./telemetry/index.js";
 import { createNavigation, STEP_HEIGHT } from "./chinatown/navigation.js";
 import { createSpawnPicker } from "./chinatown/spawning.js";
 import { createMusic } from "./chinatown/music.js";
+import { afterUpload, releaseTextureImages } from "./chinatown/texmem.js";
 import { createCategoryVolumes } from "./chinatown/audiovolume.js";
 import * as DOORS from "./chinatown/doors.js";
 import { pickLook, sunDirection } from "./chinatown/look.js";
@@ -31599,6 +31600,8 @@ void main() {
           ke && t.texSubImage2D(n.TEXTURE_2D, 0, 0, 0, Re, Ue, Te);
         } else t.texImage2D(n.TEXTURE_2D, 0, Ve, Re, Ue, Te);
         (x(D) && v(X), (he.__version = Y.version), D.onUpdate && D.onUpdate(D));
+        // the picture is on the GPU now: on a phone its copy here goes (chinatown/texmem.js)
+        afterUpload(D);
       }
       P.__version = D.version;
     }
@@ -78480,6 +78483,8 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
     };
     document.documentElement.dataset.quality = t.quality.name;
     slLite = t.quality.name === "low";
+    // a phone's page has one memory limit for itself and its GPU memory (chinatown/texmem.js)
+    releaseTextureImages(isHandheld());
     window.__G = t;
     let i = n.show && mT[n.show] ? n.show : null;
     t.showcase = i;

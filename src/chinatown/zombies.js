@@ -10,6 +10,7 @@ import { LIMBS, WITH, createLimbs } from "../../arsenal/src/fx/limbs.js";
 
 import { ZOMBIE_BODY } from "./navigation.js";
 import { createCrowd } from "./crowd.js";
+import { markStatic } from "./texmem.js";
 
 // how a thrown body comes down and stops (the force it is thrown with is the weapons' rules')
 const FLIGHT = STATUS.launch;
@@ -117,7 +118,10 @@ export async function createZombies(G) {
     if (typeof img.close === "function") img.close();
     source.data = out;
     source.needsUpdate = true;
-    for (const tex of users) tex.needsUpdate = true;
+    for (const tex of users) {
+      tex.needsUpdate = true;
+      markStatic(tex); // (the canvas fallback; a bitmap goes anyway)
+    }
   }
   const MAPS = [
     "map",
