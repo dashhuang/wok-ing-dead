@@ -995,6 +995,7 @@ export function createVehicles(ctx) {
   G.mats.adopt(glass, { wet: [0, 1, 0, 0] });
   glass.userData.oneCell = true;
   glass.userData.noReflect = true;
+  glass.userData.street = true;
   const tyre = kit.game("tire");
   const glowHead = kit.glow(0xfff0d4, 3.2);
   const glowTail = kit.glow(0xff1a0a, 3.2);
