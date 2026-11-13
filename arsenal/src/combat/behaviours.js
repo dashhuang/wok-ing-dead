@@ -14,7 +14,13 @@
 import * as THREE from "three";
 import { C, P, rand, srand, coneDir, randDir } from "../fx/core.js";
 import { WEAPONS } from "../data/weapons.js";
-import { STOCK_GUNS } from "../../../src/chinatown/stockguns.js";
+import {
+  STOCK_GUNS,
+  coneOf,
+  bloomAfterShot,
+  bloomAfter,
+  roundDamage,
+} from "../../../src/chinatown/stockguns.js";
 
 // the design data of each weapon's fire: F.shotgun.damage, F.lever.range, ...
 const F = Object.fromEntries(WEAPONS.map((w) => [w.id, w.fire]));
@@ -2647,13 +2653,13 @@ export const BEHAVIOURS = {
   },
 
   // ================================================================ the game's own two guns
-  // LK-9 carbine and LK-4 sidearm, as the test bench fires them. The game fires them with its
-  // own code (src/game.js); this is here only so they can sit the same test as the weapons
-  // above. The numbers are the game's (src/chinatown/stockguns.js), and so is what a round
-  // does: one straight round from the eye, full damage to its range, 2.2 to the head, no
-  // falloff, no pierce, in a cone of fire that sustained fire opens (the game's bloom, kept
-  // here rather than in data/feel.js: that table is the arsenal weapons' handling, which the
-  // range's number editor offers, and these two do not handle by it).
+  // LK-9 carbine and LK-4 sidearm, as the test bench fires them, so that they can sit the
+  // same test as the weapons above. The game builds and fires them itself (src/game.js); both
+  // go by one table and one set of rules, src/chinatown/stockguns.js: the cone of fire and how
+  // sustained fire opens it, what a round does at a distance and to the head, how many of the
+  // dead it goes through. Only finding what a round reaches is each side's own (the game's
+  // zombies and walls, the bench's). (The cone is theirs, not data/feel.js's: that table is the
+  // arsenal weapons' handling.)
   rifle: stockGun("rifle"),
   pistol: stockGun("pistol"),
 };
@@ -2676,7 +2682,7 @@ function stockGun(id) {
       kick: id === "rifle" ? 0.45 : 0.8,
     }),
     frame(ctx, dt) {
-      ctx.st.bloom = Math.max(0, (ctx.st.bloom || 0) - dt * G.spread.decay);
+      ctx.st.bloom = bloomAfter(G.spread, ctx.st.bloom || 0, dt);
     },
     fire(ctx) {
       const st = ctx.st;
@@ -2686,16 +2692,20 @@ function stockGun(id) {
         smoke: 1,
         light: 20,
       });
+      // (the bench's shooter stands still on the ground, from the hip)
       const dir = coneDir(
         ctx.aim.dir,
-        G.spread.hip + (st.bloom || 0) * G.spread.bloomHip,
+        coneOf(G.spread, { bloom: st.bloom || 0 }),
         V(),
       );
-      st.bloom = Math.min(1, (st.bloom || 0) + G.spread.shot);
+      st.bloom = bloomAfterShot(G.spread, st.bloom || 0);
       ctx.hitscan({
         dir,
         range: G.range,
-        damage: G.damage,
+        pierce: G.pierce,
+        // the level and the seasonings are the controller's (W.mul), as for every weapon
+        damage: (z, dist) => roundDamage(G, G.damage, dist),
+        headMul: G.head,
         tracer: { width: 0.018, color: C(0xffd9a0, 3) },
         impact: { scale: 0.7 },
       });

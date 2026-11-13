@@ -214,7 +214,7 @@
 | 断肢：击杀时掉什么（爆炸从根部炸掉手脚、偶尔带头；刀砍头或齐肩一条手臂；被打飞的带走一截；爆头打掉够多血时头直接炸开；精英和关底不掉）| 规则在 `arsenal/src/combat/fate.js`（`limbsOf` / `fateOf`），数字在 `arsenal/src/data/status.js` 的 `sever`；切下来的肢体、断口和落地在 `arsenal/src/fx/limbs.js`（按骨骼权重从模型里切，每种模型切一次） | 两边。本体多一条只有它有的规则：活着的僵尸某条手臂或腿挨够了伤害（`zombietune.js` 的 `limbs`）就从肘或膝断掉，行尸断了腿改为爬行，在 `zombies.js`（`damage` / `sever` / `limbAt`）；`armory.js` 听 `enemy:severed`、`gore:spurt`、`gore:splat` 出血。回对象池时 `mend` 把骨骼还原 |
 | 手感：每发的枪口上跳、后坐、侧倾、镜头上抬和保留多少、连射的散布扩张、持续喷射的抖动、近战命中的顿挫和镜头跟随 | 数字在 `arsenal/src/data/feel.js`，模型在 `arsenal/src/combat/recoil.js`（照原版两把枪的做法：冲量打在阻尼弹簧上，枪绕握把转） | 两边；靶场「数值」里的「手感」能边玩边改，`node arsenal/scripts/feel-report.mjs` 把数字换算成度、毫米和毫秒 |
 | 每级的伤害倍率（有岔路的 `dmg`，没有岔路的 `bare`） | `arsenal/src/data/levels.js` | 两边 |
-| 本体两把枪（LK-9、LK-4）的伤害、射速、射程、弹匣、备弹、换弹时间、散布 | `src/chinatown/stockguns.js` | `src/game.js` 造枪和开火；测试台的替身（`arsenal/src/kit/standin.js` + `behaviours.js` 末尾）只为测量 |
+| 本体两把枪（LK-9、LK-4）的数字（伤害、射速、射程、爆头、穿透、衰减、弹匣、换弹时间、散布）和开火规则（散布怎么张开、一发打多少、换弹动画怎么配速） | `src/chinatown/stockguns.js` | `src/game.js` 造枪、开火（`playerShot` 只负责射线找目标）、`loadout.js` 每次重算时读它；测试台的替身（`arsenal/src/kit/standin.js` + `behaviours.js` 末尾）调用同一段规则；靶场「数值」能边玩边改 |
 | 调料的层数和数值 | `src/chinatown/runtune.js` | `run.js`；测试台的 `combat/meal.js` |
 | 四种弹药的上限、每把武器每发吃多少 | `src/chinatown/loadout.js` 的 `AMMO`、`ARMS`、`ammoPer` | `loadout.js`；测试台的 `combat/meal.js` |
 | 僵尸的血量、速度、伤害、出手节奏、受击硬直、弱点大小 | `src/chinatown/zombietune.js` | `zombies.js`；测试台的 `targets.js` |
