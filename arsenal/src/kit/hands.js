@@ -33,6 +33,23 @@ const REACH = 0.525;
 // over-reach (metres) at which it gets there.
 const LEAN_ANGLE = 0.9,
   LEAN_OVER = 0.25;
+// All of that is first person's: there the upper arm and the elbow are kept under the frame,
+// and nobody sees that the shoulder they hang from has sunk to the waist or that an elbow has
+// swung up over the hand to get out of the picture. The showcase shows the arm to past the
+// elbow, from every side, so there the shooter stands as a person does:
+//   the shoulder comes forward to a far hand but hardly sinks (SHOW_LEAN, radians below it);
+//   the elbow hangs down and a little out (SHOW_POLE, in the right arm's terms: out, up,
+//   forward), and is charged for leaving the part of the circle an elbow can be in: for
+//   rising towards the level of the line from shoulder to wrist, and for crossing in front
+//   of the body (BODY: [how far up it may point before it costs, the weight of that, how far
+//   inwards, the weight of that], on the scale of the wrist's strain).
+const SHOW_LEAN = 0.15,
+  SHOW_POLE = [0.5, -0.86, 0.05],
+  BODY = [-0.45, 5, 0.2, 6];
+// With the elbow held to where an elbow goes, the trigger hand's wrist has to give instead:
+// in the showcase both hands are judged by their wrists (see EASED) and both may turn a
+// little on what they hold, as the support hand does in first person (see GIVE).
+const SHOW_GIVE = [0.3, 0.4];
 const POLE_STEPS = 24,
   POLE_BIAS = 0.12,
   POLE_STICK = 0.05;
@@ -363,6 +380,8 @@ export function createArms(kit) {
   const poles = { right: new V3(), left: new V3() };
   // how far each hand has turned on its grip to ease its wrist: [about the palm, round the handle]
   const gives = { right: [0, 0], left: [0, 0] };
+  // the shooter's eye in the space the arms live in, as of the last solve (for checks)
+  const frame = new THREE.Matrix4();
   let last = null;
 
   const mixPose = (a, b, e) => {
@@ -418,6 +437,7 @@ export function createArms(kit) {
       target = mixPose(target, resolvePose(alt.pose), onAlt);
     }
     const eye = eyeFrame(model, o);
+    frame.copy(eye);
     // letting go: slide down and out of the way, and come back
     const want = Math.max(o.away ? o.away[side] || 0 : 0, grip.away || 0);
     away[side] += (want - away[side]) * (o.snap ? 1 : Math.min(1, dt * 14));
@@ -429,7 +449,7 @@ export function createArms(kit) {
     }
     // (o.eased: both hands hold something that is not a weapon, and neither has a trigger to
     // stay on: each may be judged by its wrist)
-    const eased = o.eased ? !!o.eased[side] : EASED[side];
+    const eased = o.eased ? !!o.eased[side] : EASED[side] || o.mode !== "fp";
     const hurt = eased ? strain : (r) => r.violation;
     // The hand bone: turned round from grip space, its wrist behind the palm. The hand may
     // have turned a little on its grip (see GIVE): about the palm, and round the middle of
@@ -444,7 +464,7 @@ export function createArms(kit) {
       _wrist.copy(PALM_BONE).applyQuaternion(_qh).negate().add(_core).sub(_off);
     };
     const give = gives[side];
-    const lim = grip.give || GIVE[side];
+    const lim = grip.give || (o.mode === "fp" ? GIVE[side] : SHOW_GIVE);
     // (a hand that has let go has nothing to turn on)
     const free = o.mode === "fp" ? 1 - k * k * (3 - 2 * k) : 1;
     const maxYaw = lim[0] * free,
@@ -458,9 +478,19 @@ export function createArms(kit) {
     handAt(give[0], give[1]);
     const pole = poles[side];
     _eyeInv.copy(eye).invert();
-    // (the showcase has no eye, but its arms are placed as the shooter's would be, so they are
-    // judged from where the shooter's eye would be and come out the same as in first person)
-    const seen = (e) => inView(_el.copy(e).applyMatrix4(_eyeInv));
+    // (first person keeps the elbow out of the picture; the showcase has no picture to keep it
+    // out of, and asks instead that the arm stand as an arm does: see SHOW_LEAN)
+    const fp = o.mode === "fp";
+    const seen = (e) => (fp ? inView(_el.copy(e).applyMatrix4(_eyeInv)) : 0);
+    // (in the showcase: what an elbow pointing this way costs, see BODY)
+    const sideX = side === "left" ? -1 : 1;
+    const body = (p) => {
+      if (fp) return 0;
+      _el.copy(p).transformDirection(_eyeInv);
+      const up = Math.max(0, _el.y - BODY[0]),
+        inward = Math.max(0, -sideX * _el.x - BODY[2]);
+      return BODY[1] * up * up + BODY[3] * inward * inward;
+    };
     // Shoulder. A weapon is often held further out than the arm is long. The shoulder then
     // comes forward (the shooter leans in) and sinks, staying on its own side of the body, so
     // the arm still reaches in from the lower corner on its side: the upper arm and elbow
@@ -476,18 +506,23 @@ export function createArms(kit) {
           // already sits at below the hand, towards LEAN_ANGLE as the reach gets longer
           const rho = Math.sqrt(REACH * REACH - dx * dx);
           const a0 = Math.atan2(_w.y - _sh.y, _sh.z - _w.z);
-          const a = a0 + Math.max(0, LEAN_ANGLE - a0) * sat(far / LEAN_OVER);
+          const a =
+            a0 +
+            Math.max(0, (fp ? LEAN_ANGLE : SHOW_LEAN) - a0) *
+              sat(far / LEAN_OVER);
           _sh.y = _w.y - rho * Math.sin(a);
           _sh.z = _w.z + rho * Math.cos(a);
         } else {
           // a hand far out to the side: nothing for it but to follow
-          _sh.y -= Math.min(0.4, 1.2 * far);
+          if (fp) _sh.y -= Math.min(0.4, 1.2 * far);
           _sh.sub(_w).setLength(REACH).add(_w);
         }
       }
       _sh.applyMatrix4(eye);
       _axis.subVectors(_wrist, _sh).normalize();
-      _base.fromArray(GH.DEFAULT_POLE[side]).transformDirection(eye);
+      if (fp) _base.fromArray(GH.DEFAULT_POLE[side]);
+      else _base.set(sideX * SHOW_POLE[0], SHOW_POLE[1], SHOW_POLE[2]);
+      _base.transformDirection(eye);
       _base.addScaledVector(_axis, -_base.dot(_axis)).normalize();
       _perp.crossVectors(_axis, _base);
     };
@@ -507,7 +542,8 @@ export function createArms(kit) {
       let best =
           hurt(ik) +
           POLE_BIAS * (1 - pole.dot(_base)) +
-          seen(ik.elbow) -
+          seen(ik.elbow) +
+          body(pole) -
           POLE_STICK,
         bestC = 2,
         bestS = 0;
@@ -521,6 +557,7 @@ export function createArms(kit) {
           hurt(ik) +
           POLE_BIAS * (1 - c) +
           seen(ik.elbow) +
+          body(_pole) +
           travel * (1 - _pole.dot(pole));
         if (score < best) ((best = score), (bestC = c), (bestS = sn));
       }
@@ -621,5 +658,6 @@ export function createArms(kit) {
     /** How far each hand has turned on its grip to ease its wrist (for checks and tuning). */
     give: gives,
     strain,
+    frame,
   };
 }
