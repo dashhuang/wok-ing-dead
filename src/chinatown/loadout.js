@@ -63,6 +63,9 @@ export function createLoadout(G, on = {}) {
   let cur = "pistol";
   let last = null;
   let busy = false; // a weapon is on its way into the hands
+  // both hands are full of something that is not a weapon (the wok of a street stove): the
+  // model the armoury holds, or true when there is no armoury to show it
+  let carried = null;
   let mods = { damage: 1, rate: 1, reload: 1 };
   let infusions = [];
   const baseDef = {};
@@ -106,10 +109,11 @@ export function createLoadout(G, on = {}) {
   const driver = {
     frame(dt, input) {
       if (armory) armory.frame(dt, busy ? null : input);
-      if (armory && armory.held) stowOwn();
+      if (armory && (armory.held || armory.holding)) stowOwn();
     },
+    // (true with the hands full as well: the game's own guns must stay out of it)
     get held() {
-      return !!armory && armory.held;
+      return !!armory && (armory.held || armory.holding);
     },
     get ads() {
       return armory ? armory.ads : 0;
@@ -253,7 +257,7 @@ export function createLoadout(G, on = {}) {
     if (it && armory && armory.current === cur) it.rounds = armory.rounds;
   }
   async function wield(id, { quick = false } = {}) {
-    if (!inv.has(id) || busy || !G.player.alive) return false;
+    if (!inv.has(id) || busy || carried || !G.player.alive) return false;
     if (id === cur && (ARMS[id].own ? !driver.held : driver.held)) return false;
     const a = ARMS[id];
     stash();
@@ -279,8 +283,13 @@ export function createLoadout(G, on = {}) {
         branch: it.branch,
         rounds: it.rounds,
       });
+      // (the hands filled up while the model was being built: it waits its turn)
+      if (carried) {
+        stash();
+        if (carried !== true) armory.hold(carried);
+      }
       // a run may have ended or moved on while the model was being built
-      if (!active || cur !== id) {
+      else if (!active || cur !== id) {
         armory.holster();
         if (active && ARMS[cur] && ARMS[cur].own) G.weapon.setVisible(true);
       } else
@@ -294,6 +303,29 @@ export function createLoadout(G, on = {}) {
     busy = false;
     on.changed && on.changed(cur);
     return true;
+  }
+  // the weapon that is up, back in the hands after they were full of something else
+  function raise() {
+    const a = ARMS[cur];
+    if (!a || a.own || !armory) {
+      if (!a || !a.own) cur = "pistol";
+      G.weapon.setVisible(true);
+      G.weapon.equip(cur);
+      return;
+    }
+    const it = inv.get(cur);
+    const id = cur;
+    busy = true;
+    armory
+      .equip(id, { level: it.level, branch: it.branch, rounds: it.rounds })
+      .catch((e) => console.error("[run] could not take up " + id + ": " + e))
+      .then(() => {
+        busy = false;
+        if (carried) {
+          stash();
+          if (carried !== true) armory.hold(carried);
+        } else if (!active || cur !== id) armory.holster();
+      });
   }
   const owned = () => order.filter((id) => inv.has(id));
   // has something to fire (melee and self-loading weapons always do)
@@ -347,6 +379,8 @@ export function createLoadout(G, on = {}) {
       cur = "pistol";
       last = null;
       busy = false;
+      carried = null;
+      if (armory) armory.hold(null);
       G.weapon.setVisible(true);
       G.weapon.equip("pistol");
       untune(); // the rifle is not carried yet: it must not keep the last run's numbers
@@ -357,7 +391,11 @@ export function createLoadout(G, on = {}) {
     stop() {
       if (!active) return;
       active = false;
-      if (armory) armory.reset();
+      carried = null;
+      if (armory) {
+        armory.hold(null);
+        armory.reset();
+      }
       untune();
       inv.clear();
       order.length = 0;
@@ -387,6 +425,35 @@ export function createLoadout(G, on = {}) {
       return true;
     },
     wield,
+    /**
+     * Both hands take something that is not a weapon (model: one the armoury has adopted):
+     * the weapon in hand is put away and nothing can be drawn until uncarry().
+     */
+    carry(model) {
+      if (!active) return false;
+      if (!carried) stash();
+      carried = (armory && model) || true;
+      if (!busy) {
+        if (carried !== true) armory.hold(carried);
+        else if (armory) armory.holster(true);
+      }
+      G.weapon.setVisible(false);
+      return true;
+    },
+    /** Hands free again: the weapon that was up comes back. */
+    uncarry() {
+      if (!carried) return;
+      carried = null;
+      if (armory) armory.hold(null);
+      if (active && !busy) raise();
+    },
+    get carrying() {
+      return !!carried;
+    },
+    /** What the hands are full of: the model, true when it cannot be shown, or null. */
+    get carried() {
+      return carried;
+    },
     /** Q: back to the weapon held before this one (or on to the next if there was none). */
     swapLast() {
       if (last && inv.has(last) && last !== cur) return wield(last);
@@ -475,7 +542,7 @@ export function createLoadout(G, on = {}) {
     },
     /** Once a frame (real seconds): reports a weapon that has run dry. */
     update() {
-      if (!active || busy) return;
+      if (!active || busy || carried) return;
       if (!usable(cur) && G.player.alive) {
         // dry: whatever was held before if that still fires, else anything that does
         const next = [last, ...owned().slice().reverse()].find(

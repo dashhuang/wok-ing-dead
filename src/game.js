@@ -83297,7 +83297,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           );
         });
       },
-      setPrompt(he, V = 0) {
+      // tap: one press does it (no ring to fill): a run's stoves
+      setPrompt(he, V = 0, tap = !1) {
         let ne = !!he;
         if (
           (ne !== oe.promptOn &&
@@ -83316,7 +83317,11 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           ((oe.promptKey = ye),
           (_.textContent = ye),
           _.classList.toggle("wide", ye.length > 1));
-        let Te = L10N.t("hud.holdTo", { key: ye, action: he });
+        E.classList.toggle("tap", !!tap);
+        let Te = L10N.t(tap ? "hud.pressTo" : "hud.holdTo", {
+          key: ye,
+          action: he,
+        });
         Te !== oe.promptText && ((oe.promptText = Te), (T.textContent = Te));
         let Re = Math.round(V * 200) / 200;
         Re !== oe.promptT &&
@@ -84743,8 +84748,9 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     }
     function J() {
       if (!o.setMarkers) return;
+      // (a run cooks one dish at a time: the other stoves are not marked while one is on)
       let Y = g.relays
-        .filter((he) => !he.cut)
+        .filter((he) => !he.cut && !(runOn() && RUN.cooking))
         .map((he) => ({
           id: he.id,
           short: he.short,
@@ -84810,7 +84816,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         return L10N.t(
           g.waveOn ? "obj.hold" : g.wave ? "obj.breathe" : "obj.coming",
         );
-      if (runOn()) return L10N.t(RUN.objectiveKey());
+      if (runOn()) return RUN.objective();
       if (g.allCut) return L10N.t("obj.extract");
       let Y = g.relays.length - g.cut;
       return g.cut === 0
@@ -85081,6 +85087,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     function me() {
       let Y = null,
         he = xi.interactRange;
+      // (in a run no stove can be lit while a dish is on another)
+      if (runOn() && RUN.cooking) return null;
       for (let V of g.relays) {
         if (V.cut) continue;
         let ne = V.o.pos.x - i.pos.x,
@@ -85098,9 +85106,15 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     }
     function ge(Y) {
       let he = i.alive ? me() : null;
+      // In a run a stove is lit with one press of the key, not by holding it: the wok comes
+      // straight up, and tossing it is what takes the time.
+      let useDown = r.down("interact"),
+        useTap = r.pressed("interact") || (useDown && !g.useWas);
+      g.useWas = useDown;
+      if (runOn() && he && useTap) (ce(he), (he = null));
       for (let ne of g.relays)
         ne.cut ||
-          (ne === he && r.down("interact")
+          (ne === he && !runOn() && r.down("interact")
             ? (ne.cutting || ((ne.cutting = !0), W(ne.o, "cutting")),
               (ne.t += Y / xi.cutSeconds),
               n.events.emit("objective:progress", {
@@ -85114,10 +85128,14 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
                 ((ne.cutting = !1),
                 W(ne.o, "live"),
                 n.events.emit("objective:progress", { id: ne.id, t: 0 }))));
+      // (a run's dish has its own things to do at the stove: taking the wok up, packing)
+      let sp = !he && runOn() && i.alive ? RUN.stovePrompt() : null;
       he && !he.cut
         ? o.setPrompt &&
-          o.setPrompt(L10N.t("obj.prompt", { id: he.short }), Is(he.t))
-        : o.setPrompt && o.setPrompt(null);
+          o.setPrompt(L10N.t("obj.prompt", { id: he.short }), Is(he.t), runOn())
+        : sp
+          ? o.setPrompt && o.setPrompt(sp.text, 0, !0)
+          : o.setPrompt && o.setPrompt(null);
       let V = s.extraction;
       if (V && V.pos) {
         let ne = Math.hypot(V.pos.x - i.pos.x, V.pos.z - i.pos.z),

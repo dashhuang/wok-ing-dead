@@ -669,7 +669,7 @@ export function createRange(G, c) {
       const i = RUN.stages.findIndex((s) => s.id === opt.course);
       const from = RUN.stages[i].at;
       const to = RUN.stages[i + 1] ? RUN.stages[i + 1].at : from;
-      S.t = (from + to) / 2;
+      S.t = S.clock = (from + to) / 2;
       c.spawnTick(dt);
     }
   }

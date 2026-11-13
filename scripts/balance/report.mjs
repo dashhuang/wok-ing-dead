@@ -26,13 +26,15 @@ import {
   ammoPer,
 } from "./data.mjs";
 import { calibrate, factors } from "./lab.mjs";
-import { PROFILES, simulateMany, simulateRun, BUCKET } from "./run.mjs";
+import { PROFILES, simulateMany, simulateRun, BUCKET, LIMIT } from "./run.mjs";
 import { guards } from "./guards.mjs";
 import {
   stageAt,
   crowdOf,
   spawnPace,
   eliteStats,
+  courseAt,
+  stoveCount,
 } from "../../src/chinatown/runflow.js";
 import ZH from "../../src/i18n/locales/zh-CN.js";
 
@@ -64,16 +66,29 @@ const sims = Object.fromEntries(
   Object.keys(PROFILES).map((k) => [k, simulateMany({ profile: k }, RUNS)]),
 );
 
-/** The timeline minute by minute, from the rules alone. */
+/**
+ * The courses minute by minute of the meal's clock, from the rules alone. A minute of it is
+ * a minute of the street only while a dish is on a stove; the rest of the time it simmers.
+ */
 function timeline() {
   const rows = [];
   const brute = zombieStats("brute", true).hp;
   const walker = zombieStats("walker", false).hp;
   for (let m = 0; m < RUN.bossAt / 60; m++) {
-    const st = stageAt(m * 60 + 30);
+    const at = m * 60 + 30;
+    const st = stageAt(at);
     const desk = spawnPace(st, diff, crowdOf(POOL.desktop));
     const phone = spawnPace(st, diff, crowdOf(POOL.phone));
     const rate = 1 / desk.every;
+    // the same minute with this course's dish on its stove: the course after the first
+    // begins with stove 1, so `heat` (stoves lit before it) is one less than the course
+    const course = courseAt(at);
+    const hot = (pool) =>
+      spawnPace(st, diff, {
+        cooking: true,
+        heat: course - 1,
+        ...crowdOf(pool),
+      });
     // (a pack is RUN.pack.size bodies for one spawn)
     const plain = 1 - st.brute - st.bloater - st.pack;
     rows.push({
@@ -82,6 +97,14 @@ function timeline() {
       rate,
       capDesk: desk.cap,
       capPhone: phone.cap,
+      hot:
+        course > 0
+          ? {
+              rate: 1 / hot(POOL.desktop).every,
+              capDesk: hot(POOL.desktop).cap,
+              capPhone: hot(POOL.phone).cap,
+            }
+          : null,
       runner: st.runner,
       brute: st.brute,
       bloater: st.bloater,
@@ -176,8 +199,15 @@ function enemyRows() {
   const b = zombieStats("brute", true);
   const dps = (z, dmg = z.damage) =>
     dmg / (z.swing + (z.cool[0] + z.cool[1]) / 2);
-  const E = RUN.elite;
-  const elites = Math.floor((RUN.bossAt - 20 - E.first) / E.every) + 1;
+  // How many elites a run meets is no longer on a timetable. The last row is the last one
+  // that the simulated players who usually see the house special have met by then (the
+  // slower the cook, the more timed ones come between the dishes).
+  const elites = Math.max(
+    1,
+    ...Object.values(sims)
+      .filter((r) => r.bossReached >= 0.25)
+      .map((r) => r.bossElites || 0),
+  );
   const first = eliteStats(0);
   const last = eliteStats(elites - 1);
   const B = RUN.boss;
@@ -201,7 +231,7 @@ function enemyRows() {
       dps(b, b.damage * first.dmgMul),
     ],
     [
-      `第 ${elites} 只精英`,
+      `第 ${elites} 只精英（模拟里见到关底前的最后一只）`,
       b.hp * last.hpMul,
       b.damage * last.dmgMul,
       b.speed * last.speedMul,
@@ -255,17 +285,30 @@ export function build() {
     ),
   );
 
+  const K = RUN.stove;
+  const names = RUN.stages.map((x) => stage(x.id));
+  const list = (v) => v.join(" / ");
+  // what one dish asks for, walking and reacting left out
+  const dishSeconds =
+    K.fry.reduce((a, b) => a + b + K.toss.seconds, 0) + K.pack;
   say(
-    "## 2. 时间线（每分钟）",
+    "## 2. 时间线（套餐的钟，每分钟）",
     "",
-    "「每秒涌入血量」是这一分钟平均每秒刷出的敌人血量之和，玩家的持续输出要高过它才清得动。",
+    `这张表按**套餐的钟**排，不是街上的时间。灶上有菜、还在招尸的时候（从起灶到第三段炒完），钟和街上的时间一样快；其余时候只走 ${pct(RUN.simmer)}。`,
+    `走到一道菜的末尾它就停下，等下一口灶起火：第 ${Array.from({ length: stoveCount() }, (_, i) => i + 1).join("、")} 口灶起火，分别开始${names.slice(1, 1 + stoveCount()).join("、")}。`,
+    `第 ${stoveCount()} 道菜打包后 ${RUN.boss.after} 秒关底登场，和街上过了多久无关；${stoveCount()} 口灶因此都是必做的。`,
+    "表里的「分钟」落在一局的第几分钟，取决于玩家什么时候起灶：各种玩家实际的时间见第 5 节。",
+    "",
+    "「每秒涌入血量」是这一分钟平均每秒刷出的敌人血量之和，玩家的持续输出要高过它才清得动。「有菜时」两列是这道菜自己的灶上有菜、还在招尸时的数。",
     "",
     table(
       [
-        "分钟",
+        "分钟（套餐的钟）",
         "菜名",
         "每秒刷出",
         "同屏上限（电脑 / 手机）",
+        "有菜时每秒刷出",
+        "有菜时同屏上限",
         "跑尸",
         "重型",
         "胀尸",
@@ -277,6 +320,8 @@ export function build() {
         stage(r.id),
         num(r.rate, 2),
         `${r.capDesk} / ${r.capPhone}`,
+        r.hot ? num(r.hot.rate, 2) : "—",
+        r.hot ? `${r.hot.capDesk} / ${r.hot.capPhone}` : "—",
         pct(r.runner),
         pct(r.brute),
         r.bloater === r.bloaterMax
@@ -293,6 +338,17 @@ export function build() {
       ["菜名", "峰值", "谷值"],
       W.map((w) => [stage(w.id), num(w.peak, 2), num(w.low, 2)]),
     ),
+    "",
+    "### 一道菜",
+    "",
+    `起灶后颠勺 ${K.fry.length} 次，每次颠完菜在灶上自己炒一段，最后打包。不算走路和反应，一道菜要 ${num(dishSeconds, 1)} 秒，${stoveCount()} 道共 ${num(dishSeconds * stoveCount(), 0)} 秒。`,
+    "",
+    `- 颠勺：${K.toss.seconds} 秒，颠 ${K.toss.flips} 下，双手端镬，**不能开火**，可以走。每颠一下往面前喷一次火：${K.toss.flare.range} 米内、左右各 ${num((K.toss.flare.half * 180) / Math.PI)}° 的敌人受 ${K.toss.flare.damage} 伤害、${K.toss.flare.burn} 层灼烧并被推开。颠完要把镬端回灶上（离灶 ${K.toss.reach} 米内）才开始炒。`,
+    `- 炒：三段分别 ${list(K.fry)} 秒，人在哪都照常计时，不用守在灶边。开头另外刷出的快尸群：${list(K.packs)} 群（每群 ${RUN.pack.size} 只）；精英：${list(K.elite.map((e) => (e ? "有" : "无")))}。`,
+    `- 到点要回灶：该颠第二、三次，或者该打包了，过了 ${K.burn} 秒还没人接手，菜就糊一次，每糊一次奖励降一档（不低于最低档）。糊了之后再放 ${K.char} 秒就烧焦：只能直接打包，照样算一份外卖，但什么奖励都没有。`,
+    `- 打包：${K.pack} 秒，双手同样占着。`,
+    `- 菜还在招尸时（到第三段炒完为止）：刷怪间隔 ×${K.every}，同屏上限 +${K.alive}，击杀的镬气 ×${K.xp}；之前每起过一口灶，间隔再 ×${K.hotter.every}、上限再 +${K.hotter.alive}。`,
+    `- 定时的精英（街上的时间，第 ${RUN.elite.first} 秒起每 ${RUN.elite.every} 秒一只）在灶上有菜时不来，第 ${stoveCount()} 道菜出餐后也不再来；两口灶之间最多来 ${RUN.elite.idle} 只，拖着不起灶刷不到更多。`,
   );
 
   say(
@@ -360,6 +416,14 @@ export function build() {
   );
 
   const keys = Object.keys(PROFILES);
+  // A run has no fixed length any more: the tables by time go on for as long as a
+  // twentieth of the runs of any player shown are still going.
+  const rowsOf = (shown) =>
+    1 +
+    Math.max(
+      0,
+      ...shown.map((k) => sims[k].running.findLastIndex((v) => v >= 0.05)),
+    );
   say(
     "## 5. 整局模拟",
     "",
@@ -368,6 +432,7 @@ export function build() {
         "玩家",
         "通关",
         "阵亡",
+        "超时",
         "阵亡时间（中位）",
         "见到关底",
         "关底战（秒）",
@@ -387,6 +452,7 @@ export function build() {
           PROFILES[k].name,
           pct(r.clear),
           pct(r.dead),
+          pct(r.timeout),
           mmss(r.deathAt),
           pct(r.bossReached),
           num(r.bossSeconds),
@@ -404,6 +470,55 @@ export function build() {
     ),
     "",
     "「选择次数」是一局里停下来选牌的总次数：点主菜、每次升级、每次岔路。「主力缺弹」是等级最高的那把枪打不响的时间占比。",
+    `「超时」是打到第 ${mmssOf(LIMIT)} 还没结束的局，算输：关底要等第 ${stoveCount()} 道菜打包，不出完菜的一局永远不会结束，模拟在这里强行停下。`,
+    "这一节往下的时间都是街上的时间（一局实际过了多久）。",
+    "",
+    "### 三口灶和关底",
+    "",
+    "起火和出餐是各局的中位数，括号里是做到这一步的局占全部局数的比例。「糊过」是出了餐的菜里至少糊过一次的比例。",
+    "「关底登场」「关底前升级」「遇到的精英」只统计见到关底的局（中位数）。",
+    "",
+    table(
+      [
+        "玩家",
+        ...Array.from({ length: stoveCount() }, (_, i) => [
+          `第 ${i + 1} 口灶起火`,
+          `第 ${i + 1} 道出餐`,
+        ]).flat(),
+        "糊过",
+        "关底登场",
+        "关底前升级",
+        "遇到的精英",
+      ],
+      keys.map((k) => {
+        const r = sims[k];
+        const step = (at, share) =>
+          at == null ? "—" : `${mmss(at)}（${pct(share)}）`;
+        return [
+          PROFILES[k].name,
+          ...Array.from({ length: stoveCount() }, (_, i) => [
+            step(r.litAt[i], r.lit[i]),
+            step(r.servedAt[i], r.dished[i]),
+          ]).flat(),
+          r.scorched == null ? "—" : pct(r.scorched),
+          mmss(r.bossAt),
+          r.bossLevels == null ? "—" : r.bossLevels + " 次",
+          r.bossElites == null ? "—" : r.bossElites + " 只",
+        ];
+      }),
+    ),
+    "",
+    "阵亡的局是在做什么的时候阵亡的（占全部局数的比例）：",
+    "",
+    table(
+      ["玩家", "灶上有菜", "两道菜之间", "关底战"],
+      keys.map((k) => [
+        PROFILES[k].name,
+        pct(sims[k].deadIn.dish),
+        pct(sims[k].deadIn.street),
+        pct(sims[k].deadIn.boss),
+      ]),
+    ),
     "",
     "### 升级的时间点",
     "",
@@ -431,14 +546,17 @@ export function build() {
         "时间",
         ...["focus", "expertFocus", "spread"].map((k) => PROFILES[k].name),
       ],
-      Array.from({ length: Math.ceil(RUN.bossAt / BUCKET) + 2 }, (_, i) => [
-        mmss(i * BUCKET),
-        ...["focus", "expertFocus", "spread"].map((k) =>
-          sims[k].curve.alive[i] == null
-            ? "—"
-            : `${num(sims[k].curve.alive[i], 1)}（${num(sims[k].curve.near[i], 1)}）`,
-        ),
-      ]),
+      Array.from(
+        { length: rowsOf(["focus", "expertFocus", "spread"]) },
+        (_, i) => [
+          mmss(i * BUCKET),
+          ...["focus", "expertFocus", "spread"].map((k) =>
+            sims[k].curve.alive[i] == null
+              ? "—"
+              : `${num(sims[k].curve.alive[i], 1)}（${num(sims[k].curve.near[i], 1)}）`,
+          ),
+        ],
+      ),
     ),
     "",
     "### 阵亡发生在什么时候",
@@ -447,7 +565,7 @@ export function build() {
     "",
     table(
       ["时间", ...keys.map((k) => PROFILES[k].name)],
-      Array.from({ length: Math.ceil(RUN.bossAt / BUCKET) + 2 }, (_, i) => [
+      Array.from({ length: rowsOf(keys) }, (_, i) => [
         mmss(i * BUCKET),
         ...keys.map((k) => (sims[k].deaths[i] ? pct(sims[k].deaths[i]) : "·")),
       ]),
@@ -498,6 +616,10 @@ export function build() {
         "捡到弹药包",
         "肯去补给箱",
         "起灶的时间",
+        "出餐后歇",
+        "接镬的反应",
+        "错过颠勺",
+        "端镬回灶",
         "开武器箱",
         "配法",
       ],
@@ -514,6 +636,10 @@ export function build() {
           pct(p.collect),
           pct(p.crates),
           p.stoves.length ? p.stoves.map((x) => mmssOf(x)).join("、") : "不起",
+          p.rest + " 秒",
+          p.react.join("–") + " 秒",
+          pct(p.lapse),
+          p.carry.join("–") + " 秒",
           p.cases.length + " 个",
           { focus: "专精", spread: "全用", random: "随手" }[p.build],
         ];
@@ -524,7 +650,11 @@ export function build() {
     "- 瞄准是一个命中率，不是手感；爆头是命中里的一个比例。",
     "- 岔路和 5 级的强度取自试验场的实测倍率，不逐条模拟每个岔路的机制；元素之间的反应（爆燃、引雷等）没有模拟。",
     "- 调料里的四种附魔按简化规则算：点燃折成一次性伤害，感电跳给最近两只，蚀骨只叠加伤害，贴符只算定身。",
-    "- 捡弹药包、去补给箱、起灶、开武器箱都按上表的概率和时间点发生，不模拟走路；起灶后默认一直守在灶边。",
+    "- 捡弹药包、去补给箱、起灶、开武器箱都按上表的概率和时间点发生，不模拟走路。",
+    `- 起灶：到了「起灶的时间」就去起；上一道菜那时还没出餐，就在它出餐后歇够「出餐后歇」再起。每种玩家都起满 ${stoveCount()} 口，不起就见不到关底。`,
+    `- 做菜：规则（颠勺、自己炒、糊、烧焦、打包）是游戏自己的；玩家这边假设的是「接镬的反应」（该颠勺或该打包了，过多久人回到灶边接手）、「没赶回来」（这一次拖过 ${RUN.stove.burn} 秒把菜放糊的概率，颠勺和打包同一个数）和「端镬回灶」（颠完走回灶边放下要多久）。`,
+    "  端着镬和打包的时候不开火、不换弹、不换武器，也不去补给箱；残血逃跑或去补给箱的路上不接镬、不放镬、不起灶，菜照样在炒，回来晚了就糊。",
+    `- 颠勺喷的火：模型里没有方向，假设 ${RUN.stove.toss.flare.range} 米内的敌人散在玩家面前的半圈里，喷火的扇面盖住其中 ${pct(Math.min(1, (2 * RUN.stove.toss.flare.half) / Math.PI))}；灼烧和调料的一样折成一次性伤害，推开的距离按武器击退的算法。`,
     `- 玩家的生命、回血、移动速度抄自 \`src/game.js\`（微辣没有额外修正）；开局武器只从首次游玩就有的 ${RUN.unlocks.start.length} 把里出。`,
     `- 电脑的尸群规模（${POOL.desktop} 只行尸的池子）；手机的池子是 ${POOL.phone} 只，同屏上限见第 2 节。`,
   );

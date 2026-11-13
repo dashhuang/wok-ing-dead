@@ -776,6 +776,82 @@ function bowl(sr, rng, v) {
   add(a, thump(sr, 0.1, 300 * k, 200 * k, 0.012, 0.025), 0, 0.3, sr);
   return unit(a);
 }
+// A wok flipped over a burner: the ladle scrapes, the oil catches with a whoosh, it hisses.
+function wokFlip(sr, rng, v) {
+  const k = [1, 1.06, 0.95][v % 3];
+  const a = alloc(sr, 0.95);
+  add(a, burst(sr, rng, 0.05, 0.012, { bp: 2400 * k, q: 2 }), 0, 0.5, sr);
+  add(
+    a,
+    modes(
+      sr,
+      0.25,
+      [
+        [640 * k, 0.05, 1],
+        [1730 * k, 0.03, 0.5],
+      ],
+      rng,
+    ),
+    0.02,
+    0.35,
+    sr,
+  );
+  add(a, burst(sr, rng, 0.55, 0.16, { lp: 700, att: 0.06 }), 0.08, 1, sr);
+  add(a, burst(sr, rng, 0.7, 0.22, { hp: 4200, att: 0.05 }), 0.1, 0.45, sr);
+  return unit(a);
+}
+// The wok set back down on its stove.
+function wokDown(sr, rng, v) {
+  const k = [1, 0.94][v % 2];
+  const a = alloc(sr, 0.75);
+  add(a, thump(sr, 0.14, 210 * k, 110 * k, 0.004, 0.04), 0, 1, sr);
+  add(
+    a,
+    modes(
+      sr,
+      0.6,
+      [
+        [412 * k, 0.16, 1],
+        [1108 * k, 0.1, 0.6],
+        [2290 * k, 0.05, 0.3],
+      ],
+      rng,
+    ),
+    0,
+    0.6,
+    sr,
+  );
+  add(a, burst(sr, rng, 0.3, 0.1, { hp: 4000, att: 0.02 }), 0.02, 0.3, sr);
+  return unit(a);
+}
+// An order ticket fixed to a takeaway pail: the stapler, then the flat of the hand.
+function packStaple(sr, rng) {
+  const a = alloc(sr, 0.4);
+  for (const [t, k] of [
+    [0, 1],
+    [0.045, 0.82],
+  ]) {
+    add(
+      a,
+      modes(
+        sr,
+        0.06,
+        [
+          [2300 * k, 0.008, 1],
+          [3600 * k, 0.006, 0.6],
+        ],
+        rng,
+      ),
+      t,
+      0.8,
+      sr,
+    );
+    add(a, burst(sr, rng, 0.006, 0.001, { hp: 3000 }), t, 0.5, sr);
+  }
+  add(a, thump(sr, 0.12, 260, 120, 0.006, 0.03), 0.05, 0.9, sr);
+  add(a, burst(sr, rng, 0.05, 0.012, { bp: 1500, q: 0.8 }), 0.05, 0.4, sr);
+  return unit(a);
+}
 // Loose rounds swept into a pouch.
 function roundsUp(sr, rng, v) {
   const k = [1, 1.07, 0.94][v % 3];
@@ -985,6 +1061,33 @@ export const SOUNDS = {
     bus: "near",
     max: 2,
     pri: 6,
+  },
+  wok_flip: {
+    gen: wokFlip,
+    n: 3,
+    sr: 32000,
+    peak: 0.5,
+    bus: "near",
+    max: 2,
+    pri: 7,
+  },
+  wok_down: {
+    gen: wokDown,
+    n: 2,
+    sr: 32000,
+    peak: 0.45,
+    bus: "near",
+    max: 2,
+    pri: 7,
+  },
+  wok_staple: {
+    gen: packStaple,
+    n: 1,
+    sr: 32000,
+    peak: 0.42,
+    bus: "near",
+    max: 2,
+    pri: 7,
   },
   run_ammo: {
     gen: roundsUp,
@@ -2258,7 +2361,12 @@ export function create(env) {
     s.y = (e.pos.y || 0) + 1;
     s.z = e.pos.z;
     place(s.nodes.pan, s.x, s.y, s.z);
-    s.want = e.state === "cook" ? 1 : e.state === "live" ? 0 : 0.22;
+    s.want =
+      e.state === "cook" || e.state === "toss" || e.state === "due"
+        ? 1
+        : e.state === "live"
+          ? 0
+          : 0.22;
   });
   function resetStoves() {
     for (const s of stoves.values()) s.want = 0;
