@@ -85,3 +85,17 @@ export const EXTRA_BODIES = {
   },
 };
 export const EXTRA_RIGS = [5, 10];
+// How large a character's maps are kept, per quality preset: [the four usual bodies, the ones
+// fetched later]; 0 leaves them as shipped (2048 px). Kinds of body cost memory, not frame
+// time: at 2048 the usual four take about 300 MB of GPU memory and the five a run fetches
+// another 280; at 1024 that is 75 and 70, and at 512 the five take about 18.
+export const BODY_TEX = {
+  test: [1024, 512],
+  low: [1024, 512],
+  medium: [0, 1024],
+  high: [0, 0],
+  ultra: [0, 0],
+};
+// A phone or tablet set to a higher preset by hand still gets no more than this: its browser
+// closes the page long before a desktop would run out.
+export const BODY_TEX_HANDHELD = [1024, 1024];

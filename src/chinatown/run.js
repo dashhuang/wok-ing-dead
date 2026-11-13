@@ -350,16 +350,24 @@ export function createRun(G, hooks) {
   }
   function fetchBodies() {
     const E = G.enemies;
-    if (!E.ensure || (G.quality && G.quality.name === "low")) return;
-    const names = Object.values(RUN.bodies)
-      .map((b) => b && b.body)
-      .filter(Boolean);
-    E.ensure([...new Set(names)]).catch((e) =>
-      console.warn("[run] a body could not be fetched: " + e),
-    );
+    if (!E.ensure) return;
+    const names = [
+      ...new Set(
+        Object.values(RUN.bodies)
+          .map((b) => b && b.body)
+          .filter(Boolean),
+      ),
+    ];
+    const failed = (e) =>
+      console.warn("[run] a body could not be fetched: " + e);
+    // A phone gets them one after another: each arrives with full-size maps that are only
+    // then made smaller, and five at once would be a couple of hundred megabytes for a moment.
+    if (G.quality && G.quality.name === "low")
+      names
+        .reduce((p, n) => p.then(() => E.ensure([n])), Promise.resolve())
+        .catch(failed);
+    else E.ensure(names).catch(failed);
   }
-  // What makes one of the dead a bloater, an elite or the boss: the timeline below and the
-  // firing range both spawn them through these, so there is one recipe for each.
   function bloaterOpts() {
     const B = RUN.bloater;
     return withBody("bloater", {

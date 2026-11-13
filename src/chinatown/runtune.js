@@ -163,9 +163,9 @@ export const RUN = {
   // (in heavies' worth) and hits dmgGrow harder.
   // Who plays whom. The names are the bodies of zombietune.js (EXTRA_BODIES); scale replaces
   // the part's own scale, because these models are not the size of the soldier that played
-  // every part before. A part whose body is not loaded (they are fetched when a run starts,
-  // and never on the low preset: five more characters do not fit in a phone's memory) is
-  // played by the usual body with its coloured glow, as it always was.
+  // every part before. They are fetched when a run starts (on the low preset one at a time
+  // and with smaller maps, see BODY_TEX); until a part's body is there it is played by
+  // the usual body with its coloured glow, as it always was.
   bodies: {
     glow: 0.1, // share of a part's coloured glow that is kept on its own body
     boss: { body: "mutant", scale: 1.3 },

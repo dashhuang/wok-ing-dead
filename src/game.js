@@ -85860,6 +85860,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       // scale < 1 slows the street (enemies, explosives, run clock); the player keeps full speed
       time: { t: 0, dt: 0, frame: 0, real: 0, scale: 1 },
       quality: UM(n.q || (n.shot ? "test" : "")),
+      // a phone or tablet, whatever preset it is set to (the zombies keep their maps small)
+      handheld: isHandheld(),
       util: { mergeStatic: ig },
     };
     document.documentElement.dataset.quality = t.quality.name;
