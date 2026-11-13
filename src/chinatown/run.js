@@ -42,7 +42,9 @@ import {
   dishTossed,
   dishHot,
   dishStep,
-  dishFrac,
+  dishAt,
+  dishSteps,
+  dishLeft,
   dishGrade,
   timedElite,
 } from "./runflow.js";
@@ -531,18 +533,20 @@ export function createRun(G, hooks) {
       );
     }
   });
-  function fillHands(what) {
+  // charred: (packing) what goes into the pail is charcoal
+  function fillHands(what, charred = false) {
     S.hands = what;
     closeWheel();
     if (wokHands) {
       if (what === "wok") wokHands.startToss();
-      else wokHands.startPack();
+      else wokHands.startPack(charred);
     }
     loadout.carry(wokHands ? wokHands[what] : null);
   }
   function freeHands() {
     if (!S.hands) return;
     S.hands = "";
+    hud.setHands(false);
     loadout.uncarry();
   }
   // fire off the wok: the dead in front of the cook burn and are thrown back
@@ -586,10 +590,11 @@ export function createRun(G, hooks) {
   }
 
   // ---------- a dish on a stove
-  // The rules are runflow.js's (newDish, dishStep): three tosses, a hold after each, then
-  // packing. What is the cook's to do is done here: taking the wok up and starting to pack
-  // are one press of the interact key at the stove (no holding: the tossing is what takes
-  // the time), and the wok goes back by itself once tossed and carried within reach.
+  // The rules are runflow.js's (newDish, dishStep): three tosses, the dish frying by itself
+  // after each, then packing; a dish left waiting catches, and left longer is charred.
+  // What is the cook's to do is done here: taking the wok up and starting to pack are one
+  // press of the interact key at the stove (no holding: the tossing is what takes the
+  // time), and the wok goes back by itself once tossed and carried within reach.
   let useWas = false;
   function cookTick(dt) {
     const c = S.cook;
@@ -602,7 +607,7 @@ export function createRun(G, hooks) {
       : Infinity;
     const level = Math.abs((c.pos.y || 0) - P.pos.y) < 2.5;
     const home = level && dist < K.toss.reach;
-    // the cook's part: hold the key by the stove
+    // the cook's part: one press of the key by the stove
     const can =
       home && !S.picking && (c.phase === "due" || c.phase === "ready");
     const useDown = !!(I && I.down && I.down("interact"));
@@ -615,7 +620,7 @@ export function createRun(G, hooks) {
         setStove(c.o, "toss");
         smell(c);
       } else if (dishPack(c)) {
-        fillHands("pack");
+        fillHands("pack", c.charred);
         setStove(c.o, "served");
         play("gear_rustle", { gain: 0.9 });
         c.beat = 0;
@@ -624,17 +629,17 @@ export function createRun(G, hooks) {
       hooks.refreshObjective();
     }
     c.can = can && (c.phase === "due" || c.phase === "ready");
-    for (const ev of dishStep(c, dt, { near: dist < K.radius, home })) {
+    // the first dish of a run is talked through, a step at a time; after it the radio only
+    // says what has happened
+    const first = c.n === 0;
+    for (const ev of dishStep(c, dt, { home })) {
       if (ev === "flip") flare();
-      else if (ev === "tossed") {
-        if (!home) hud.toast(L10N.t("run.toast.tossed"), "gold");
-        hooks.refreshMarkers();
-      } else if (ev === "down") {
+      else if (ev === "down") {
         freeHands();
         setStove(c.o, "cook");
         play("wok_down", { gain: 1 });
         S.spawnT = 0;
-        hooks.refreshMarkers();
+        if (first && c.k === 0) hooks.radio(L10N.t("radio.teach.fry"), 4.2);
       } else if (ev === "packs") {
         for (let i = 0; i < K.packs[c.k]; i++) spawnPack();
       } else if (ev === "elite") {
@@ -643,18 +648,24 @@ export function createRun(G, hooks) {
       } else if (ev === "due") {
         setStove(c.o, "due");
         play("run_bell", { gain: 0.8, pitch: 1.2 });
-        hud.toast(L10N.t("run.toast.due"), "warn");
-        hooks.refreshMarkers();
-      } else if (ev === "scorched") {
-        hud.toast(L10N.t("run.toast.scorched"), "warn");
-        play("run_bell", { gain: 0.7, pitch: 0.55 });
+        if (first && c.k === 1) hooks.radio(L10N.t("radio.teach.due"), 3.4);
       } else if (ev === "ready") {
         setStove(c.o, "ready");
         play("run_bell", { gain: 1 });
         hooks.radio(L10N.t("radio.ready"), 3.4);
-        hooks.refreshMarkers();
+      } else if (ev === "scorched") {
+        hud.toast(L10N.t("run.toast.scorched"), "warn");
+        play("run_bell", { gain: 0.7, pitch: 0.55 });
+      } else if (ev === "charred") {
+        // (whatever it was waiting for, it can only be packed now)
+        setStove(c.o, "ready");
+        hud.toast(L10N.t("run.toast.charred"), "warn");
+        play("run_bell", { gain: 0.8, pitch: 0.4 });
       } else if (ev === "served") serve(c);
-      if (ev !== "flip" && ev !== "served") hooks.refreshObjective();
+      if (ev !== "flip" && ev !== "served") {
+        hooks.refreshObjective();
+        hooks.refreshMarkers();
+      }
     }
     if (S.cook !== c) return;
     // the hands (the model may only have arrived after they were filled)
@@ -669,7 +680,7 @@ export function createRun(G, hooks) {
     } else if (wokHands && S.hands === "pack") {
       const u = c.t / K.pack;
       wokHands.setPack(u);
-      wokHands.steam(dt, wokHands.pack);
+      if (!c.charred) wokHands.steam(dt, wokHands.pack);
       // the beats of it, heard: the lid, the ticket, the bag
       const beats = [
         [0.6, "wok_down", 0.5, 1.6],
@@ -681,27 +692,45 @@ export function createRun(G, hooks) {
         play(name, { gain, pitch });
       }
     }
-    // the bar under the clock
-    const tossed = dishTossed(c);
+    // a dish that has caught says so where it stands: black smoke off the wok
+    if (wokHands && (c.caught || c.charred) && c.phase !== "pack") {
+      tmp.set(c.pos.x, (c.pos.y || 0) + 1.1, c.pos.z);
+      wokHands.smoke(tmp, dt, c.charred);
+    }
+    // the ticket under the course name: every step of the dish, and what to do now
+    const left = dishLeft(c);
+    const waits = c.phase === "due" || c.phase === "ready";
+    let key = c.phase;
+    let s = 0;
+    let frac = 1;
+    let urgent = false;
+    if (c.phase === "toss") {
+      key = dishTossed(c) ? "back" : "toss";
+      frac = c.t / K.toss.seconds;
+    } else if (c.phase === "fry") {
+      key = c.k < K.fry.length - 1 ? "fry" : "fryLast";
+      s = K.fry[c.k] - c.t;
+      frac = c.t / K.fry[c.k];
+    } else if (waits && c.charred) {
+      key = "charred";
+      urgent = true;
+    } else if (waits) {
+      key = c.phase + (c.caught ? "Late" : "");
+      s = left;
+      frac = left / (c.caught ? K.char : K.burn);
+      urgent = c.caught || left < 6;
+    } else if (c.phase === "pack") frac = c.t / K.pack;
     hud.setCook({
-      phase: c.away ? "away" : c.phase === "toss" && tossed ? "back" : c.phase,
-      k: Math.min(c.k, K.hold.length - 1),
-      of: K.hold.length,
-      scorched: c.scorched,
-      frac:
-        c.phase === "toss"
-          ? c.t / K.toss.seconds
-          : c.phase === "hold"
-            ? c.t / K.hold[c.k]
-            : c.phase === "due"
-              ? c.k > 0 && !c.scorched
-                ? 1 - c.wait / K.burn
-                : 1
-              : c.phase === "pack"
-                ? c.t / K.pack
-                : 1,
-      whole: dishFrac(c),
+      steps: dishSteps(),
+      at: dishAt(c),
+      key,
+      s: Math.max(0, Math.ceil(s)),
+      frac,
+      urgent,
+      late: c.late,
+      charred: c.charred,
     });
+    hud.setHands(!!S.hands);
   }
   // The dead already in the street get wind of the dish: those within RUN.stove.smell of the
   // stove at this toss stop wandering and come. Further with every toss: the street does not
@@ -735,7 +764,7 @@ export function createRun(G, hooks) {
     // (the timed elites start again, but not on the heels of this)
     S.eliteAt = Math.max(S.eliteAt, S.t + RUN.stove.eliteAfter);
     const dish = S.menu.shift() || RUN.dishes[0];
-    const d = dishOf(dish, dishGrade(c));
+    const d = dishOf(dish, dishGrade(c), c.charred);
     const P = G.player;
     if (d.health) S.bonusHealth += d.health;
     if (d.cap) S.bonusCap += d.cap;
@@ -754,18 +783,22 @@ export function createRun(G, hooks) {
       } catch {}
       dropEnvelope(tmp);
     }
-    hud.toast(
-      L10N.t("run.dish." + dish, {
-        n: d.health || Math.round(d.cap * 100) || d.envelopes,
-      }),
-      "gold",
-    );
-    if (c.scorched) hud.toast(L10N.t("run.dish.scorched"), "warn");
-    play("complete", { gain: 0.5, pitch: 1.2 });
+    if (c.charred) hud.toast(L10N.t("run.dish.charred"), "warn");
+    else {
+      hud.toast(
+        L10N.t("run.dish." + dish, {
+          n: d.health || Math.round(d.cap * 100) || d.envelopes,
+        }),
+        "gold",
+      );
+      if (c.late) hud.toast(L10N.t("run.dish.scorched", { n: c.late }), "warn");
+    }
+    play("complete", { gain: 0.5, pitch: c.charred ? 0.7 : 1.2 });
     G.events.emit("run:dish", {
       n: S.served,
       dish,
-      scorched: c.scorched,
+      late: c.late,
+      charred: c.charred,
       t: S.t,
     });
     if (S.served >= stoveCount()) {
@@ -1807,14 +1840,11 @@ export function createRun(G, hooks) {
       if (S.bossSeen) return L10N.t("run.obj.boss");
       const left = stoveCount() - S.served;
       if (left <= 0) return L10N.t("run.obj.bossDue");
-      const c = S.cook;
-      if (!c) return L10N.t("run.obj.light", { n: left });
-      if (c.phase === "pack") return L10N.t("run.cook.pack");
-      if (c.phase === "ready") return L10N.t("run.obj.pack");
-      if (c.phase === "due") return L10N.t("run.obj.toss");
-      if (c.phase === "toss")
-        return L10N.t(dishTossed(c) ? "run.obj.back" : "run.obj.tossing");
-      return L10N.t("run.obj.hold");
+      // (what to do with the dish that is on is the ticket's to say, under the course name)
+      return L10N.t(S.cook ? "run.obj.dish" : "run.obj.light", {
+        n: S.served,
+        of: stoveCount(),
+      });
     },
     // extra compass and world markers; pos objects are live, so elites are tracked as they move
     markers() {
@@ -1911,14 +1941,15 @@ export function createRun(G, hooks) {
         }
       },
       // the dish on the stove, moved on to the end of what it is doing now (a toss made, a
-      // hold held, the wait for a toss run out, the packing done)
+      // fry done, a wait run out so that it catches or chars, the packing done)
       skipDish() {
         const c = S.cook;
         if (!c) return null;
         const K = RUN.stove;
         if (c.phase === "toss") c.t = Math.max(c.t, K.toss.seconds - 0.02);
-        else if (c.phase === "hold") c.t = K.hold[c.k] - 0.02;
-        else if (c.phase === "due") c.wait = K.burn;
+        else if (c.phase === "fry") c.t = K.fry[c.k] - 0.02;
+        else if (c.phase === "due" || c.phase === "ready")
+          c.wait = (c.caught ? K.burn + K.char : K.burn) - 0.02;
         else if (c.phase === "pack") c.t = K.pack - 0.02;
         return c.phase;
       },

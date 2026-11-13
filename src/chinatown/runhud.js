@@ -36,9 +36,9 @@ export function createRunHud(G) {
   const cook = el(
     "div",
     "rl-cook",
-    '<span class="rl-cook-n"></span><div class="rl-cook-bar"><i></i></div><div class="rl-cook-w"><i></i></div>',
+    '<div class="rl-steps"></div><span class="rl-cook-n"></span><div class="rl-cook-bar"><i></i></div>',
   );
-  const cookWhole = cook.querySelector(".rl-cook-w i");
+  const cookSteps = cook.querySelector(".rl-steps");
   const cookName = cook.querySelector(".rl-cook-n");
   const cookFill = cook.querySelector(".rl-cook-bar i");
   const bossName = boss.querySelector(".rl-boss-n");
@@ -92,11 +92,17 @@ export function createRunHud(G) {
   const ammoBlock = G.hud && G.hud.root && G.hud.root.querySelector(".h-ammo");
   const altLine = ammoBlock && ammoBlock.querySelector(".h-alt");
   if (ammoBlock) ammoBlock.insertBefore(wlv, altLine || null);
+  // and what stands there instead of the rounds while the hands are full
+  const handsEl = el("div", "rl-hands");
+  handsEl.textContent = L10N.t("run.hands");
+  if (ammoBlock) ammoBlock.appendChild(handsEl);
 
   const last = {
     bags: "",
     stage: "",
-    cookWhole: -1,
+    cookSteps: "",
+    cookAt: "",
+    hands: null,
     xp: -1,
     level: -1,
     wlv: "",
@@ -315,10 +321,12 @@ export function createRunHud(G) {
       last.wlv = key;
       wlv.innerHTML = level > 0 ? PIPS(level, max) : "";
     },
-    // The dish on a stove: null, or { phase, k, of, frac, whole, scorched }.
-    // phase: "toss" | "back" (tossed: the wok goes back on its stove) | "hold" | "away"
-    // (the stove is not being held) | "due" (it wants its next toss) | "ready" | "pack";
-    // k of `of`: which toss or hold; frac: how far through this step; whole: through the dish.
+    // The dish on a stove, as a ticket: every step of it in a row (done, doing, to come)
+    // and one line under them saying what to do now. null, or
+    // { steps: ["toss", "fry", ..., "pack"], at: which is being done, key: the line
+    //   ("run.cook." + key, with s: whole seconds, where it counts any), frac: how far
+    //   through (the bar), urgent: it is about to catch or has, late: times it caught,
+    //   charred }.
     setCook(info) {
       const on = !!info;
       cookInfo = info;
@@ -327,25 +335,50 @@ export function createRunHud(G) {
         cook.classList.toggle("on", on);
       }
       if (!on) return;
-      const key =
-        info.phase + ":" + info.k + (info.scorched ? "s" : "") + L10N.locale();
+      const stepsKey = info.steps.join(",") + L10N.locale();
+      if (stepsKey !== last.cookSteps) {
+        last.cookSteps = stepsKey;
+        last.cookAt = "";
+        cookSteps.innerHTML = info.steps
+          .map((k) => `<i class="s-${k}">${L10N.t("run.step." + k)}</i>`)
+          .join("<u></u>");
+      }
+      const atKey =
+        info.at + (info.urgent ? "!" : "") + (info.charred ? "x" : "");
+      if (atKey !== last.cookAt) {
+        last.cookAt = atKey;
+        [...cookSteps.querySelectorAll("i")].forEach((el, i) => {
+          el.classList.toggle("done", i < info.at);
+          el.classList.toggle("cur", i === info.at);
+        });
+        [...cookSteps.querySelectorAll("u")].forEach((el, i) =>
+          el.classList.toggle("done", i < info.at),
+        );
+        cook.classList.toggle("urgent", !!info.urgent);
+        cook.classList.toggle("charred", !!info.charred);
+      }
+      const key = info.key + ":" + info.s + ":" + info.late + L10N.locale();
       if (key !== last.cookKey) {
         last.cookKey = key;
-        cookName.textContent =
-          L10N.t("run.cook." + info.phase, { k: info.k + 1, of: info.of }) +
-          (info.scorched ? "　" + L10N.t("run.cook.scorched") : "");
-        cook.className = "rl-cook on p-" + info.phase;
+        cookName.innerHTML =
+          L10N.t("run.cook." + info.key, { s: info.s }) +
+          (info.late && !info.charred
+            ? `<em>${L10N.t("run.cook.late", { n: info.late })}</em>`
+            : "");
+        cook.dataset.k = info.key;
       }
       const f = Math.round(Math.max(0, Math.min(1, info.frac)) * 250) / 250;
       if (f !== last.cook) {
         last.cook = f;
         cookFill.style.transform = `scaleX(${f})`;
       }
-      const w = Math.round(Math.max(0, Math.min(1, info.whole)) * 250) / 250;
-      if (w !== last.cookWhole) {
-        last.cookWhole = w;
-        cookWhole.style.transform = `scaleX(${w})`;
-      }
+    },
+    // both hands are full of the wok or the packing: where the weapon's rounds are shown,
+    // it says so instead
+    setHands(on) {
+      if (on === last.hands) return;
+      last.hands = on;
+      if (hudRoot) hudRoot.classList.toggle("hands-full", !!on);
     },
     // info: null or { key, frac }
     setBoss(info) {
@@ -407,6 +440,7 @@ export function createRunHud(G) {
       root.classList.remove("pick");
       api.setBoss(null);
       api.setCook(null);
+      api.setHands(false);
       api.setSpices([]);
       api.setWeapons([]);
       api.setPools([]);
@@ -435,6 +469,7 @@ export function createRunHud(G) {
       xpLabel.textContent = L10N.t("run.xp");
       if (bossKey) bossName.textContent = L10N.t(bossKey);
       last.cookKey = "";
+      handsEl.textContent = L10N.t("run.hands");
       if (cookInfo) api.setCook(cookInfo);
       last.spices = "";
       last.weapons = "";

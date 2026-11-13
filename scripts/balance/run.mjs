@@ -70,7 +70,7 @@ import {
  *   rest     the breather between a dish served and the next stove lit
  *   react    [a, b] seconds from the wok wanting its next toss (or the dish being ready to
  *            pack) to the player being at the stove with it in hand
- *   lapse    chance a toss is not noticed until the dish has caught (RUN.stove.burn)
+ *   lapse    chance of not being back in time, so that the dish catches (RUN.stove.burn)
  *   carry    [a, b] seconds to walk the tossed wok back to its stove and set it down
  */
 export const PROFILES = {
@@ -821,7 +821,7 @@ export function simulateRun(o = {}) {
         );
       else envelope();
     }
-    // ---- the stoves: light one, toss, hold the place, toss again, pack
+    // ---- the stoves: light one, toss, let it fry, be back to toss again, pack
     // not where the stoves are: off to a crate, or running to open the distance
     const gone = !!R.trip || R.flee;
     if (
@@ -836,22 +836,30 @@ export function simulateRun(o = {}) {
       R.eliteIdle = 0;
       R.litAt.push(t);
       R.spawnT = 0;
-      // every wanderer in the street smells it
-      for (const z of F.zombies) if (z.alive) z.dull = false;
+      smell(R.cook);
+    }
+    // the dead already about get wind of the dish from further off with every toss
+    function smell(c) {
+      const reach = RUN.stove.smell;
+      const r = reach[Math.min(c.k, reach.length - 1)];
+      for (const z of F.zombies) if (z.alive && z.d < r) z.dull = false;
     }
     if (R.cook) {
       const c = R.cook;
       const K = RUN.stove;
       if (!gone && t >= R.handAt) {
-        if (c.phase === "due") dishTake(c);
-        else if (c.phase === "ready") dishPack(c);
+        if (c.phase === "due") {
+          if (dishTake(c)) smell(c);
+        } else if (c.phase === "ready") dishPack(c);
       }
+      // (it fries wherever the player is; what a trip to a crate or a flight from the dead
+      // costs is being late back to it)
       const events = dishStep(c, dt, {
-        // a trip to a crate is out of the stove's radius; running a few seconds from the
-        // dead is taken to stay inside it (thirteen metres is most of the crossing)
-        near: !R.trip,
         home: dishTossed(c) && !gone && t >= R.homeAt,
       });
+      // being back in time, or not: the same assumption for a toss and for the packing
+      const back = () =>
+        t + (rng() < prof.lapse ? K.burn + rand(0, 8) : rand(...prof.react));
       for (const e of events) {
         if (e === "flip") flare();
         else if (e === "tossed") R.homeAt = t + rand(...prof.carry);
@@ -865,17 +873,17 @@ export function simulateRun(o = {}) {
         else if (e === "elite") {
           riseElite();
           R.eliteAt = Math.max(R.eliteAt, t + K.eliteHold);
-        } else if (e === "due")
-          R.handAt =
-            t +
-            (rng() < prof.lapse ? K.burn + rand(0, 8) : rand(...prof.react));
-        else if (e === "ready") R.handAt = t + rand(...prof.react);
+        } else if (e === "due" || e === "ready") R.handAt = back();
         else if (e === "served") {
           R.cook = null;
           R.served++;
           R.servedAt.push(t);
-          if (c.scorched) R.scorched++;
-          const d = dishOf(R.menu.shift() || RUN.dishes[0], dishGrade(c));
+          if (c.late) R.scorched++;
+          const d = dishOf(
+            R.menu.shift() || RUN.dishes[0],
+            dishGrade(c),
+            c.charred,
+          );
           const P = F.player;
           R.bonusHealth += d.health;
           R.bonusCap += d.cap;
@@ -929,8 +937,8 @@ export function simulateRun(o = {}) {
     for (const z of F.zombies) if (z.alive && (!near || z.d < near.d)) near = z;
     const blade = model(R.cur).kind === "melee" && !wok;
     const speed = PLAYER.walk * (1 + spiceValue("runner", R.spice.runner));
-    // a dish on a stove ties the player to the spot: less room to back away
-    const away = R.trip ? 1 : prof.kite * (R.cook ? 0.6 : 1);
+    // the wok in both hands is carried at a walk: less room to back away
+    const away = R.trip ? 1 : prof.kite * (wok ? 0.6 : 1);
     // Badly hurt: turn and run to open the distance, then face them again. With wounds that
     // close by themselves the player stays away until they have; without, a few seconds
     // is all it buys (and a chance to reach a box of food).

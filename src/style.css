@@ -1014,6 +1014,28 @@ kbd {
   display: none;
 }
 /* a blade has no magazine: only its name and level stay */
+/* in a run the dishes packed are counted under the course name, not here */
+.hud.in-run .h-relays {
+  display: none;
+}
+/* both hands full of the wok: no rounds to show, it says why nothing fires */
+.rl-hands {
+  display: none;
+  font: 800 17px/1.2 var(--f-display);
+  letter-spacing: var(--trk-m);
+  color: var(--brass);
+  text-align: right;
+}
+.hud.hands-full .rl-hands {
+  display: block;
+}
+.hud.hands-full .h-ammo-row,
+.hud.hands-full .h-pips,
+.hud.hands-full .h-cue,
+.hud.hands-full .h-wname,
+.hud.hands-full .rl-wlv {
+  display: none;
+}
 .hud.no-mag .h-ammo-row,
 .hud.no-mag .h-pips,
 .hud.no-mag .h-cue {
@@ -1159,30 +1181,105 @@ kbd {
   transition: transform 0.12s linear;
 }
 
-/* a dish on a stove: how far along it is, under the clock */
+/* A dish on a stove, as an order ticket under the course name: its steps in a row, and
+   one line saying what to do now. */
 .rl-cook {
   position: absolute;
-  top: calc(124px + var(--sat));
+  top: calc(120px + var(--sat));
   left: 50%;
-  width: min(300px, 50vw);
+  width: max-content;
+  max-width: 92vw;
   transform: translateX(-50%);
+  padding: 9px 14px 10px;
   text-align: center;
+  background: rgba(7, 8, 10, 0.62);
+  border: 1px solid var(--line-2);
+  border-radius: 2px;
   opacity: 0;
   transition: opacity 0.3s;
 }
 .rl-cook.on {
   opacity: 1;
 }
-.rl-cook-n {
-  font: 800 14px/1 var(--f-display);
-  letter-spacing: var(--trk-m);
+.rl-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rl-steps i {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 1.5px solid rgba(240, 232, 214, 0.4);
+  border-radius: 50%;
+  font: 700 13px/23px var(--f-ui);
+  font-style: normal;
+  color: rgba(240, 232, 214, 0.55);
+}
+/* (a fry is the wait between two things to do: smaller than they are) */
+.rl-steps i.s-fry {
+  width: 22px;
+  height: 22px;
+  font: 600 11px/19px var(--f-ui);
+  border-style: dashed;
+}
+/* (a word, not a character, in the Latin script: a pill instead of a disc) */
+html[data-script="latin"] .rl-steps i {
+  width: auto;
+  padding: 0 7px;
+  border-radius: 13px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+html[data-script="latin"] .rl-steps u {
+  width: 6px;
+}
+.rl-steps u {
+  flex: none;
+  width: 12px;
+  height: 1.5px;
+  background: rgba(240, 232, 214, 0.3);
+}
+.rl-steps i.done {
+  border-color: var(--jade);
+  border-style: solid;
+  background: var(--jade);
+  color: #07130f;
+}
+.rl-steps u.done {
+  background: var(--jade);
+}
+.rl-steps i.cur {
+  border-color: var(--brass);
+  border-style: solid;
   color: var(--brass);
+  box-shadow: 0 0 10px rgba(232, 195, 124, 0.55);
+  transform: scale(1.18);
+}
+.rl-cook-n {
+  display: block;
+  margin-top: 9px;
+  font: 800 16px/1.15 var(--f-display);
+  letter-spacing: var(--trk-m);
+  color: var(--paper);
+  white-space: nowrap;
+}
+/* how many times it has caught */
+.rl-cook-n em {
+  margin-left: 10px;
+  padding: 2px 6px;
+  font: 700 11px/1 var(--f-ui);
+  font-style: normal;
+  color: #07080a;
+  background: var(--cinnabar-hot);
+  border-radius: 2px;
+  vertical-align: 2px;
 }
 .rl-cook-bar {
-  height: 6px;
-  margin-top: 6px;
-  background: rgba(7, 8, 10, 0.55);
-  border: 1px solid var(--line-2);
+  height: 4px;
+  margin-top: 8px;
+  background: rgba(240, 232, 214, 0.14);
   border-radius: 1px;
   overflow: hidden;
 }
@@ -1190,59 +1287,42 @@ kbd {
   display: block;
   height: 100%;
   background: var(--brass);
-  box-shadow: 0 0 8px rgba(232, 195, 124, 0.7);
   transform-origin: 0 50%;
   transition: transform 0.12s linear;
 }
 /* a toss and the packing show their own progress, in the cook's hands */
-.rl-cook.p-toss .rl-cook-bar,
-.rl-cook.p-back .rl-cook-bar,
-.rl-cook.p-pack .rl-cook-bar {
-  display: none;
+.rl-cook[data-k="toss"] .rl-cook-bar,
+.rl-cook[data-k="back"] .rl-cook-bar,
+.rl-cook[data-k="pack"] .rl-cook-bar,
+.rl-cook[data-k="charred"] .rl-cook-bar {
+  visibility: hidden;
 }
-/* under it, thin: how far through the whole dish */
-.rl-cook-w {
-  height: 2px;
-  margin-top: 3px;
-  background: rgba(7, 8, 10, 0.45);
-  overflow: hidden;
+/* something to do at the stove: go */
+.rl-cook[data-k="back"] .rl-cook-n,
+.rl-cook[data-k="due"] .rl-cook-n,
+.rl-cook[data-k="ready"] .rl-cook-n {
+  color: var(--brass);
 }
-.rl-cook-w i {
-  display: block;
-  height: 100%;
-  background: var(--jade);
-  transform-origin: 0 50%;
-  transition: transform 0.2s linear;
+/* about to catch, or caught: the whole ticket says so */
+.rl-cook.urgent {
+  border-color: var(--cinnabar-hot);
 }
-/* the stove is not being held, or the wok has waited too long: it wants the cook back */
-.rl-cook.p-away .rl-cook-n,
-.rl-cook.p-due .rl-cook-n {
+.rl-cook.urgent .rl-cook-n {
   color: var(--cinnabar-hot);
-  animation: cook-away 0.7s ease-in-out infinite alternate;
+  animation: cook-away 0.6s ease-in-out infinite alternate;
+}
+.rl-cook.urgent .rl-cook-bar i {
+  background: var(--cinnabar-hot);
+}
+.rl-cook.urgent .rl-steps i.cur {
+  border-color: var(--cinnabar-hot);
+  color: var(--cinnabar-hot);
+  box-shadow: 0 0 10px rgba(244, 88, 63, 0.6);
 }
 @keyframes cook-away {
   to {
-    opacity: 0.45;
+    opacity: 0.5;
   }
-}
-.rl-cook.p-away .rl-cook-bar i,
-.rl-cook.p-due .rl-cook-bar i {
-  background: var(--cinnabar-hot);
-  box-shadow: none;
-}
-.rl-cook.p-away .rl-cook-bar i {
-  opacity: 0.6;
-}
-/* tossed, or done: something to carry back or to pack */
-.rl-cook.p-back .rl-cook-n,
-.rl-cook.p-ready .rl-cook-n {
-  color: var(--jade);
-  animation: cook-away 0.9s ease-in-out infinite alternate;
-}
-.rl-cook.p-back .rl-cook-bar i,
-.rl-cook.p-ready .rl-cook-bar i {
-  background: var(--jade);
-  box-shadow: 0 0 8px rgba(120, 200, 160, 0.6);
 }
 .rl.pick .rl-cook,
 .rl.wheel .rl-cook {

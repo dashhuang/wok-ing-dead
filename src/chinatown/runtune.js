@@ -228,14 +228,14 @@ export const RUN = {
   // course, at `bossAt`) comes `boss.after` seconds after the third dish is packed. So the
   // street gets hotter with every stove, and only slowly for a player who lights none.
   simmer: 0.5,
-  // One dish is three tosses of the wok, a spell of holding the stove after each, then
-  // packing. To toss, the wok is taken off the fire in both hands (through a towel): no
+  // One dish is three tosses of the wok, the dish frying by itself on its stove after each,
+  // then packing. To toss, the wok is taken off the fire in both hands (through a towel): no
   // weapon while it is up, but the cook may walk, and every flip throws fire out in front.
-  // Once tossed it has to go back on its stove, and the dead come for the smell of it until
-  // the hold is over. Left waiting for its second or third toss too long, the dish catches:
-  // it is still served, one grade worse.
+  // Once tossed it has to go back on its stove. While it fries the cook is free to go
+  // anywhere; what the cook has to do is be back when it is time: a dish left waiting for
+  // its toss, or to be packed, catches, and each time it does it is served a grade worse.
+  // Left longer still it is charred: it packs, and counts, and pays nothing.
   stove: {
-    radius: 13, // a hold counts only while the player is within this of the stove
     toss: {
       seconds: 3, // of tossing, wok in hands
       flips: 3, // flips in that time
@@ -244,10 +244,11 @@ export const RUN = {
       // radians of where the cook looks, `damage`, `burn` stacks of fire and a shove
       flare: { range: 4.2, half: 0.8, damage: 45, burn: 2, knock: 0.7 },
     },
-    hold: [20, 25, 30], // seconds of holding the place after the first, second, third toss
-    packs: [0, 2, 0], // packs of the fast dead a hold opens with,
+    fry: [20, 25, 30], // seconds it fries after the first, second, third toss
+    packs: [0, 2, 0], // packs of the fast dead that stretch opens with,
     elite: [false, false, true], // and whether an elite comes with it
-    burn: 15, // seconds the wok may wait for its second or third toss before the dish catches
+    burn: 15, // seconds it may wait for its next toss, or to be packed, before it catches
+    char: 30, // and how much longer before it is charred
     pack: 2.6, // seconds of packing the finished dish (hands full again)
     // (a dish is on for the better part of two minutes, not forty seconds as it once was:
     // the crowd it draws is thinner than it used to be)
@@ -257,15 +258,15 @@ export const RUN = {
     hotter: { every: 0.85, alive: 3 }, // and again for every stove lit before this one
     // The crowd builds with the dish instead of arriving all at once. swell: the share of
     // that crowd (how many may be up, and how fast they rise) during the first, second and
-    // third toss and the hold after each: a few while the wok is first in the cook's hands,
+    // third toss and the fry after each: a few while the wok is first in the cook's hands,
     // the most once the last toss is made. smell: how far (metres) the dead already in the
     // street get wind of it at each of the three.
     swell: [0.3, 0.65, 1],
     smell: [14, 32, 400],
     eliteHold: 45, // the next timed elite is put off at least this long after a dish's own
     eliteAfter: 20, // and at least this long after a dish is packed
-    // What every dish gives. Lists are by its grade: which stove it is (0-2), one better
-    // when it never caught.
+    // What every dish gives. Lists are by its grade: which stove it is (0-2), one better,
+    // less one for every time it caught (not below the first).
     heal: [0.3, 0.4, 0.5, 0.6], // share of full health
     envelopes: 1,
     // The three specials: one to a stove, dealt at random every run and not shown beforehand.

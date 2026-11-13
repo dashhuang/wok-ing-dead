@@ -208,12 +208,18 @@ export function clockStep(
 }
 
 // ---------- a dish on a stove
-// Three tosses, a hold after each, then packing. The phases, in order:
-//   "due"   the wok waits on the stove for toss k (after too long the dish catches)
+// Three tosses of the wok, the dish frying by itself on the stove after each, then packing.
+// Nothing ties the cook to the stove while it fries; what the cook must do is come back when
+// it is time. The phases, in order:
 //   "toss"  the wok is in the cook's hands; once tossed it has to be set down on its stove
-//   "hold"  it is back on the fire and the place has to be held
-//   "ready" three tosses done: waiting to be packed
+//   "fry"   it is back on the fire and fries by itself, wherever the cook is
+//   "due"   it wants its next toss: the cook has to come back and take the wok up
+//   "ready" three tosses done and fried: it waits to be packed
 //   "pack"  being packed            "done" served
+// Left waiting ("due", "ready") longer than RUN.stove.burn the dish catches: one grade worse
+// for every time that happens. Left RUN.stove.char longer still it is charred: there is
+// nothing more to do to it but pack it, and it pays nothing (it still counts as a dish
+// served, or a run could never end).
 // dishStep moves it on and says what happened; taking the wok up and starting to pack are
 // the cook's to do (dishTake, dishPack).
 
@@ -222,12 +228,13 @@ export function newDish(n = 0) {
   return {
     n,
     phase: "toss",
-    k: 0, // which toss (0-2) is due, in hand or being held after
+    k: 0, // which toss (0-2) is in hand, frying or wanted
     t: 0, // seconds into the phase
-    wait: 0, // seconds the wok has waited for its toss
+    wait: 0, // seconds it has waited for the cook ("due", "ready")
     flips: 0, // flips made in this toss
-    scorched: false,
-    away: false, // the place is not being held: the cook has wandered off
+    late: 0, // times it was left to catch
+    caught: false, // it has caught during this wait
+    charred: false,
   };
 }
 
@@ -240,7 +247,7 @@ export function dishTake(c) {
   return true;
 }
 
-/** The cook starts packing a finished dish. */
+/** The cook starts packing a finished (or charred) dish. */
 export function dishPack(c) {
   if (c.phase !== "ready") return false;
   c.phase = "pack";
@@ -252,31 +259,52 @@ export function dishPack(c) {
 export const dishTossed = (c) =>
   c.phase === "toss" && c.t >= RUN.stove.toss.seconds;
 
-/** The dish draws the dead (the stove's extra crowd, the doubled wok hei): until its last hold is over. */
+/** The dish draws the dead (the stove's extra crowd): until its last fry is over. */
 export const dishHot = (c) =>
-  !!c && (c.phase === "due" || c.phase === "toss" || c.phase === "hold");
+  !!c && (c.phase === "due" || c.phase === "toss" || c.phase === "fry");
 
 /**
- * One step of a dish. near: the cook is within RUN.stove.radius of the stove; home: within
- * RUN.stove.toss.reach of it. Returns what happened, in order:
+ * Seconds a waiting dish has left: until it catches, or once it has, until it is charred.
+ * null when it is not waiting, or has nothing left to lose.
+ */
+export function dishLeft(c) {
+  const K = RUN.stove;
+  if ((c.phase !== "due" && c.phase !== "ready") || c.charred) return null;
+  return c.caught ? K.burn + K.char - c.wait : K.burn - c.wait;
+}
+
+/**
+ * One step of a dish. home: the cook is within RUN.stove.toss.reach of the stove (where a
+ * tossed wok is set down). Returns what happened, in order:
  *   "flip"      the wok was flipped (fire goes out in front of the cook)
  *   "tossed"    the toss is done: the wok can go back
- *   "down"      it is back on the stove and the hold begins; with it "packs" and "elite" when
- *               that hold opens with them
- *   "due"       the hold is over: the next toss is wanted
- *   "scorched"  it waited too long
- *   "ready"     the last hold is over: it can be packed
+ *   "down"      it is back on the stove and fries; with it "packs" and "elite" when that
+ *               stretch opens with them
+ *   "due"       it has fried: the next toss is wanted
+ *   "ready"     the last fry is over: it can be packed
+ *   "scorched"  it waited too long and caught
+ *   "charred"   and longer still: it is charcoal now, to be packed as it is
  *   "served"    packed
  */
-export function dishStep(c, dt, { near = true, home = true } = {}) {
+export function dishStep(c, dt, { home = true } = {}) {
   const K = RUN.stove;
   const ev = [];
-  c.away = false;
-  if (c.phase === "due") {
+  if (c.phase === "due" || c.phase === "ready") {
+    if (c.charred) return ev;
     c.wait += dt;
-    if (c.k > 0 && !c.scorched && c.wait >= K.burn) {
-      c.scorched = true;
+    if (!c.caught && c.wait >= K.burn) {
+      c.caught = true;
+      c.late++;
       ev.push("scorched");
+    }
+    if (c.wait >= K.burn + K.char) {
+      c.charred = true;
+      ev.push("charred");
+      // (nothing is left to toss: what is in the wok can only be packed)
+      if (c.phase === "due") {
+        c.phase = "ready";
+        c.k = K.fry.length;
+      }
     }
   } else if (c.phase === "toss") {
     const T = K.toss;
@@ -294,20 +322,20 @@ export function dishStep(c, dt, { near = true, home = true } = {}) {
       if (c.t >= T.seconds) ev.push("tossed");
     }
     if (c.t >= T.seconds && home) {
-      c.phase = "hold";
+      c.phase = "fry";
       c.t = 0;
       ev.push("down");
       if (K.packs[c.k]) ev.push("packs");
       if (K.elite[c.k]) ev.push("elite");
     }
-  } else if (c.phase === "hold") {
-    if (near) c.t += dt;
-    else c.away = true;
-    if (c.t >= K.hold[c.k]) {
+  } else if (c.phase === "fry") {
+    c.t += dt;
+    if (c.t >= K.fry[c.k]) {
       c.k++;
       c.t = 0;
       c.wait = 0;
-      if (c.k < K.hold.length) {
+      c.caught = false;
+      if (c.k < K.fry.length) {
         c.phase = "due";
         ev.push("due");
       } else {
@@ -325,28 +353,36 @@ export function dishStep(c, dt, { near = true, home = true } = {}) {
   return ev;
 }
 
-/** How far along a dish is, 0-1, over its tosses and holds (packing is not counted). */
-export function dishFrac(c) {
-  const K = RUN.stove;
-  const total = K.hold.reduce((a, b) => a + b + K.toss.seconds, 0);
-  let done = 0;
-  for (let i = 0; i < Math.min(c.k, K.hold.length); i++)
-    done += K.hold[i] + K.toss.seconds;
-  if (c.phase === "toss") done += Math.min(c.t, K.toss.seconds);
-  else if (c.phase === "hold") done += K.toss.seconds + c.t;
-  return Math.min(1, done / total);
+/**
+ * Which of a dish's steps it is at, from 0: toss, fry, toss, fry, toss, fry, pack (see
+ * dishSteps). A wok waiting for its toss, in hand or on its way back is at that toss.
+ */
+export function dishAt(c) {
+  const n = RUN.stove.fry.length;
+  if (c.phase === "ready" || c.phase === "pack" || c.phase === "done")
+    return 2 * n;
+  return Math.min(n - 1, c.k) * 2 + (c.phase === "fry" ? 1 : 0);
 }
 
-/** The grade of a dish (0-3): which stove it is, one better when it never caught. */
+/** The steps of a dish, in order: "toss" and "fry" in turn, then "pack". */
+export function dishSteps() {
+  const out = [];
+  for (let i = 0; i < RUN.stove.fry.length; i++) out.push("toss", "fry");
+  out.push("pack");
+  return out;
+}
+
+/** The grade of a dish (0-3): which stove it is, one better, less one for every time it caught. */
 export const dishGrade = (c) =>
-  Math.min(RUN.stove.heal.length - 1, c.n + (c.scorched ? 0 : 1));
+  Math.max(0, Math.min(RUN.stove.heal.length - 1, c.n + 1 - c.late));
 
 /**
- * What a dish gives when it is packed. dish: one of RUN.dishes; grade: from dishGrade.
- * Returns { heal (share of full health), envelopes, health (added to the
- * maximum), cap (added to the room in every pool, as a share), refill, full }.
+ * What a dish gives when it is packed. dish: one of RUN.dishes; grade: from dishGrade;
+ * charred: it was left until nothing of it was worth having. Returns { heal (share of full
+ * health), envelopes, health (added to the maximum), cap (added to the room in every pool,
+ * as a share), refill, full }.
  */
-export function dishOf(dish, grade) {
+export function dishOf(dish, grade, charred = false) {
   const S = RUN.stove;
   const at = (list) => list[Math.max(0, Math.min(grade, list.length - 1))];
   const out = {
@@ -357,6 +393,7 @@ export function dishOf(dish, grade) {
     refill: false,
     full: false,
   };
+  if (charred) return { ...out, heal: 0, envelopes: 0 };
   if (dish === "soup") {
     out.full = true;
     out.health = at(S.soup.health);

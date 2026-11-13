@@ -229,11 +229,11 @@ export default {
   "compass.315": "NW",
 
   "radio.intro":
-    "Night Watch, this is Lantern. Chinatown is lost; the truck is holding outside the checkpoint and moves in once you have three takeaway orders. The dead in the street have not noticed you yet. Three street stoves still work: light one and the smell brings them all. Each dish takes three tosses of the wok, and you cannot shoot with it in your hands. Set it back, hold the stove, and after the third toss pack it up. Ammo is in the lit supply crates.",
+    "Night Watch, this is Lantern. Chinatown is lost; the truck is holding outside the checkpoint and moves in once you have three takeaway orders. The dead in the street have not noticed you yet. Three street stoves still work: light one and the smell brings them. Each stove cooks one dish; pack it when it is done. Ammo is in the lit supply crates.",
   "radio.contact":
     "They have your scent. Head shots put them down. Do not let them close.",
   "radio.cut1":
-    "The stove is lit and the wok is in your hands. Toss it, set it back, hold the stove. The whole street can smell it — here they come.",
+    "The stove is lit. The wok is in your hands and you cannot shoot — toss it, then set it back on the stove.",
   "radio.cut2": "Second stove. Every doorway is spilling them out.",
   "radio.all":
     "All three silent. The truck is at the east checkpoint, engine running. Move.",
@@ -311,30 +311,38 @@ export default {
   "run.card.ammo.d": "Full ammo",
   "run.toast.ammo": "+{n} {a}",
   "radio.served": "Order up! While it's hot.",
-  "run.cook.away": "Back to the stove — it's going cold",
-  "run.obj.light": "Light a stove — {n} orders to go",
-  "run.obj.tossing": "Toss the wok — no weapon, keep moving",
-  "run.obj.back": "Set the wok back on its stove",
-  "run.obj.hold": "Hold the stove",
-  "run.obj.toss": "Back to the stove — toss it before it burns",
-  "run.obj.pack": "Back to the stove — pack the order",
+  "run.obj.light": "Light a stove and cook — orders {n}/{of}",
   "run.obj.bossDue": "Three orders up — it has caught the smell",
   "run.prompt.toss": "Toss the wok",
   "run.prompt.pack": "Pack the order",
-  "run.cook.toss": "Toss {k}/{of}",
-  "run.cook.back": "Tossed — set it back on the stove",
-  "run.cook.hold": "Hold the stove {k}/{of}",
-  "run.cook.due": "Toss {k} is due — it will burn",
-  "run.cook.ready": "Done — pack it at the stove",
+  "run.cook.toss": "Tossing — you cannot shoot",
+  "run.cook.back": "Set the wok back on the stove",
+  "run.cook.due": "Back to the stove and toss — burns in {s}s",
+  "run.cook.ready": "Done — pack it at the stove — burns in {s}s",
   "run.cook.pack": "Packing",
-  "run.cook.scorched": "scorched",
-  "run.toast.tossed": "Tossed — set the wok back on its stove",
-  "run.toast.due": "Time to toss the wok",
-  "run.toast.scorched": "Scorched — this order drops a grade",
-  "run.dish.scorched": "A little scorched — this order paid less",
+  "run.obj.dish": "Finish this dish — orders {n}/{of}",
+  "run.cook.fry": "Frying — back in {s}s to toss",
+  "run.cook.fryLast": "Frying — back in {s}s to pack",
+  "run.cook.dueLate": "Burnt! Toss it now — charred in {s}s",
+  "run.cook.readyLate": "Burnt! Pack it now — charred in {s}s",
+  "run.cook.charred": "Charred — pack it up at the stove",
+  "run.cook.late": "burnt ×{n}",
+  "run.step.toss": "Toss",
+  "run.step.fry": "Fry",
+  "run.step.pack": "Pack",
+  "run.hands": "Hands full — no shooting",
+  "run.toast.charred": "Charred — nothing left of this order",
+  "run.dish.charred":
+    "A bag of charcoal — it counts as an order, and that is all",
+  "radio.teach.fry":
+    "It fries by itself now; you can walk away. Be back in time to toss it again — late, and it burns.",
+  "radio.teach.due": "Time. Back to the stove, take the wok up and toss it.",
+  "run.toast.scorched": "Burnt — this order drops a grade",
+  "run.dish.scorched": "Burnt {n}× — this order dropped {n} grades",
   "run.mark.wok": "WOK",
   "run.bags": "Orders {n}/{of}",
-  "radio.ready": "That's three tosses. Back to the stove and pack it up.",
+  "radio.ready":
+    "It's done. Back to the stove and pack it — it burns if it sits.",
   "radio.lastDish":
     "That's all three. The big one has caught the smell and is on its way. Get ready.",
   "run.dish.soup": "Order up — slow broth — full health, max +{n}",
@@ -484,9 +492,9 @@ export default {
   "title.premise@docks":
     "The dead came in off the boats and the docks are theirs. Your boat will not come until three takeaway orders are packed. Same menu, more open ground: they see you from further and more of them run. Light the three stoves, cook and pack all three dishes and the House Special is served. Put it down, then get to the mooring at the south-east quay.",
   "radio.intro@docks":
-    "Warden, this is Lantern Control. The docks are lost. Your boat will not put in at the south-east quay until you have three takeaway orders. There are three stoves in the yard: toss each dish three times, hold the stove, pack it up. Count your rounds; lit supply crates are stocked, and the colour of the lamp is the kind of ammunition.",
+    "Warden, this is Lantern Control. The docks are lost. Your boat will not put in at the south-east quay until you have three takeaway orders. There are three stoves in the yard: each cooks one dish, to be packed when it is done. Count your rounds; lit supply crates are stocked, and the colour of the lamp is the kind of ammunition.",
   "radio.cut1@docks":
-    "The stove is lit and the wok is in your hands. Toss it, set it back, hold the stove. The whole yard can smell it — here they come.",
+    "The stove is lit. The wok is in your hands and you cannot shoot — toss it, then set it back on the stove.",
   "radio.cut2@docks":
     "Second stove. They're pouring out from behind every stack.",
   "radio.all@docks":

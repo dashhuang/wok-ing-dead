@@ -195,6 +195,41 @@ export function createWokHands(armory) {
     }
     return m.build("rice");
   }
+  // What a dish is when it has been left on the fire until nothing of it is food: a few
+  // black knobs fused together.
+  function coal(seed, s = 1) {
+    let k = seed * 9301 + 49297;
+    const rnd = () => ((k = (k * 233280 + 49297) % 233281), k / 233281);
+    const m = kit.M();
+    for (let i = 0; i < 5; i++) {
+      const r = (0.014 + rnd() * 0.012) * s;
+      const g =
+        rnd() < 0.4
+          ? block(r * 1.5, r * 1.2, r * 1.4)
+          : ball(r, 1, 0.8, 1, 5, 4);
+      m.add(g, iron, {
+        at: [
+          (rnd() - 0.5) * 0.04 * s,
+          (rnd() - 0.5) * 0.014 * s,
+          (rnd() - 0.5) * 0.036 * s,
+        ],
+        rot: [rnd() * TAU, rnd() * TAU, rnd() * TAU],
+      });
+    }
+    return m.build("coal");
+  }
+  // one of two things in the same place: the rice, or what is left of it charred
+  const charable = [];
+  function either(rice, char) {
+    const g = new THREE.Group();
+    g.add(rice, char);
+    char.visible = false;
+    charable.push((on) => {
+      rice.visible = !on;
+      char.visible = on;
+    });
+    return g;
+  }
   // a ladle along its own +Z: wooden grip at the origin, the bowl at the far end
   function ladle() {
     const m = kit.M();
@@ -596,7 +631,7 @@ export function createWokHands(armory) {
     // what goes into it: more than it holds
     const heap = new THREE.Group();
     for (let i = 0; i < 7; i++) {
-      const c = lump(40 + i, 1.25, 30, 5);
+      const c = either(lump(40 + i, 1.25, 30, 5), coal(40 + i, 1.3));
       const a = i * 2.39996;
       const d = i ? 0.024 : 0;
       c.position.set(Math.cos(a) * d, 0.016 + i * 0.013, Math.sin(a) * d);
@@ -606,8 +641,8 @@ export function createWokHands(armory) {
     heap.position.y = 0.02;
     pail.add(heap);
     // a ladleful on its way, and one that missed
-    const load = lump(77, 1.3, 34, 5);
-    const stray = lump(91, 1, 5, 1, false);
+    const load = either(lump(77, 1.3, 34, 5), coal(77, 1.3));
+    const stray = either(lump(91, 1, 5, 1, false), coal(91, 0.5));
     all.add(load, stray);
     const ld = ladle();
     all.add(ld);
@@ -895,9 +930,11 @@ export function createWokHands(armory) {
       toss.flips = flips;
       toss.tossed = !!tossed;
     },
-    startPack() {
+    /** charred: what is packed is not the rice but what is left of it. */
+    startPack(charred = false) {
       packing.age = 0;
       packing.u = 0;
+      for (const set of charable) set(!!charred);
     },
     setPack(u) {
       packing.u = u;
@@ -1004,6 +1041,38 @@ export function createWokHands(armory) {
           gravity: 3,
           drag: 0.5,
         });
+    },
+    /**
+     * Once a frame while a dish that has caught stands on its stove: black smoke off the wok
+     * at `pos`. heavy: it is charred, and pours.
+     */
+    smoke(pos, dt, heavy = false) {
+      if (Math.random() > dt * (heavy ? 26 : 12)) return;
+      fx.puff({
+        pos: _b.set(
+          pos.x + (Math.random() - 0.5) * 0.4,
+          pos.y,
+          pos.z + (Math.random() - 0.5) * 0.4,
+        ),
+        vel: _a.set(
+          (Math.random() - 0.5) * 0.5,
+          1.1 + Math.random() * 0.9,
+          (Math.random() - 0.5) * 0.5,
+        ),
+        life: 1.6 + Math.random() * 1.2,
+        size: [0.25, (heavy ? 1.5 : 1) * (0.9 + Math.random() * 0.6)],
+        color: [
+          [0.03, 0.03, 0.03, 1],
+          [0.12, 0.11, 0.1, 0.7],
+        ],
+        alpha: heavy ? 0.55 : 0.38,
+        type: P.SMOKE,
+        drag: 0.8,
+        gravity: -0.6,
+        fadeIn: 0.25,
+        spin: (Math.random() - 0.5) * 1.5,
+        turb: 2,
+      });
     },
     /** Once a frame while something hot is in hand: what rises off it. */
     steam(dt, model = wok) {
