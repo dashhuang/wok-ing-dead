@@ -163,7 +163,7 @@ export default {
 
   "about.title": "このバージョンについて",
   "about.body":
-    "『Wok-ing Dead（行屍走鑊）』はブラウザ用シューター Saltline を元に作られました。Saltline は Claude が制作し Felix が磨き上げた作品で、レンダラー・武器・ミッションの仕組みはそこから受け継いでいます。街並み・死者・サウンド・UI はこのバージョンのために作り直しました。",
+    "『Wok-ing Dead（守護夜排檔）』はブラウザ用シューター Saltline を元に作られました。Saltline は Claude が制作し Felix が磨き上げた作品で、レンダラー・武器・ミッションの仕組みはそこから受け継いでいます。街並み・死者・サウンド・UI はこのバージョンのために作り直しました。",
   "about.link": "オリジナルの Saltline を遊ぶ",
   "about.assets":
     "フォント：Noto Sans、Noto Serif、Inter（SIL Open Font License）。テクスチャ・小道具・効果音の出典はプロジェクトの素材ノートを参照してください。",

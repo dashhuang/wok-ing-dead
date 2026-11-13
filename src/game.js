@@ -76485,9 +76485,8 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         <div class="m-langs" role="group" data-i18n-aria="lang.label">${gmLangs("m-lang")}</div>
       </header>
       <div class="m-title-main">
-        <h1 class="m-word" id="m-word" aria-label="Wok-ing Dead">
-          <span class="m-seal" aria-hidden="true"><i>\u884C</i><i>\u5C4D</i><i>\u8D70</i><i>\u944A</i></span>
-          <span class="m-word-lat" aria-hidden="true"><span><b>Wok</b>-ing</span><span>Dead</span></span>
+        <h1 class="m-word" id="m-word">
+          <img class="brand-logo" data-logo alt="\u5B88\u62A4\u591C\u6392\u6863 Wok-ing Dead" />
         </h1>
         <p class="m-tagline" data-i18n="brand.tagline"></p>
         <p class="m-premise" data-i18n="title.premise"></p>
@@ -76526,7 +76525,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
     </section>
 
     <section class="m-screen m-card m-receipt m-dead" data-s="dead" data-i18n-aria="dead.title">
-      <div class="m-rc-head" aria-hidden="true"><b>WOK-ING DEAD</b><span>\u884C\u5C4D\u8D70\u944A</span></div>
+      <div class="m-rc-head" aria-hidden="true"><b>WOK-ING DEAD</b><span>\u5B88\u8B77\u591C\u6392\u6A94</span></div>
       <i class="m-stamp" data-i18n="dead.stamp" aria-hidden="true"></i>
       <div class="m-k" data-i18n="dead.kicker"></div>
       <h2 class="m-h" data-i18n="dead.title"></h2>
@@ -76536,7 +76535,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
     </section>
 
     <section class="m-screen m-card m-receipt m-debrief" data-s="complete" data-i18n-aria="debrief.title">
-      <div class="m-rc-head" aria-hidden="true"><b>WOK-ING DEAD</b><span>\u884C\u5C4D\u8D70\u944A</span></div>
+      <div class="m-rc-head" aria-hidden="true"><b>WOK-ING DEAD</b><span>\u5B88\u8B77\u591C\u6392\u6A94</span></div>
       <div class="m-k" data-i18n="debrief.kicker"></div>
       <h2 class="m-h" data-i18n="debrief.title"></h2>
       <div class="m-rating"><span data-i18n="debrief.rating"></span><b data-f="rating"></b></div>
@@ -76587,7 +76586,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         <p class="panel-note" data-i18n-html="ctl.notePadHtml"></p>
       </div>
       <div class="panel-b panel-about" data-pane="about" hidden>
-        <div class="about-mark" aria-hidden="true"><span class="about-seal"><i>\u884C</i><i>\u5C4D</i><i>\u8D70</i><i>\u944A</i></span><span class="about-word"><b>Wok</b>-ing Dead</span></div>
+        <div class="about-mark" aria-hidden="true"><img class="brand-logo" data-logo alt="" /></div>
         <h3 data-i18n="about.title"></h3>
         <p class="panel-p" data-i18n="about.body"></p>
         <a class="btn small about-link" href="https://claude.ai/artifact/BGY1SztrAYcJQHSsnHHGmp" target="_blank" rel="noopener" data-i18n="about.link"></a>

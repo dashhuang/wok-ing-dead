@@ -26,7 +26,7 @@ function gallery() {
       const { bytes } = await buildShowcase({
         out: path.join(site, "gallery", "index.html"),
         home: "../",
-        title: "行尸走镬 · 家伙陈列",
+        title: "守护夜排档 · 家伙陈列",
         boot: "家伙陈列 · 载入中",
       });
       console.log(

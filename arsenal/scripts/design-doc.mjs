@@ -90,7 +90,7 @@ const stats = (w) => {
 
 let md = `# 肉鸽武器设计
 
-《行尸走镬》套餐（肉鸽关卡）的武器池：12 把新武器、局内升级规则、元素与调料。
+《守护夜排档》套餐（肉鸽关卡）的武器池：12 把新武器、局内升级规则、元素与调料。
 这份文档由 \`arsenal/scripts/design-doc.mjs\` 生成，不要手改：武器读自 \`arsenal/src/data/weapons.js\`，弹匣、射速、换弹读自
 \`arsenal/src/combat/behaviours.js\`，等级、调料、弹药和僵尸的数字读自游戏本体的数值表。改了数据重新生成即可。
 模型和握法在 [arsenal/](../arsenal/README.md) 的展柜里看；要拿着打，去游戏里的靶场（见「靶场就是游戏」）。

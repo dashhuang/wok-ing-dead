@@ -175,49 +175,21 @@ kbd {
 .boot-lockup {
   display: flex;
   align-items: center;
-  gap: 18px;
+  justify-content: center;
 }
-.boot-seal,
-.m-seal,
-.about-seal {
-  --seal: 64px;
-  flex: none;
-  display: inline-grid;
-  /* reads across: 行屍 / 走鑊 */
-  grid-template-columns: 1fr 1fr;
-  place-items: center;
-  width: var(--seal);
-  height: var(--seal);
-  padding: calc(var(--seal) * 0.07);
-  font-size: calc(var(--seal) * 0.38);
-  font-family: var(--f-logo);
-  font-weight: 900;
-  font-style: normal;
-  color: #fff6ee;
-  background: var(--cinnabar);
-  box-shadow:
-    inset 0 0 0 2px var(--cinnabar),
-    inset 0 0 0 3px rgba(255, 246, 238, 0.75);
-  border-radius: 4px;
-  line-height: 1;
+/* the logo (public/assets/brand, drawn by scripts/assets/build-logo.py): a takeaway pail,
+   守护夜排档 with 夜 dripping, WOK-ING DEAD between rules. i18n picks the simplified or
+   traditional file. 1636 x 560, so its height is 0.342 of its width. */
+.brand-logo {
+  display: block;
+  height: auto;
+  aspect-ratio: 1636 / 560;
 }
-.boot-seal i,
-.m-seal i,
-.about-seal i {
-  font-style: normal;
+.boot-lockup .brand-logo {
+  width: min(460px, 82vw);
 }
-.boot-word,
-.about-word {
-  font: 900 34px/1 var(--f-display);
-  font-stretch: 62.5%;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.boot-word b,
-.about-word b,
-.m-word-lat b {
-  font-weight: inherit;
-  color: var(--cinnabar-hot);
+.about-mark .brand-logo {
+  width: min(340px, 100%);
 }
 .boot-bar {
   width: min(280px, 64vw);
@@ -2563,37 +2535,16 @@ kbd {
   max-width: 640px;
 }
 .m-word {
-  /* --w drives the whole lockup: two lines of the wordmark and a seal as tall as both */
+  /* --w drives the size of the logo: about five --w wide, as the old seal and wordmark were */
   --w: min(clamp(66px, 8.8vw, 142px), 12.4vh);
   display: flex;
   align-items: center;
-  gap: calc(var(--w) * 0.22);
   margin: 0 0 calc(var(--w) * 0.12) !important;
   line-height: 1;
 }
-.m-word .m-seal {
-  --seal: calc(var(--w) * 1.62);
-  box-shadow:
-    inset 0 0 0 3px var(--cinnabar),
-    inset 0 0 0 5px rgba(255, 246, 238, 0.8),
-    0 12px 40px -12px rgba(226, 65, 44, 0.75);
-}
-.m-word-lat {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--w) * 0.02);
-  font: 900 var(--w) / 0.8 var(--f-display);
-  font-stretch: 62.5%;
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
-  color: var(--paper);
-  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.6);
-  white-space: nowrap;
-}
-.m-word-lat b {
-  text-shadow:
-    0 0 40px rgba(226, 65, 44, 0.55),
-    0 2px 30px rgba(0, 0, 0, 0.6);
+.m-word .brand-logo {
+  width: min(100%, calc(var(--w) * 5));
+  filter: drop-shadow(0 6px 28px rgba(0, 0, 0, 0.65));
 }
 .m-tagline {
   margin-bottom: 10px !important;
@@ -3512,12 +3463,6 @@ kbd {
   align-items: center;
   gap: 16px;
   margin: 22px 0 6px;
-}
-.about-seal {
-  --seal: 56px;
-}
-.about-word {
-  font-size: 30px;
 }
 .about-link {
   display: inline-flex;

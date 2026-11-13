@@ -89,6 +89,14 @@ export function applyDom(root = document) {
     el.setAttribute("aria-label", t(el.dataset.i18nAria));
   for (const el of root.querySelectorAll("[data-lang]"))
     el.setAttribute("aria-pressed", String(el.dataset.lang === current.code));
+  // the logo: simplified characters, or traditional for zh-TW and Japanese. Set through
+  // .src (not markup) so the single-file build can map the URL.
+  const logo = current.code === "zh-TW" || current.code === "ja" ? "tc" : "sc";
+  for (const el of root.querySelectorAll("img[data-logo]"))
+    if (el.dataset.logo !== logo) {
+      el.dataset.logo = logo;
+      el.src = `assets/brand/logo-${logo}.svg`;
+    }
 }
 
 export function onLocale(fn) {
