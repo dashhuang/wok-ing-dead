@@ -57,13 +57,13 @@ export const REACTIONS = [
     a: "seal",
     b: "fire",
     name: "焚符",
-    text: `符纸燃尽，对目标造成 ${pct(R.焚符.share)}% 最大生命的伤害（精英 ${pct(S.rank.elite.焚符)}%，关底 ${pct(S.rank.boss.焚符)}%），并留下 ${R.焚符.burn} 层灼烧`,
+    text: `符纸燃尽，对目标造成 ${pct(R.焚符.share)}% 最大生命的伤害（精英 ${pct(S.rank.elite.焚符)}%，关底 ${pct(S.rank.boss.焚符)}%），并留下 ${R.焚符.burn} 层灼烧；同一目标 ${R.焚符.every} 秒内只烧一次`,
   },
   {
     a: "seal",
     b: "shock",
     name: "引雷",
-    text: `天雷劈中被镇压者：本体 ${R.引雷.self} 伤害，${R.引雷.radius} 米内其余敌人 ${R.引雷.others}`,
+    text: `天雷劈中被镇压者：本体 ${R.引雷.self} 伤害，${R.引雷.radius} 米内其余敌人 ${R.引雷.others}；同一目标 ${R.引雷.every} 秒内只劈一次`,
   },
 ];
 
@@ -98,8 +98,8 @@ export const WEAPONS = [
     fire: {
       kind: "hitscan",
       pellets: 9,
-      damage: 15,
-      rpm: 70,
+      damage: 19,
+      rpm: 80,
       spread: 0.045,
       range: 34,
       falloff: [10, 30, 0.25], // full damage to 10 m, down to a quarter by 30
@@ -117,17 +117,17 @@ export const WEAPONS = [
       a: {
         name: "龙息",
         element: "fire",
-        text: "换装龙息弹：弹丸变成 10 米的火焰锥，命中即灼烧，弹丸数 9→12，单发伤害 15→10。",
+        text: "换装龙息弹：弹丸变成 10 米的火焰锥，命中即灼烧，弹丸数 9→12，单发伤害 19→16。",
         look: "枪管套上冲孔隔热罩，机匣侧挂红色龙息弹弹带，枪口加装喇叭形消焰碗。",
         cap: {
           name: "火烧连营",
-          text: "被龙息点燃的敌人死亡时爆燃，把满层灼烧传给 4 米内所有敌人。",
+          text: "龙息不再随距离变稀；被龙息烧死的敌人爆燃，4 米内 50 伤害并把满层灼烧传开。",
         },
       },
       b: {
         name: "独头",
         element: "none",
-        text: "换装独头弹：单发 150 伤害，穿透 3 个目标，命中重型僵尸必定硬直。射程 34→60 米，不再随距离衰减。",
+        text: "换装独头弹：单发 190 伤害，穿透 3 个目标，命中重型僵尸必定硬直。射程 34→60 米，不再随距离衰减。",
         look: "加长线膛枪管与多孔制退器，机匣顶装鬼环照门和光纤准星，枪托加贴腮板。",
         cap: {
           name: "一线天",
@@ -169,7 +169,7 @@ export const WEAPONS = [
       b: {
         name: "电击",
         element: "shock",
-        text: "电击弹：每第 4 发附带感电，被感电的目标向附近 2 个敌人跳电。",
+        text: "电击弹：每第 4 发伤害 ×2.5 并附带感电，被感电的目标向附近 2 个敌人跳电。",
         look: "枪管外绕紫铜线圈，机匣侧挂蓄电池盒和高压线，线圈缝隙透出青蓝辉光。",
         cap: {
           name: "雷网",
@@ -186,7 +186,7 @@ export const WEAPONS = [
     slot: "副",
     element: "none",
     tagline: "六发，六个名字。",
-    fire: { kind: "hitscan", damage: 85, rpm: 150, range: 120, head: 3 },
+    fire: { kind: "hitscan", damage: 80, rpm: 150, range: 120, head: 2.6 },
     mag: 6,
     reserve: 48,
     reload: "甩出弹巢整体装填 2.2 秒",
@@ -231,7 +231,7 @@ export const WEAPONS = [
       a: {
         name: "穿杨",
         element: "none",
-        text: "子弹穿透所有目标并在墙面弹射一次，弱点伤害 ×3。",
+        text: "子弹穿透所有目标并在墙面弹射一次，弱点伤害 ×2.5。",
         look: "机匣顶装长筒黄铜瞄准镜和镜桥，枪管加长配枪口帽，枪托加皮质贴腮和备弹袋。",
         cap: { name: "百步", text: "目标越远伤害越高，60 米以上 +150%。" },
       },
@@ -268,15 +268,18 @@ export const WEAPONS = [
         look: "机头换成横排五孔的宽嘴歧管，弹夹加宽成双排，机身加装钢制提把。",
         cap: {
           name: "钉板",
-          text: "被钉住的敌人受到的伤害 +60%；钉子可以走过去回收。",
+          text: "被钉住的敌人受到的伤害 +25%；钉子可以走过去回收。",
         },
       },
       b: {
         name: "热钉",
         element: "fire",
-        text: "钉子经电热线圈烧红：命中点燃，1.2 秒后在体内爆开，造成 60 范围伤害。",
+        text: "钉子经电热线圈烧红（射速 480→300）：命中点燃，1.2 秒后在体内爆开，造成 25 范围伤害。",
         look: "枪嘴套上发红的电热线圈和陶瓷隔热套，机身侧面挂丁烷气罐与铜管，钉子出膛呈橙红色。",
-        cap: { name: "连环爆", text: "爆开时把 6 根热钉向四周再射一次。" },
+        cap: {
+          name: "连环爆",
+          text: "爆开时把 6 根热钉向四周再射一次（这些钉子只点燃，不再爆）。",
+        },
       },
     },
   },
@@ -297,17 +300,17 @@ export const WEAPONS = [
       a: {
         name: "蓝焰",
         element: "fire",
-        text: "收束成 14 米的蓝色焰矛：穿透，伤害 ×1.6，对已灼烧的敌人再 +50%。",
+        text: "收束成 14 米的蓝色焰矛：穿透，伤害 ×1.2，对已灼烧的敌人再 +40%。",
         look: "喷嘴换成细长的文丘里喷管，带进气调节环和氧气小钢瓶，焰色由橙转蓝。",
         cap: {
           name: "炉火纯青",
-          text: "持续喷射 2 秒后焰矛变白，无视重型僵尸的减伤。",
+          text: "持续喷射 2 秒后焰矛变白，对重型僵尸的伤害再 +65%。",
         },
       },
       b: {
         name: "泼油",
         element: "fire",
-        text: "右键抛出一勺热油，落地形成直径 4 米、持续 6 秒的火池。",
+        text: "右键抛出一勺热油，落地形成直径 4 米、持续 6 秒的火池；站在火池里的敌人受到的喷火伤害 +60%。每勺耗 10 格燃料。",
         look: "枪身上方加一只带盖铁油壶和长柄油勺，喷嘴改成扁宽的鸭嘴口，油壶口冒着油烟。",
         cap: {
           name: "火烧街",
@@ -344,7 +347,7 @@ export const WEAPONS = [
       a: {
         name: "万花筒",
         element: "fire",
-        text: "火箭在 12 米处分裂成 6 颗追踪小星，各自爆出不同颜色的小烟花。",
+        text: "火箭在 12 米处分裂成 6 颗追踪小星，各自爆出不同颜色的小烟花；筒细药少，没来得及分裂的火箭只有六管的 60% 伤害。",
         look: "筒组换成十九管蜂窝状的组合烟花盆，彩色纸筒（红、金、绿、紫），外箍两道黄铜环。",
         cap: {
           name: "火树银花",
@@ -354,7 +357,7 @@ export const WEAPONS = [
       b: {
         name: "冲天炮",
         element: "fire",
-        text: "换成单发大礼花弹：按住蓄力，7 米范围 320 伤害，并惊吓附近僵尸 2 秒。",
+        text: "换成大礼花弹（一次装 4 发）：按住蓄力，7 米范围 420 伤害，并惊吓附近僵尸 2 秒。",
         look: "一根粗大的礼花炮筒，筒身绕金龙纹红纸，筒口包铜，尾部有木托和粗引线。",
         cap: {
           name: "开门红",
@@ -371,7 +374,7 @@ export const WEAPONS = [
     slot: "主",
     element: "shock",
     tagline: "招牌灭了，变压器还能用。",
-    fire: { kind: "stream", damage: 8, tick: 10, range: 20, chain: 2 },
+    fire: { kind: "stream", damage: 9, tick: 10, range: 20, chain: 2 },
     mag: 100,
     reserve: 200,
     reload: "换电池 2.0 秒",
@@ -404,7 +407,7 @@ export const WEAPONS = [
     slot: "主",
     element: "none",
     tagline: "无声，可回收，祖传的手艺。",
-    fire: { kind: "projectile", damage: 52, rpm: 300, head: 2.5 },
+    fire: { kind: "projectile", damage: 38, rpm: 300, head: 2.5 },
     mag: 10,
     reserve: 60,
     reload: "换箭匣 1.5 秒",
@@ -413,7 +416,7 @@ export const WEAPONS = [
       a: {
         name: "火箭",
         element: "fire",
-        text: "箭杆绑火药筒：命中后 0.6 秒爆炸，2.5 米范围 50 伤害并点燃。",
+        text: "箭杆绑火药筒：命中后 0.6 秒爆炸，2.5 米范围 22 伤害并点燃。",
         look: "箭匣改红色，箭杆上绑着带引线的小火药筒，弩臂前装一只点火用的火折子，引线冒火星。",
         cap: {
           name: "火牛阵",
@@ -440,7 +443,7 @@ export const WEAPONS = [
     slot: "副",
     element: "seal",
     tagline: "急急如律令。",
-    fire: { kind: "projectile", damage: 38, rpm: 180 },
+    fire: { kind: "projectile", damage: 44, rpm: 180 },
     mag: 12,
     reserve: Infinity,
     reload: "符纸每 0.45 秒自动补 1 张",
@@ -449,7 +452,7 @@ export const WEAPONS = [
       a: {
         name: "雷符",
         element: "shock",
-        text: "符纸换成蓝色雷符：被定身的敌人头顶落雷，4 米范围 150 伤害。",
+        text: "符纸换成蓝色雷符：被定身的敌人头顶落雷，4 米范围 90 伤害。",
         look: "符纸为靛蓝底银色符文，令牌嵌一块雷击木纹的铜片，符间有细小电弧跳动。",
         cap: {
           name: "五雷轰顶",
@@ -459,7 +462,7 @@ export const WEAPONS = [
       b: {
         name: "火符",
         element: "fire",
-        text: "符纸换成朱红火符：贴上后 1 秒自燃，化作 3 米火环持续 4 秒。",
+        text: "符纸换成朱红火符：贴上后 1 秒自燃，化作 3 米火环持续 4 秒；已有火环的地方只续时间，不叠加。",
         look: "符纸为朱红底金色符文，边缘带余烬和火星，令牌顶端嵌一颗红玛瑙。",
         cap: { name: "三昧真火", text: "火环不会熄灭，直到环内没有敌人为止。" },
       },
@@ -473,7 +476,7 @@ export const WEAPONS = [
     slot: "近战",
     element: "seal",
     tagline: "一百零八枚铜钱，一根红绳。",
-    fire: { kind: "melee", damage: 70, reach: 2.9 },
+    fire: { kind: "melee", damage: 64, reach: 2.9 },
     mag: Infinity,
     reserve: Infinity,
     reload: "不需要",
@@ -482,11 +485,11 @@ export const WEAPONS = [
       a: {
         name: "散钱",
         element: "seal",
-        text: "每次挥剑甩出 5 枚铜钱：各 25 伤害，可弹射一次，命中叠镇压。",
+        text: "每次挥剑甩出 5 枚铜钱：各 20 伤害，可弹射一次，命中叠镇压。",
         look: "剑身铜钱松动外张，剑格处多挂两串散钱，挥动时铜钱脱串飞出再被红绳拉回。",
         cap: {
           name: "天女散花",
-          text: "三连击的最后一击甩出 15 枚铜钱，全部追踪。",
+          text: "三连击的最后一击甩出 15 枚铜钱（各 10 伤害），全部追踪。",
         },
       },
       b: {
@@ -515,7 +518,7 @@ export const WEAPONS = [
       a: {
         name: "拖刀",
         element: "fire",
-        text: "冲刺时刀尖拖地蓄势，在地面留下火线；接上挑斩，320 伤害并挑飞。",
+        text: "冲刺时刀尖拖地蓄势，在地面留下火线；接上挑斩，240 伤害并挑飞。",
         look: "刀刃烧成暗红渐变，刀背加火焰纹铜饰，红缨换成更长的火红色。",
         cap: {
           name: "过五关",
@@ -525,7 +528,7 @@ export const WEAPONS = [
       b: {
         name: "偃月",
         element: "none",
-        text: "右键把刀旋转掷出，沿弧线飞行 15 米后回到手中，来回都造成伤害。",
+        text: "右键把刀旋转掷出，沿弧线飞行 15 米后回到手中，来回都造成挥砍 60% 的伤害。",
         look: "刀身开青色血槽并嵌青玉，龙头吞口换成鎏金，刀身泛青光。",
         cap: {
           name: "斩六将",

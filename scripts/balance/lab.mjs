@@ -1,7 +1,7 @@
-// The firing range's horde, replayed on the model: the same sixteen zombies coming out of the
-// dark a few at a time, a bot that stands still and fires at the nearest, sixty seconds on
-// the clock (arsenal/tools/balance.mjs measures this with the real weapons and writes
-// arsenal/scripts/balance.json).
+// The lab's test of the street, replayed on the model: the same sixteen zombies rising at
+// street distance a few at a time, a bot that fires at the nearest and walks in on what it
+// cannot reach, sixty seconds on the clock (arsenal/tools/balance.mjs measures this with the
+// real weapons and writes arsenal/scripts/balance.json, the test's own numbers included).
 //
 // Dividing what was measured by what the model does gives each weapon's calibration factor:
 // everything the model does not describe (flames that keep burning, arcs that jump, charms
@@ -10,19 +10,22 @@
 import { createFight, mulberry } from "./engine.mjs";
 import {
   WEAPON_IDS,
+  MEASURED,
   model,
   measuredRow,
   zombieStats,
   ZOMBIES,
-  PLAYER,
 } from "./data.mjs";
+
+const SCENE = MEASURED.scene;
 
 // the range's sixteen: thirteen walkers and three heavies (the fourth character is the soldier)
 const HORDE = [0, 1, 2, 3, 1, 0, 2, 0, 3, 1, 2, 0, 2, 1, 0, 3].map((c) =>
   c === 3 ? "brute" : "walker",
 );
-// the bot is a machine: it does not miss a body, and finds the head with the weapons it aims
-const BOT = { hit: 0.97, head: 0.04, precise: 22 };
+// the bot is a steady hand: it does not miss a body, and with the weapons it aims at the
+// head it finds the head as often as the test's bot does
+const BOT = { hit: 0.97, head: 0.04, precise: SCENE.head / 0.04 };
 
 /** One minute on the range with the base form. Returns { dps, kills, hurt } per the lab's units. */
 export function rangeMinute(id, { seed = 1, seconds = 60, power = 1 } = {}) {
@@ -30,11 +33,12 @@ export function rangeMinute(id, { seed = 1, seconds = 60, power = 1 } = {}) {
   const F = createFight({ rng, health: 1e9, regenDelay: 0, regenRate: 0 });
   F.wield({ id, power });
   const rise = (type, first, i) => {
-    const runner = rng() < ZOMBIES[type].runnerShare;
+    const runner =
+      rng() < (type === "walker" ? SCENE.runners : ZOMBIES[type].runnerShare);
     F.add({
       type,
       ...zombieStats(type, runner),
-      d: 37 + rng() * 7,
+      d: SCENE.from + rng() * SCENE.span,
       sleep: first
         ? i < 5
           ? i * 0.6
@@ -46,9 +50,17 @@ export function rangeMinute(id, { seed = 1, seconds = 60, power = 1 } = {}) {
   F.onKill = (z) => rise(z.type, false, 0);
   const ctx = { skill: BOT, retreat: 0, dodge: 0 };
   const dt = 1 / 30;
-  for (let t = 0; t < 5; t += dt) F.step(dt, ctx);
+  const reach = model(id).reach;
+  const step = () => {
+    // nothing in reach: the bot walks in
+    ctx.retreat = F.zombies.some((z) => z.alive && z.sleep <= 0 && z.d <= reach)
+      ? 0
+      : -SCENE.walk;
+    F.step(dt, ctx);
+  };
+  for (let t = 0; t < 5; t += dt) step();
   const from = { ...F.stats };
-  for (let t = 0; t < seconds; t += dt) F.step(dt, ctx);
+  for (let t = 0; t < seconds; t += dt) step();
   return {
     dps: (F.stats.raw - from.raw) / seconds,
     kills: ((F.stats.kills - from.kills) * 60) / seconds,
@@ -105,6 +117,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log(
       `${r.id.padEnd(10)} model ${r.model.dps.toFixed(0).padStart(4)} dps ${r.model.kills.toFixed(0).padStart(3)} kills | measured ${String(r.measured.dps).padStart(4)} dps ${String(r.measured.kills).padStart(3)} kills hurt ${String(r.measured.hurt).padStart(3)} | factor ${r.factor.toFixed(2)} | after ${r.after.dps.toFixed(0).padStart(4)} dps ${r.after.kills.toFixed(0).padStart(3)} kills hurt ${r.after.hurt.toFixed(0)}`,
     );
-  void model;
-  void PLAYER;
 }

@@ -56,7 +56,7 @@ function splash(ctx, pos, radius, dmg, o = {}) {
 
 function fireRing(ctx, pos, radius, life, dps = 10) {
   ctx.E.firePool(pos, radius, life);
-  ctx.zone({
+  return ctx.zone({
     pos: pos.clone(),
     radius,
     life,
@@ -75,7 +75,7 @@ export const BEHAVIOURS = {
       b === "b"
         ? {
             kind: "gun",
-            rpm: 60,
+            rpm: 80,
             mag: 6,
             reload: 2.4,
             beats: 3,
@@ -85,7 +85,7 @@ export const BEHAVIOURS = {
           }
         : {
             kind: "gun",
-            rpm: 70,
+            rpm: 80,
             mag: 6,
             reload: 2.4,
             beats: 3,
@@ -156,10 +156,12 @@ export const BEHAVIOURS = {
           ctx.aim.origin,
           ctx.aim.dir,
           10,
-          0.24,
+          0.3,
         )) {
-          const pellets = Math.max(4, Math.round(12 * (1 - h.dist / 14)));
-          ctx.hit(h.z, 10 * pellets, {
+          const pellets = ctx.cap
+            ? 12
+            : Math.max(6, Math.round(12 * (1 - h.dist / 20)));
+          const killed = ctx.hit(h.z, 16 * pellets, {
             dir: ctx.aim.dir.clone(),
             element: "fire",
             // (a cone of fire: it leans on them, harder the nearer they are)
@@ -170,7 +172,15 @@ export const BEHAVIOURS = {
             spreadStacks: ctx.cap ? 5 : 1,
             deathBlast: ctx.cap,
           });
-          ctx.targets.apply(h.z, "fire", 2);
+          ctx.targets.apply(h.z, "fire", 3);
+          // capstone 火烧连营: what the breath kills goes up and takes its neighbours with it
+          if (killed && ctx.cap)
+            splash(ctx, h.z.chest.clone(), 4, 50, {
+              element: "fire",
+              status: "fire",
+              stacks: 2,
+              knock: 0.6,
+            });
         }
         const g = ctx.world(ctx.aim.origin, ctx.aim.dir, 8);
         if (g)
@@ -198,7 +208,7 @@ export const BEHAVIOURS = {
           dir: ctx.spread(0.004),
           range: 60,
           pierce: ctx.cap ? 99 : 3,
-          damage: () => 150 * (ctx.cap ? 1 + 0.25 * n++ : 1),
+          damage: () => 190 * (ctx.cap ? 1 + 0.25 * n++ : 1),
           knock: 2.2,
           stagger: 0.7,
           tracer: {
@@ -322,7 +332,7 @@ export const BEHAVIOURS = {
           dir: ctx.spread(0.016),
           range: F.smg.range,
           falloff: F.smg.falloff,
-          damage: F.smg.damage,
+          damage: F.smg.damage * 2.5,
           element: "shock",
           tracer: { width: 0.03, color: C(0x6fd8ff, 5), core: [4, 6, 8] },
           impact: { pal: "shock", scale: 0.8 },
@@ -579,8 +589,9 @@ export const BEHAVIOURS = {
           pierce: 99,
           ricochet: 1,
           damage: (z) =>
-            140 * (ctx.cap ? 1 + 1.5 * Math.min(1, dist(z) / 60) : 1),
-          headMul: 3,
+            F.lever.damage *
+            (ctx.cap ? 1 + 1.5 * Math.min(1, dist(z) / 60) : 1),
+          headMul: 2.5,
           knock: 1,
           stagger: 0.5,
           tracer: {
@@ -614,7 +625,7 @@ export const BEHAVIOURS = {
     spec: (b) => ({
       kind: "gun",
       smokeless: true,
-      rpm: b === "a" ? 210 : 480,
+      rpm: b === "a" ? 170 : b === "b" ? 300 : 480,
       mag: b === "a" ? 60 : 50,
       reload: 1.4,
       kick: b === "a" ? 0.7 : 0.25,
@@ -683,12 +694,12 @@ export const BEHAVIOURS = {
             shake: 0.1,
             scorch: !z,
           });
-          splash(ctx, pos, 2.2, 60, {
+          splash(ctx, pos, 2.2, 25, {
             element: "fire",
             status: "fire",
             knock: 0.5,
           });
-          // capstone 连环爆: each burst throws six more hot nails
+          // capstone 连环爆: each burst throws six more hot nails (which only set alight)
           if (ctx.cap && again) {
             for (let i = 0; i < 6; i++) {
               const a = (i / 6) * Math.PI * 2 + rand(0.5);
@@ -697,13 +708,15 @@ export const BEHAVIOURS = {
                 V(Math.cos(a), 0.25, Math.sin(a)).normalize(),
                 false,
                 30,
+                z, // they fly out of the one that burst, not into it
               );
             }
           }
         };
-        const shoot = (pos, dir, again, speed = 90) =>
+        const shoot = (pos, dir, again, speed = 90, from = null) =>
           proj.spawn({
             kind: "hotnail",
+            skip: from ? [from] : null,
             pos,
             vel: dir.multiplyScalar(speed),
             gravity: 4,
@@ -725,15 +738,16 @@ export const BEHAVIOURS = {
               });
               ctx.targets.apply(h.z, "fire");
               const rec = proj.stick(p, h.z, 1.2, 0.02);
-              fx.after(1.2, () =>
-                boom(
-                  rec && rec.obj.parent
-                    ? rec.obj.getWorldPosition(V())
-                    : h.point,
-                  h.z,
-                  again,
-                ),
-              );
+              if (again)
+                fx.after(1.2, () =>
+                  boom(
+                    rec && rec.obj.parent
+                      ? rec.obj.getWorldPosition(V())
+                      : h.point,
+                    h.z,
+                    again,
+                  ),
+                );
               return "stop";
             },
             onWorld(p, w) {
@@ -741,9 +755,10 @@ export const BEHAVIOURS = {
               const at = w.point.clone();
               proj.stick(p, null, 1.2, -0.03);
               fx.task(1.2, (k, dt) => E.embers(at, dt, 30));
-              fx.after(1.2, () =>
-                boom(at.addScaledVector(w.normal, 0.1), null, again),
-              );
+              if (again)
+                fx.after(1.2, () =>
+                  boom(at.addScaledVector(w.normal, 0.1), null, again),
+                );
               return "stop";
             },
           });
@@ -775,7 +790,7 @@ export const BEHAVIOURS = {
                 dir: h.dir,
                 point: h.point,
                 head: h.head,
-                pinBonus: ctx.cap ? 1.6 : 1,
+                pinBonus: ctx.cap ? 1.25 : 1,
               });
               if (!h.head) ctx.targets.pin(h.z, 2.5, "nail");
               proj.stick(p, h.z, 9, 0.05);
@@ -949,9 +964,19 @@ export const BEHAVIOURS = {
         blue ? 14 : F.flamer.range,
         blue ? 0.07 : F.flamer.cone,
       )) {
-        let d = F.flamer.damage * (blue ? 1.6 : 1);
-        if (blue && h.z.st.burn > 0) d *= 1.5;
-        if (white && h.z.type === "brute") d *= 1.8;
+        let d = F.flamer.damage * (blue ? 1.2 : 1);
+        if (blue && h.z.st.burn > 0) d *= 1.4;
+        // 泼油: whoever stands in the oil takes the flame that much harder
+        if (
+          ctx.b === "b" &&
+          (ctx.st.pools || []).some(
+            (p) =>
+              !p.done &&
+              Math.hypot(p.pos.x - h.z.pos.x, p.pos.z - h.z.pos.z) < p.radius,
+          )
+        )
+          d *= 1.6;
+        if (white && h.z.type === "brute") d *= 1.65;
         ctx.hit(h.z, d, {
           dir: dir.clone(),
           element: "fire",
@@ -963,9 +988,9 @@ export const BEHAVIOURS = {
       }
     },
     alt(ctx, phase) {
-      if (ctx.b !== "b" || phase !== "down" || ctx.rounds < 15) return;
+      if (ctx.b !== "b" || phase !== "down" || ctx.rounds < 10) return;
       const { fx, E, proj } = ctx;
-      ctx.consume(15);
+      ctx.consume(10);
       const m = ctx.muzzle();
       ctx.kick(0.6);
       proj.spawn({
@@ -1040,13 +1065,16 @@ export const BEHAVIOURS = {
             ground: true,
           });
         }
-        splash(ctx, pos, 2.2, 30, {
+        splash(ctx, pos, 2.2, 60, {
           element: "fire",
           status: "fire",
           stacks: 2,
           knock: 0.3,
         });
-        fireRing(ctx, pos, 2, 6, 14);
+        const pools = (ctx.st.pools = (ctx.st.pools || []).filter(
+          (p) => !p.done,
+        ));
+        pools.push(fireRing(ctx, pos, 2, 6, 38));
         // capstone 火烧街: the pool creeps towards whoever is near it
         if (ctx.cap) {
           let last = pos.clone(),
@@ -1056,7 +1084,7 @@ export const BEHAVIOURS = {
             if (z && z.pos.distanceTo(last) > 1.6 && grown < 5) {
               grown++;
               last = z.pos.clone();
-              fireRing(ctx, last, 1.6, 4, 14);
+              pools.push(fireRing(ctx, last, 1.6, 4, 38));
             }
           });
         }
@@ -1068,7 +1096,7 @@ export const BEHAVIOURS = {
   firework: {
     spec: (b) =>
       b === "b"
-        ? { kind: "gun", rpm: 48, mag: 3, reload: 2.6, charge: 0.8, kick: 2.2 }
+        ? { kind: "gun", rpm: 60, mag: 4, reload: 2.6, charge: 0.6, kick: 2.2 }
         : {
             kind: "gun",
             rpm: b === "a" ? 150 : 100,
@@ -1216,7 +1244,7 @@ export const BEHAVIOURS = {
               kind: "ring",
             }),
           );
-          splash(ctx, pos, 7 * c * (ctx.cap ? 1.5 : 1), 320 * c, {
+          splash(ctx, pos, 7 * c * (ctx.cap ? 1.5 : 1), 420 * c, {
             self: F.firework.self,
             selfMax: F.firework.selfMax,
             element: "fire",
@@ -1250,8 +1278,10 @@ export const BEHAVIOURS = {
       }
       ctx.kick(0.9);
       ctx.shake(0.1);
+      // (甲: nineteen thin tubes, a smaller rocket in each)
+      const small = ctx.b === "a" ? 0.6 : 1;
       const direct = (p, h) => {
-        ctx.hit(h.z, F.firework.damage, {
+        ctx.hit(h.z, F.firework.damage * small, {
           dir: h.dir,
           point: h.point,
           head: h.head,
@@ -1262,7 +1292,7 @@ export const BEHAVIOURS = {
       };
       const boom = (pos) => {
         burst(pos);
-        splash(ctx, pos, F.firework.radius, F.firework.splash, {
+        splash(ctx, pos, F.firework.radius, F.firework.splash * small, {
           self: F.firework.self,
           selfMax: F.firework.selfMax,
           element: "fire",
@@ -1541,7 +1571,7 @@ export const BEHAVIOURS = {
         if (ctx.b === "a" && ctx.cap && before && !z.alive) {
           const at = z.chest.clone();
           ctx.fx.task(3, (k, dt) => {
-            if (Math.random() < 9 * dt) {
+            if (Math.random() < 5 * dt) {
               const n = ctx.targets.nearest(at, 5);
               if (n) {
                 ctx.fx.bolt(at, n.chest, {
@@ -1634,7 +1664,7 @@ export const BEHAVIOURS = {
             life: 1.2,
             hold: 0.2,
           });
-          splash(ctx, pos, 4.5, 120, {
+          splash(ctx, pos, 4.5, 160, {
             element: "shock",
             status: "shock",
             knock: 1.2,
@@ -1654,7 +1684,7 @@ export const BEHAVIOURS = {
               zap = 0.16;
               for (const h of ctx.targets.inSphere(p.pos, 5)) {
                 fx.bolt(p.pos, h.z.chest, { width: 0.05, life: 0.1, forks: 1 });
-                ctx.hit(h.z, 18, {
+                ctx.hit(h.z, 28, {
                   dir: _a.subVectors(h.z.chest, p.pos).normalize().clone(),
                   element: "shock",
                   blood: false,
@@ -1681,7 +1711,7 @@ export const BEHAVIOURS = {
                 pos: g,
                 radius: 1.6,
                 life: 4,
-                dps: 14,
+                dps: 48,
                 status: "shock",
                 every: 1.5,
                 element: "shock",
@@ -1758,7 +1788,7 @@ export const BEHAVIOURS = {
       if (ctx.b === "a") {
         const boom = (pos) => {
           E.explosion(pos, { radius: 1.7, smoke: 0.6, shake: 0.14 });
-          splash(ctx, pos, 2.5, 50, {
+          splash(ctx, pos, 2.5, 22, {
             element: "fire",
             status: "fire",
             knock: 0.8,
@@ -1775,7 +1805,7 @@ export const BEHAVIOURS = {
           },
           onTick: (p, dt) => E.embers(p.pos, dt, 90),
           onHit(p, h) {
-            ctx.hit(h.z, 45, {
+            ctx.hit(h.z, 30, {
               dir: h.dir,
               point: h.point,
               head: h.head,
@@ -1814,7 +1844,7 @@ export const BEHAVIOURS = {
           kind: "sealbolt",
           trail: { span: 0.12, width: 0.02, color: C(0xffc23a, 2.5) },
           onHit(p, h) {
-            ctx.hit(h.z, 45, {
+            ctx.hit(h.z, 36, {
               dir: h.dir,
               point: h.point,
               head: h.head,
@@ -2039,7 +2069,7 @@ export const BEHAVIOURS = {
               for (const s of ctx.targets.inSphere(V(pos.x, 1, pos.z), 4)) {
                 seen.add(s.z);
                 if (
-                  ctx.hit(s.z, 150, {
+                  ctx.hit(s.z, 90, {
                     dir: _a
                       .subVectors(s.z.chest, pos)
                       .setY(0.3)
@@ -2071,7 +2101,7 @@ export const BEHAVIOURS = {
             );
             fx.after(1, () => {
               const pos = z.pos.clone();
-              if (z.alive) ctx.targets.apply(z, "fire", 2);
+              if (z.alive) ctx.targets.apply(z, "fire", 1);
               E.explosion(pos.clone().setY(0.6), {
                 radius: 1.4,
                 smoke: 0.4,
@@ -2086,7 +2116,19 @@ export const BEHAVIOURS = {
                 life: 0.5,
                 hold: 0,
               });
-              fireRing(ctx, pos, 3, ctx.cap ? 8 : 4, 12);
+              // one ring where one is burning already: it burns on, not twice as hot
+              const life = ctx.cap ? 8 : 4;
+              const rings = (ctx.st.rings = (ctx.st.rings || []).filter(
+                (r) => !r.done,
+              ));
+              const lit = rings.find((r) => r.pos.distanceTo(pos) < 2);
+              if (!lit) rings.push(fireRing(ctx, pos, 3, life, 6));
+              else {
+                // (flames for the time added, and not a new set for every charm)
+                const left = lit.life - lit.age;
+                if (left < life - 1) ctx.E.firePool(lit.pos, 3, life - left);
+                lit.life = lit.age + life;
+              }
             });
           }
           return "stop";
@@ -2181,7 +2223,7 @@ export const BEHAVIOURS = {
                   }
                 : null,
             onHit(p, h) {
-              ctx.hit(h.z, 25, {
+              ctx.hit(h.z, last && ctx.cap ? 10 : 20, {
                 dir: h.dir,
                 point: h.point,
                 head: h.head,
@@ -2320,7 +2362,7 @@ export const BEHAVIOURS = {
               },
               onHit(q, h) {
                 const pinned = h.z.pin > 0 && h.z.pinKind === "seal";
-                ctx.hit(h.z, 110 * c, {
+                ctx.hit(h.z, 130 * c, {
                   dir: h.dir,
                   point: h.point,
                   element: "seal",
@@ -2416,7 +2458,7 @@ export const BEHAVIOURS = {
           .setY(0)
           .normalize()
           .clone();
-        ctx.hit(h.z, F.guandao.damage * (up ? 2 : 1), {
+        ctx.hit(h.z, F.guandao.damage * (up ? 1.5 : 1), {
           dir,
           cut: true,
           point: h.z.chest,
@@ -2496,7 +2538,7 @@ export const BEHAVIOURS = {
           pos: ctx.aim.origin.clone().addScaledVector(f, 5).setY(0),
           radius: 4,
           life: 0.5,
-          dps: 60,
+          dps: 40,
           status: "fire",
           every: 0.4,
           element: "fire",
@@ -2572,7 +2614,7 @@ export const BEHAVIOURS = {
         time: 1.5,
         onPass(z, dir) {
           const reach = ctx.cap ? 1 + 0.2 * bonus.n : 1;
-          const killed = ctx.hit(z, F.guandao.damage * reach, {
+          const killed = ctx.hit(z, F.guandao.damage * 0.6 * reach, {
             dir,
             point: z.chest,
             knock: 0.8,
