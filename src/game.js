@@ -9,6 +9,7 @@ import { uiIcon } from "./chinatown/icons.js";
 import { createTelemetry } from "./telemetry/index.js";
 import { createNavigation, STEP_HEIGHT } from "./chinatown/navigation.js";
 import { createSpawnPicker } from "./chinatown/spawning.js";
+import { createMusic } from "./chinatown/music.js";
 import * as DOORS from "./chinatown/doors.js";
 
 (() => {
@@ -58955,6 +58956,9 @@ void main() {
       m = new Set();
     for (let ie of [...Ez, ...Object.keys(Ir)]) {
       let ae = Ir[ie];
+      // Recorded score replaces synthesis in the game; retain the original
+      // buffers only for the isolated legacy offline audio measurement.
+      if (!t && (ie.startsWith("music_") || ie.startsWith("mus_"))) continue;
       if (!(!ae || m.has(ie))) {
         m.add(ie);
         for (let pe = 0; pe < ae.n; pe++)
@@ -59363,7 +59367,7 @@ void main() {
         Ze.add(Me));
       return Me;
     }
-    let Bt = rE({
+    let Bt = (t ? rE : createMusic)({
       ctx: e,
       out: z.music,
       bufs: r,
@@ -60095,6 +60099,7 @@ void main() {
         },
         setPaused(ie) {
           q = !!ie;
+          Bt.setPaused?.(q);
         },
         names: Object.keys(Ir).filter((ie) => !Ir[ie].ir),
         get intensity() {

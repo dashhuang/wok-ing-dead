@@ -33,6 +33,16 @@
 - **替换点**：`cL` 中 `level`、`backdrop`、`enemies` 三个模块改为动态导入 `src/chinatown/` 下的实现；音频系统在原位置加载
   `src/chinatown/audio.js`。
 
+## 配乐
+
+`src/chinatown/music.js` 的 `createMusic` 替代运行时原版 `rE` 配乐器，沿用状态 / 强度回调与音乐总线。
+通过 `fetch` 加载 `assets/audio/music/rainy-wok-v1.mp3` 并解码一次；原位混合末尾与开头 2 秒，
+`AudioBufferSourceNode` 的 `loopStart` 跳过已经混过的开头，避免靠帧更新或计时器续播产生间隙。
+完整混音只调音量与低通滤波，不提供独立乐器分层；枪声压低音乐、主音量和后台挂起沿用原总线。
+暂停停止源并保存游标，恢复创建新源淡入；失败记在 `__G.audio.music.debug()`，不阻断游戏。
+原版合成配乐只保留给离线音频测量 `selfTest`，正常游戏不再预生成 `music_*` / `mus_*` 缓冲。
+新增音乐通过 `fetch` 读取，兼容单文件版的资源映射。
+
 ## 多语言与界面
 
 - **语言包**：`src/i18n/locales/{en,zh-CN,zh-TW,ja}.js`，扁平的键值表。英文是基准，其他语言缺键时回退到英文；
