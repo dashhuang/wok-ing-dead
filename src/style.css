@@ -2488,6 +2488,42 @@ kbd {
     "GM Names", "GM Sans CJK", "PingFang SC", "Hiragino Sans", sans-serif;
 }
 
+/* The side doors: the weapon gallery and the firing range. They sit in the top row, next to
+   the sign, because that row is on the title page at every size (the links under the order
+   are not: a phone held sideways has room for one). */
+.m-doors {
+  display: flex;
+  gap: 2px;
+  margin-right: auto;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(7, 8, 10, 0.35);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.m-door {
+  min-height: 30px;
+  padding: 0 13px;
+  font: 600 12px/1 var(--f-ui);
+  letter-spacing: var(--trk-s);
+  text-transform: var(--caps);
+  white-space: nowrap;
+  color: var(--paper-2);
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+.m-door:hover,
+.m-door:focus-visible {
+  color: var(--ink);
+  background: var(--paper);
+}
+
 .m-title-main {
   grid-area: main;
   align-self: end;
@@ -3532,7 +3568,8 @@ kbd {
   .m-title {
     padding: calc(26px + var(--sat)) var(--gr) calc(22px + var(--sab)) var(--gl);
   }
-  .m-lang {
+  .m-lang,
+  .m-door {
     padding: 0 10px;
     font-size: 11px;
   }
@@ -3561,7 +3598,8 @@ kbd {
   }
 }
 @media (max-width: 420px) {
-  .m-lang {
+  .m-lang,
+  .m-door {
     padding: 0 8px;
   }
   .m-spice {
@@ -3601,7 +3639,8 @@ kbd {
     padding-top: calc(16px + var(--sat));
     padding-bottom: calc(12px + var(--sab));
   }
-  .m-lang {
+  .m-lang,
+  .m-door {
     min-height: 26px;
   }
   .m-word {
@@ -3767,6 +3806,7 @@ kbd {
    post pass. Slightly denser fills keep the text readable without it. */
 [data-quality="low"] .h-plabel,
 [data-quality="low"] .m-langs,
+[data-quality="low"] .m-doors,
 [data-quality="low"] .m-order,
 [data-quality="low"] .btn,
 [data-quality="low"] .m-card,
@@ -3788,6 +3828,7 @@ kbd {
   background: rgba(9, 10, 12, 0.99);
 }
 [data-quality="low"] .m-langs,
+[data-quality="low"] .m-doors,
 [data-quality="low"] .m-order {
   background-color: rgba(7, 8, 10, 0.72);
 }
@@ -3835,6 +3876,24 @@ kbd {
   font-size: 13px;
   letter-spacing: 0.2em;
   color: var(--brass);
+}
+.rg-door {
+  padding: 2px 7px;
+  font-size: 11px;
+  color: var(--paper-2);
+  text-decoration: none;
+  border: 1px solid var(--line-2);
+}
+.rg-door:hover,
+.rg-door:focus-visible {
+  color: var(--brass);
+  border-color: var(--brass);
+}
+.rg-door[hidden] {
+  display: none;
+}
+.rg.shut .rg-door:last-of-type {
+  margin-right: 8px;
 }
 .rg-keys {
   flex: 1;

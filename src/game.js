@@ -9,6 +9,7 @@ import { uiIcon } from "./chinatown/icons.js";
 import { createTelemetry } from "./telemetry/index.js";
 import { createNavigation, STEP_HEIGHT } from "./chinatown/navigation.js";
 import { createSpawnPicker } from "./chinatown/spawning.js";
+import * as DOORS from "./chinatown/doors.js";
 
 (() => {
   var bT = Object.defineProperty;
@@ -76240,6 +76241,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     <section class="m-screen m-title" data-s="title" aria-labelledby="m-word">
       <header class="m-top">
         <div class="m-open"><i aria-hidden="true"></i><span data-i18n="title.unit"></span></div>
+        <nav class="m-doors">${DOORS.hasGallery() ? `<button class="m-door" data-act="gallery" data-i18n="act.gallery"></button>` : ""}<button class="m-door" data-act="range" data-i18n="act.range"></button></nav>
         <div class="m-langs" role="group" data-i18n-aria="lang.label">${gmLangs("m-lang")}</div>
       </header>
       <div class="m-title-main">
@@ -76881,6 +76883,13 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         },
         redeploy() {
           (a(n.audio, "resume"), r.requestLock(), G({ quick: !0 }));
+        },
+        // the side doors off the title page (chinatown/doors.js): pages of their own
+        gallery() {
+          DOORS.go(DOORS.galleryUrl());
+        },
+        range() {
+          DOORS.go(DOORS.rangeUrl());
         },
       });
     l.applySettings();

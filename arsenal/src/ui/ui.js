@@ -111,6 +111,7 @@ export function createUI(lab) {
   const root = document.getElementById("ui");
   root.innerHTML = `
     <header class="bar">
+      ${lab.home ? `<a class="home" href="${esc(lab.home)}" title="回到游戏首页">← 首页</a>` : ""}
       <div class="brand"><b>鬼市</b><span>军械试验场</span></div>
       <nav class="tabs">
         <button data-mode="show">展柜</button>
@@ -324,6 +325,11 @@ export function createUI(lab) {
     const s = lab.state;
     root.classList.toggle("solo", !!lab.solo);
     if (lab.solo) root.querySelector(".brand span").textContent = "军械展柜";
+    // (a room of the game: its name there, as the title page's door says it)
+    if (lab.home) {
+      root.querySelector(".brand b").textContent = "行尸走镬";
+      root.querySelector(".brand span").textContent = "家伙陈列";
+    }
     root.classList.toggle("fp", s.mode === "fp");
     for (const b of root.querySelectorAll(".tabs button"))
       b.classList.toggle("on", b.dataset.mode === s.mode);
@@ -356,8 +362,9 @@ export function createUI(lab) {
   // ---------------------------------------------------------------- the range is the game
   // The firing range is not in the lab: it is the game itself (src/chinatown/range.js), on
   // its own street with its own dead. This opens it with the weapon on show, in its form and
-  // level, and the seasonings set on the bench. Which game: ?game=<address> if given, the dev
-  // server beside this lab if one answers, the published game otherwise.
+  // level, and the seasonings set on the bench. Which game: the one this showcase is a room
+  // of, if it is one; else ?game=<address> if given, the dev server beside this lab if one
+  // answers, the published game otherwise.
   const PUBLISHED = "https://wok-ing-dead.vercel.app/";
   const DEV = "http://127.0.0.1:5173/";
   function rangeQuery() {
@@ -368,10 +375,12 @@ export function createUI(lab) {
     if (spice.length)
       q.push("spice=" + spice.map(([id, lv]) => `${id}:${lv}`).join(","));
     if (lab.meal && lab.meal.ammo === "meal") q.push("ammo=meal");
+    // (on a phone the range's panel would cover the street: it starts folded there)
+    if (lab.home && matchMedia("(pointer: coarse)").matches) q.push("panel=0");
     return q.join("&");
   }
   async function openRange() {
-    let base = new URLSearchParams(location.search).get("game");
+    let base = lab.home || new URLSearchParams(location.search).get("game");
     if (!base && /^(127\.0\.0\.1|localhost)$/.test(location.hostname)) {
       try {
         await fetch(DEV, { mode: "no-cors", signal: AbortSignal.timeout(900) });

@@ -33,6 +33,8 @@ export default {
   "act.retry": "もう一回",
   "act.redeploy": "おかわり",
   "act.close": "閉じる",
+  "act.gallery": "武器陳列",
+  "act.range": "試し撃ち場",
 
   "mode.mission": "定食",
   "mode.holdout": "食べ放題",
