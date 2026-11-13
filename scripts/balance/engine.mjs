@@ -103,6 +103,12 @@ export function createFight(opts) {
     return true;
   };
 
+  /** Throw a zombie back by `knock` (a heavy barely moves, see STATUS.brute.knock). */
+  F.shove = (z, knock) => {
+    if (knock && z.d > 0)
+      z.d += knock * KNOCK * (z.type === "brute" ? 0.35 : 1);
+  };
+
   /**
    * Take a weapon in hand. w: { id, power, rounds, supply(units), reloaded() }: power multiplies its
    * damage (level, form, calibration); rounds is what is in the magazine (undefined = full);
@@ -162,9 +168,7 @@ export function createFight(opts) {
         z.pin = 3 * (z.rank === "boss" ? 0.25 : z.rank === "elite" ? 0.5 : 1);
       }
     }
-    // thrown back (a heavy barely moves, see STATUS.brute.knock)
-    if (W.m.knock && z.d > 0)
-      z.d += W.m.knock * KNOCK * (z.type === "brute" ? 0.35 : 1);
+    F.shove(z, W.m.knock);
     return F.damage(z, dmg);
   }
 
@@ -223,6 +227,8 @@ export function createFight(opts) {
     const rate = m.rate * ((ctx.mods && ctx.mods.rate) || 1) * (ctx.tempo ?? 1);
     if (m.regen && W.rounds < m.mag)
       W.rounds = Math.min(m.mag, W.rounds + dt / m.regen);
+    // both hands are full of something else: nothing is fired and nothing is reloaded
+    if (ctx.hands === false) return;
     if (W.reload > 0) {
       W.reload -= dt;
       if (W.reload <= 0) fill(W);
@@ -278,6 +284,7 @@ export function createFight(opts) {
    *   mods,      { damage, rate, reload } from the seasonings
    *   infusions, { fire, shock, venom: every n hits; seal: chance; burn: damage of a stack }
    *   fire,      false to hold fire
+   *   hands,     false when both hands are full (a wok): no firing and no reloading either
    *   tempo,     share of the weapon's rate the player keeps up (busy with something else)
    *   wake,      { near, hear }: how close the player, or gunfire, wakes a wanderer
    * }

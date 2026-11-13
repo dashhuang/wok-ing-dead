@@ -6,7 +6,12 @@
 // Each guard: { text, value, want, ok, enforce } (texts are in the report's language).
 import { RUN } from "./data.mjs";
 import { PROFILES } from "./run.mjs";
-import { stageAt } from "../../src/chinatown/runflow.js";
+import {
+  stageAt,
+  courseAt,
+  clockStep,
+  stoveCount,
+} from "../../src/chinatown/runflow.js";
 import ZH from "../../src/i18n/locales/zh-CN.js";
 
 const pct = (v) => (v * 100).toFixed(0) + "%";
@@ -36,13 +41,26 @@ export function guards({ TL, W, WR, sims, calRows }) {
     );
   }
   {
+    // The courses are read at the meal's clock now. In order on it, the last one where the
+    // house special's begins; and the clock, however long it is left to run, stays out of
+    // a course whose stove is not lit and is in the last one once every dish is packed.
     const st = RUN.stages;
+    const last = st.length - 1;
     const rising = st.every((s, i) => i === 0 || s.at > st[i - 1].at);
+    let waits = true;
+    for (let lit = 0; lit < stoveCount(); lit++)
+      for (const cooking of [false, true])
+        if (courseAt(clockStep(0, 1e6, { lit, served: lit, cooking })) !== lit)
+          waits = false;
+    const done = { lit: stoveCount(), served: stoveCount() };
     add(
       true,
-      "各道菜按时间先后排列，最后一道在关底登场时开始",
-      rising && st[st.length - 1].at === RUN.bossAt,
-      st.map((s) => s.at).join(" → "),
+      "各道菜按套餐的钟先后排列；钟不走进还没起灶的那道菜，最后一道在关底登场时（最后一道菜打包后）开始",
+      rising &&
+        st[last].at === RUN.bossAt &&
+        waits &&
+        courseAt(clockStep(0, 0.1, done)) === last,
+      st.map((s) => s.at).join(" → ") + (waits ? "" : "（钟没有停在灶前）"),
       `递增，末尾是 ${RUN.bossAt}`,
     );
   }
@@ -64,8 +82,16 @@ export function guards({ TL, W, WR, sims, calRows }) {
     "≥ 0:40",
   );
   {
-    const n = lv.filter((s) => s < RUN.bossAt).length;
-    add(false, "关底之前升级不超过 11 次", n <= 11, n + " 次", "≤ 11 次");
+    // the house special comes when the third dish is packed, not at a second of the run:
+    // counted in each simulated run up to the moment it arrived there (the median of them)
+    const n = sims.expertFocus.bossLevels;
+    add(
+      false,
+      "关底之前升级不超过 11 次",
+      n != null && n <= 11,
+      n == null ? "没有一局见到关底" : n + " 次",
+      "≤ 11 次",
+    );
   }
   {
     let gap = Infinity;
@@ -91,10 +117,15 @@ export function guards({ TL, W, WR, sims, calRows }) {
     );
   }
   {
-    const grow = (stageAt(RUN.bossAt - 30).hp ?? 1) / (stageAt(0).hp ?? 1);
+    // the last course before the house special's, half a minute before its end on the
+    // meal's clock (which minute of the run that is depends on when the stoves are lit)
+    const st = RUN.stages;
+    const before = st[st.length - 2];
+    const grow =
+      (stageAt(st[st.length - 1].at - 30).hp ?? 1) / (stageAt(0).hp ?? 1);
     add(
       false,
-      "敌人跟着成长：第 9 分钟的行尸血量至少是开局的 1.8 倍",
+      `敌人跟着成长：关底前最后一道菜（${ZH["run.stage." + before.id]}）的行尸血量至少是开局的 1.8 倍`,
       grow >= 1.8,
       "×" + grow.toFixed(1),
       "≥ ×1.8",
@@ -135,6 +166,19 @@ export function guards({ TL, W, WR, sims, calRows }) {
       top.grow <= 4,
       `${ZH["weapon." + top.id]} ×${top.grow.toFixed(1)}`,
       "≤ ×4",
+    );
+  }
+  {
+    const keys = ["focus", "spread"];
+    const at = keys.map((k) => sims[k].bossAt);
+    add(
+      false,
+      "一局的长度：普通玩家见到关底是在街上的第 7:30–10:30",
+      at.every((s) => s != null && s >= 450 && s <= 630),
+      keys
+        .map((k, i) => `${name(k)} ${at[i] == null ? "没见到" : mmss(at[i])}`)
+        .join("，"),
+      "7:30–10:30",
     );
   }
   add(

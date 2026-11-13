@@ -13,6 +13,8 @@
 import { createGameTargets } from "./armtargets.js";
 import { bloodOf } from "../../arsenal/src/combat/fate.js";
 
+// a prop is no weapon: neither hand has a trigger to stay on, so both wrists are eased
+const BOTH = { left: true, right: true };
 const LAB_FOV = 68; // the lab's first-person field of view; every hip pose is written for it
 const VIEW_LAYER = 1;
 const rad = (deg) => (deg * Math.PI) / 180;
@@ -479,6 +481,9 @@ export async function createArmory(G) {
   // ---------------------------------------------------------------- state
   const hooks = { canReload: null, loaded: null, changed: null };
   let cur = null; // { id, model }
+  // something that is not a weapon, in both hands (the wok of a street stove, a dish being
+  // packed): mounted and held like a weapon, but nothing fires
+  let prop = null;
   let time = 0;
   let wasFire = false,
     wasAlt = false;
@@ -542,6 +547,7 @@ export async function createArmory(G) {
     async equip(id, o = {}) {
       const model = await prepare(id);
       api.holster(true);
+      prop = null;
       cur = { id, model };
       lab.model = model;
       lab.state.weapon = id;
@@ -576,6 +582,58 @@ export async function createArmory(G) {
       if (rounds !== undefined && W.spec.mag)
         W.rounds = Math.max(0, Math.min(W.spec.mag, rounds));
       W.draw = 1;
+    },
+    /**
+     * Get something that is not a weapon ready to be held: a model from kit.weapon. Its
+     * anchors, layers and materials are treated like a weapon's, and it is drawn once ahead
+     * of time so that taking it up costs no frame.
+     */
+    async adopt(model) {
+      for (const a of Object.values(model.anchors)) patchAnchor(a);
+      model.holder.traverse((n) => {
+        if (n.isMesh) {
+          n.castShadow = false;
+          n.receiveShadow = true;
+          n.frustumCulled = false;
+        }
+      });
+      setLayer(model.holder, VIEW_LAYER);
+      adoptTree(model.holder);
+      try {
+        const hidden = [];
+        model.holder.traverse((n) => {
+          if (!n.visible) {
+            hidden.push(n);
+            n.visible = true;
+          }
+        });
+        await ghostDraw(model.holder, null);
+        for (const n of hidden) n.visible = false;
+      } catch (e) {
+        console.warn("[armory] warm-up of a prop failed: " + e);
+      }
+      return model;
+    },
+    /**
+     * Both hands take `model` (from adopt) instead of a weapon; null lets go of it. The
+     * weapon that was up is put away: the caller takes it up again afterwards (equip).
+     */
+    hold(model) {
+      if (model) {
+        api.holster(true);
+        prop = model;
+        stage.mount(model);
+        setLayer(model.holder, VIEW_LAYER);
+        view.visible = true;
+        arms.setVisible(true);
+      } else if (prop) {
+        prop = null;
+        stage.mount(null);
+        if (!cur) view.visible = false;
+      }
+    },
+    get holding() {
+      return !!prop;
     },
     /** Put it away (the game's own guns come back, or nothing is held). */
     holster(silent) {
@@ -644,11 +702,30 @@ export async function createArmory(G) {
         if (act && input.pressed && input.pressed("reload")) combat.reload();
         motion(dt, P);
       }
+      if (prop && !cur) {
+        const k =
+          Math.tan(rad(G.viewCamera.fov) / 2) / Math.tan(rad(LAB_FOV) / 2);
+        view.scale.set(k, k, 1);
+        motion(dt, P);
+      }
       combat.update(dt, time);
       const spent = combat.meter.spent - spentBefore;
       if (cur && spent > 0)
         G.events.emit("telemetry:spent", { weapon: cur.id, amount: spent });
       fx.update(dt, time);
+      if (prop && !cur) {
+        prop.update({ t: time }, dt);
+        arms.solve(prop, {
+          mode: "fp",
+          dt,
+          visible: P.alive,
+          gain: ARMORY_TUNE.handGain,
+          eased: BOTH,
+        });
+        setLayer(arms.group, VIEW_LAYER);
+        adoptTree(root);
+        return;
+      }
       if (!cur) return;
       const model = cur.model;
       // ---- a thrown weapon leaves the hands: draw it with the street until it is caught
@@ -695,6 +772,8 @@ export async function createArmory(G) {
       // anything a weapon built this frame (a sword wave, a new ribbon) gets the same treatment
       adoptTree(root);
     },
+    kit,
+    arms,
     /** 0..1 how far a scope is in (slows the look and the walk like the game's own sights). */
     get ads() {
       return Math.max(0, Math.min(1, (stage.zoomNow - 1) / 1.2));
