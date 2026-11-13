@@ -179,7 +179,7 @@ export function createRange(G, c) {
       .join("");
     const levels = LEVELS.map(
       (l) =>
-        `<button data-lv="${l.lv}"${l.lv === it.level ? ' class="on"' : ""} title="伤害 ×${l.dmg}">${l.lv}</button>`,
+        `<button data-lv="${l.lv}"${l.lv === it.level ? ' class="on"' : ""} title="伤害 ×${own ? l.bare : l.dmg}">${l.lv}</button>`,
     ).join("");
     const forms = own
       ? `<span class="rg-note">本体的枪，没有岔路</span>`

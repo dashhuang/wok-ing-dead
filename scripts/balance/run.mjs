@@ -558,7 +558,8 @@ export function simulateRun(o = {}) {
       return;
     }
     it.level++;
-    if (it.level === 3) {
+    // (the game's own two guns have no forks: no ticket to choose one, as in loadout.upgrade)
+    if (it.level === 3 && !ARMS[it.id].own) {
       it.branch =
         prof.build === "random" ? (rng() < 0.5 ? "a" : "b") : betterFork(it.id);
       R.picks++;
