@@ -28,6 +28,7 @@ export default {
   "title.difficulty": "Spice level",
 
   "act.deploy": "Fire it up",
+  "act.home": "Return to main menu",
   "act.settings": "Settings",
   "act.controls": "Controls",
   "act.resume": "Resume",
