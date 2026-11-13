@@ -350,7 +350,7 @@ function labMaterial() {
         "diffuseColor.rgb = armCol * uLabGain;",
       );
   };
-  mat.customProgramCacheKey = () => "saltline-arm-lab-4";
+  mat.customProgramCacheKey = () => "saltline-arm-lab-5";
   return mat;
 }
 
@@ -630,7 +630,7 @@ export function createArms(kit) {
     arms,
     POSES,
     /**
-     * solve(model, { mode: "fp" | "show", dt, trigger, away: { left, right }, visible,
+     * solve(model, { mode: "fp" | "show", dt, trigger, away: { left, right }, visible, wet,
      *                eased: { left, right } (which wrists are eased; default: the support hand's) })
      * Call after the weapon's own update, once per frame.
      */
@@ -639,7 +639,8 @@ export function createArms(kit) {
       last = model;
       const dt = o.dt ?? 1 / 60;
       const where = o.mode === "fp" ? "fp" : "show";
-      GH.WETNESS.value = WET[where];
+      // (o.wet: the game says how wet the arms are; it knows when she is under a roof)
+      GH.WETNESS.value = o.wet ?? WET[where];
       GAIN.value = o.gain ?? GAIN_FOR[where]; // (the game passes its own: its lighting differs)
       CUT.value = where === "show" ? 1 : 0;
       group.updateWorldMatrix(true, false);
