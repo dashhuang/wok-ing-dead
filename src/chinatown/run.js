@@ -459,17 +459,11 @@ export function createRun(G, hooks) {
   function spawnPack() {
     const K = RUN.pack;
     const at = hooks.pickSpawn("walker");
+    if (!at) return null;
     let z = null;
     for (let i = 0; i < K.size; i++) {
-      tmp.copy(at);
-      if (i) {
-        tmp.x += (rng() - 0.5) * 2 * K.spread;
-        tmp.z += (rng() - 0.5) * 2 * K.spread;
-        try {
-          if (!G.physics.nav.isWalkable(tmp.x, tmp.z)) tmp.copy(at);
-        } catch {}
-      }
-      z = spawnAt("walker", tmp, packOpts()) || z;
+      const pos = i ? hooks.scatterSpawn(at, K.spread) : at;
+      if (pos) z = spawnAt("walker", pos, packOpts()) || z;
     }
     return z;
   }

@@ -100,3 +100,13 @@ node --env-file=.env.telemetry.local --test tests/telemetry/*.test.mjs
 
 查询脚本：`node --env-file=<管理密钥文件> scripts/telemetry/report.mjs 7`，可在天数后再传 commit。
 生产密钥属于 Vercel Secret，env pull 不会取回；管理者应安全保存本地副本，不要将 `[SENSITIVE]` 占位符当作密钥。
+
+## 线上资源（2026-11-13）
+
+- Vercel 项目 `wok-ing-dead`（团队 `dashs-projects-f9665735`）；Neon 资源 `wok-ing-dead-telemetry`（`store_sjjiYmSPeRK6gOSo`），免费方案，只连接 production。
+- 生产 Secret：`DATABASE_URL`、`TELEMETRY_ADMIN_TOKEN`、`CRON_SECRET`。管理查询密钥在 Dash 本机的副本是 `~/.config/wok-ing-dead/telemetry.env`（权限 0600）。
+  不要把密钥的值输出到聊天、写进代码或文档。
+- 上线时（PR #12）用线上的真实鼠标操作开局、选武器、死亡，确认了 5 次快照入库（含结算）、管理查询返回 200、无令牌或错误令牌返回 401，
+  测试局也排除在正式统计之外。之后每次改动日志都要核对实时部署。
+- 当时 Neon 免费方案的项目数被一个旧库占满：`neon-ai-notify` 是已停服的 Pingro 的业务库（约 3.38 GiB，最后查询记录 2026-05-17）。
+  经 Dash 同意已经删除，并断开了 Pingro 的连接。其他旧资源没动。

@@ -20,12 +20,25 @@ npm run check          # 全仓库 JS 语法 + Prettier 格式检查 + 数值护
 npm run balance        # 改了数值后重新生成 docs/balance-report.md（不是最新的话 check 会失败）
 npm run format         # 自动修格式
 npm run build          # 生产构建到 dist/
-npm run test:e2e       # Playwright 真实点击冒烟测试（先 build；端口 5199；只在本机跑）
-npm run verify         # check + build + test:e2e
+npm test               # 不开浏览器的测试：僵尸导航和游玩日志（几秒）
+npm run verify         # check + build + npm test
+npm run test:e2e       # 浏览器里跑游戏的冒烟测试（暂停使用：只在用户要求时跑；先 build；端口 5199）
 npm run build:single   # 单文件版 dist-single/wok-ing-dead.html（约 35 MB）
 npm run arsenal        # 武器试验场 http://127.0.0.1:5311/（独立于本体，没有热重载）
-npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312；改了 arsenal/ 就跑）
+npm run arsenal:test   # 浏览器里跑试验场的测试（暂停使用：只在用户要求时跑；端口 5312）
 ```
+
+## 项目知识写进仓库
+
+**跟这个游戏有关的信息一律写进本仓库，不写进 AI 助手的个人记忆**（Dash 2026-11-13 的要求）。仓库是唯一的事实来源，换一个会话、
+换一个助手都从这里读：
+
+- [docs/decisions.md](docs/decisions.md)：Dash 拍板的方向与偏好（美术、界面、玩法、武器、流程），带日期和原话。**改相关内容前必读**，想推翻先问。
+- [docs/status.md](docs/status.md)：各功能做到哪一步、哪些没人上手验证、已知瑕疵、等 Dash 决定的事。
+- [docs/pitfalls.md](docs/pitfalls.md)：踩过的坑和解法。
+- 机制和代码怎么接看 [docs/architecture.md](docs/architecture.md)，数值看 [docs/balance.md](docs/balance.md)，素材和许可看 [docs/assets.md](docs/assets.md)。
+
+Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值得记的坑，就在同一次改动里更新对应文档；过时的条目直接改掉或删掉。
 
 ## 代码地图
 
@@ -67,8 +80,8 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
     试验场（`arsenal/`）只用来看模型和握法；它里面的「测试台」（`?mode=fp`）是给自动测试和测量脚本用的简化巷子，不要拿它调手感。
   - **不要在任何一边再写一份规则或数字**。测试台缺什么，就把本体那部分抽成两边共用的代码，而不是在 `arsenal/` 里照抄。
   - 这三张表所在的文件不能导入游戏对象或 DOM（试验场和 node 脚本都要能直接导入）。试验场不引用 `src/game.js`。
-  - 改 `arsenal/src/combat/`、`arsenal/src/data/` 或这三张表的结构，`npm run arsenal:test` 和 `npm run test:e2e` 都要在本机跑；
-    只调表里的数字不用。改接口（`createCombat(lab)`、`lab` 舞台对象、`createStatus(host)`、`kit/hands.js`、`data/weapons.js` 的字段）同理。
+  - 改 `arsenal/src/combat/`、`arsenal/src/data/` 或这三张表的结构、或改接口（`createCombat(lab)`、`lab` 舞台对象、`createStatus(host)`、
+    `kit/hands.js`、`data/weapons.js` 的字段）时，浏览器测试（`npm run arsenal:test`、`npm run test:e2e`）暂停使用，交付时说明“没跑浏览器测试”。
   - 武器基础形态的伤害、弹丸数、射程、溅射、弱点倍率、挥砍范围只写在 `arsenal/src/data/weapons.js` 的 `fire` 里，`behaviours.js` 读它（`F.<武器>`），
     不要在 `behaviours.js` 里再写一遍。射速、弹匣、换弹时间写在 `behaviours.js` 的 `spec()` 里，数据里的那份由 `npm run check` 核对。
     岔路说明文字里的数字是手写的，改岔路的数值时一起改。
@@ -90,17 +103,20 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
 3. 用户要求时才 push。用户说直接推 / 直接发布时，在最新的 `main` 上提交并推送（推上去立即上线）；没说清楚的，
    小改动（文案、数值、小修复、文档）问一句，大改动（新玩法、菜单或启动流程、多文件重构）默认开 PR（`gh pr create --fill`）。
    pre-push 钩子和 CI 都跑 `npm run check`（CI 再跑构建），不过就推不上去；不要用 `--no-verify` 绕过。
-   浏览器测试不在 CI 里：改了菜单、标题页、启动或一局的流程时在本机跑 `npm run test:e2e`。
+   浏览器测试不在 CI 里，本机也暂时不跑（见下文「验证」）。
 4. 合并用 Squash and merge；合并后用 `npx vercel@latest ls wok-ing-dead` 确认生产部署成功。
+   **自己发的 PR，检查没问题就自己合并**，不用再问：条件是 CI 全绿、没有未解决的评审线程、可以干净合并、head 没变。
+   检查失败或有需要 Dash 拍板的产品问题时不要合并；别人发的 PR 仍要 Dash 授权。合并前看有没有别的 PR 叠在它上面（见 docs/pitfalls.md）。
+5. 修瞄准偏移、特效、手感、数值微调这类小问题，**不新增长期保留的自动测试**，也不在文档里登记测试（已有的不删）。
 
 ## 验证（交付前必须做）
 
-- `npm run check`、`npm run build` 必须通过。自动化冒烟测试（`npm run test:e2e`）现阶段不是每次必跑：改动大（菜单、标题页、启动或一局的流程）
-  或用户要求时才跑，在本机跑。
-- **必须用真实鼠标点击和按键走入口**，不能只靠 `?autostart=1` 或直接调用 `G.game.start()`——曾经标题页按钮被透明元素挡住，
-  脚本直达的检查全部通过，用户一上手就点不动。界面改动走一遍：标题页 → 开镬 → 选主菜 → 数字键换武器 → Esc 暂停 → 设置里换语言 → 继续 →
-  死亡重试 → 通关再开（第二关码头暂时没有在用，不用验证），
-  桌面、手机竖屏、手机横屏各看一次，确认按钮没有被别的元素盖住。
+- **现阶段的验证：`npm run check`、`npm run build`、`npm test` 通过即可**（`npm run verify` 一次跑完，约半分钟）。
+- **暂时不要在浏览器里跑游戏**（用户 2026-11-13 的决定）：不跑 `npm run test:e2e`、`npm run arsenal:test`，也不开浏览器手动点。
+  游戏由用户自己在 Vercel 预览地址或线上实际玩。交付时说明“没有在浏览器里验证”，并写出用户试玩时该重点看哪里。
+- 用户明确要求在浏览器里验证时，按下面做：用真实鼠标点击和按键走入口，不能只靠 `?autostart=1` 或直接调用 `G.game.start()`
+  （曾经标题页按钮被透明元素挡住，脚本直达的检查全部通过，用户一上手就点不动）。界面改动走一遍：标题页 → 开镬 → 选主菜 → 数字键换武器 →
+  Esc 暂停 → 设置里换语言 → 继续 → 死亡重试 → 通关再开（第二关码头暂时没有在用，不用验证），桌面、手机竖屏、手机横屏各看一次。
 - 手动验证用 `npm run build` + `npx vite preview --port 5185` 之类的独立端口，不要用开发服务器：别的会话改文件会触发热重载打断测试。
   端口约定：dev 5173、arsenal 5311（测试 5312）、e2e 5199。
 - **这台 Mac 有人在用：浏览器自动化不能真的锁定鼠标。** Chromium 在 macOS 上执行 `requestPointerLock()` 会移动系统光标（无头模式也会），

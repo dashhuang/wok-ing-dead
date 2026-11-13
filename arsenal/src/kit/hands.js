@@ -1,6 +1,6 @@
 // First-person arms.
 //
-// These are the game's own arms: the rig, skinned mesh, glove-and-sleeve material, finger limits
+// These are the game's own arms: the rig, skinned mesh, glove-and-skin material (the shooter is a woman: bare arms, gloved hands), finger limits
 // and two-bone arm solver of src/game.js, lifted unchanged into gamehands.gen.js by
 // scripts/extract-hands.mjs. A weapon held here looks the way it will in the game.
 // This file is the lab's side of it: it turns a weapon's description of a grip into targets
@@ -297,13 +297,13 @@ for (const side of ["right", "left"]) {
     new THREE.Matrix4().makeBasis(new V3().crossVectors(y, z), y, z),
   );
 }
-const WET = { fp: 0.7, show: 0.12 }; // rain beading on the sleeves: the alley is wet, the studio is not
+const WET = { fp: 0.7, show: 0.12 }; // rain on the arms: the alley is wet, the studio is not
 // The lab's alley lights the shooter with a lamp at arm's length, far brighter on the hands than
 // the game's night street: the arms' own colours are scaled down there so they read as they do
 // in the game (olive and tan, not cream).
 const GAIN = { value: 1 };
 const GAIN_FOR = { fp: 0.42, show: 0.72 };
-// In the showcase there is no body for the arms to end on: the sleeves dissolve above the elbow.
+// In the showcase there is no body for the arms to end on: they dissolve above the elbow.
 const CUT = { value: 0 };
 function labMaterial() {
   const mat = GH.armMaterial();
@@ -322,7 +322,7 @@ function labMaterial() {
       .replace(
         "#include <map_fragment>",
         `#include <map_fragment>
-  // (sleeve vertices carry their distance from the cuff in vArmHand.x; the elbow is at 0.27)
+  // (the arm's vertices carry their distance from the wrist in vArmHand.x; the elbow is at 0.27)
   if (uLabCut > 0.5 && vArmRest.w > 0.5) {
     float labFade = smoothstep(0.33, 0.47, vArmHand.x);
     if (labFade > fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))))) discard;
@@ -333,12 +333,12 @@ function labMaterial() {
         "diffuseColor.rgb = armCol * uLabGain;",
       );
   };
-  mat.customProgramCacheKey = () => "saltline-arm-lab-2";
+  mat.customProgramCacheKey = () => "saltline-arm-lab-4";
   return mat;
 }
 
 // In first person an elbow in front of the eye is a grey lump across the picture: how far inside
-// the frame it is (eye space; the frame is taken a little generously, the sleeve is thick),
+// the frame it is (eye space; the frame is taken a little generously),
 // as a cost on the scale of radians of wrist strain.
 function inView(e) {
   const d = -e.z;

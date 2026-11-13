@@ -4,9 +4,9 @@
 
 ## 怎么验证的
 
-<!-- 写实际做过的，没做的就别勾。CI 跑 `npm run check` 和构建；改了菜单、标题页或启动流程时，在本机跑 `npm run test:e2e`。 -->
+<!-- 写实际做过的，没做的就别勾。CI 跑 `npm run check` 和构建；本机跑 `npm run verify`。浏览器自动测试暂停使用。 -->
 
-- [ ] `npm run check` 和 `npm run build` 通过
+- [ ] `npm run verify`（check、build、不开浏览器的测试）通过
 - [ ] 在 Vercel 预览地址上用鼠标/键盘实际玩过受影响的部分（不是只用 `?autostart`）
 - [ ] 改了界面：桌面、手机竖屏、手机横屏都看过，按钮没有被挡住
 - [ ] 改了文案：四个语言包都更新了，并重新生成了界面字体子集
