@@ -311,6 +311,7 @@ export default {
   "run.obj.bossDue": "三袋揃った　匂いを嗅ぎつけて来る",
   "run.prompt.toss": "鍋を振る",
   "run.prompt.pack": "包む",
+  "run.cook.light": "鍋があるぞ。火をつけて炒めよう！",
   "run.cook.back": "よし、竈に戻せ",
   "run.cook.due": "振る時間だ！{s} 秒で焦げる",
   "run.cook.ready": "上がり！戻って包め　{s} 秒で焦げる",
