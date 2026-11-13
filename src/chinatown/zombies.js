@@ -4,6 +4,12 @@
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { ZOMBIES, EXTRA_BODIES, EXTRA_RIGS, BODY_TEX } from "./zombietune.js";
+import { STATUS } from "../../arsenal/src/data/status.js";
+import { fateOf } from "../../arsenal/src/combat/fate.js";
+import { LIMBS, WITH, createLimbs } from "../../arsenal/src/fx/limbs.js";
+
+// how a thrown body comes down and stops (the force it is thrown with is the weapons' rules')
+const FLIGHT = STATUS.launch;
 
 const ASSETS = "assets/zombies/";
 const CHARACTERS = {
@@ -185,6 +191,13 @@ export async function createZombies(G) {
 
   const emit = (name, data) => G.events.emit(name, data);
   const nav = () => G.physics.nav;
+  // severed limbs lying in the street (the blood they trail and leave is the armoury's
+  // effects: it listens for these two)
+  const limbs = createLimbs({
+    scene: root,
+    blood: (pos, dir, k) => emit("gore:spurt", { pos, dir, k }),
+    splat: (pos, size) => emit("gore:splat", { pos, size }),
+  });
 
   function makeMaterials(rig, tint) {
     const made = new Map();
@@ -243,6 +256,7 @@ export async function createZombies(G) {
 
   function createZombie(template) {
     const rig = cloneSkinned(template.scene);
+    rig.rotation.order = "YXZ"; // (so a thrown body can tip over backwards about its own feet)
     shareSkeletons(template.scene, rig);
     // pallid, slightly green skin and clothes: kept light so they read under street light
     const k = rand(0.92, 1.2);
@@ -369,6 +383,21 @@ export async function createZombies(G) {
       deadT: 0,
       sink: 0,
       knock: new V3(),
+      // what has come off it (fx/limbs.js names: lFore, rLeg, head ...), the torn ends that
+      // are left ({ limb, bone, mesh, radius, bleed (seconds it still spurts), t }), and
+      // what each arm and leg has taken while it was up
+      template,
+      lost: {},
+      stumps: [],
+      limbDmg: { lArm: 0, rArm: 0, lLeg: 0, rLeg: 0 },
+      // a body thrown by the hit that killed it: height off the ground and how fast that is
+      // changing, how far over it is tipped and will tip, how long the flight is
+      air: 0,
+      airV: 0,
+      tilt: 0,
+      tiltTo: 0,
+      flying: false,
+      flight: 1,
       lodT: 0,
       lodAcc: 0,
       screamT: 0,
@@ -427,6 +456,9 @@ export async function createZombies(G) {
         z.deadT = 0;
         z.sink = 0;
         z.knock.set(0, 0, 0);
+        z.air = z.airV = z.tilt = 0;
+        z.flying = false;
+        mend(z);
         z.stuckT = 0;
         z.screamT = 0;
         z.los = false;
@@ -451,17 +483,25 @@ export async function createZombies(G) {
       _deactivate() {
         z.active = false;
         z.alive = false;
+        mend(z);
         rig.visible = false;
         if (rig.parent) rig.parent.remove(rig);
         mixer.stopAllAction();
         z.anim = "";
       },
 
-      damage(amount, point, dir, part = "body") {
+      // fate: what becomes of the body should this be the hit that kills it (combat/fate.js:
+      // how it is thrown, what comes off it). The game's own guns do not say: kill() works
+      // it out for them.
+      damage(amount, point, dir, part = "body", fate = null) {
         if (!z.alive) return false;
         const dealt = amount * (PART_DAMAGE[part] ?? 1);
         z.hp -= dealt;
+        z.lastDealt = dealt;
         if (part === "leg") z.legDamage += dealt;
+        // which arm or leg it landed on, if any (the armoury's weapons only say head or body)
+        const on = point ? limbAt(z, point) : null;
+        if (on) z.limbDmg[on.limb] += dealt;
         z.flinch = Math.min(1, z.flinch + (z.type === "brute" ? 0.35 : 0.8));
         if (dir) z.flinchAxis.set(dir.z, 0, -dir.x).normalize();
         const flinch = TUNE[z.type].flinch;
@@ -477,14 +517,26 @@ export async function createZombies(G) {
           amount: dealt,
         });
         if (z.hp <= 0) {
-          kill(z, dir, part, dealt);
+          kill(z, dir, part, dealt, fate, on);
           return true;
+        }
+        // an arm or a leg that has taken enough comes off at the elbow or the knee
+        const whole = (STATUS.rank[z.rank] || {}).severed !== false;
+        let legOff = false;
+        if (on && whole) {
+          const leg = on.limb.endsWith("Leg");
+          const most = (leg ? TUNE.limbs.leg : TUNE.limbs.arm) * z.maxHp;
+          if (z.limbDmg[on.limb] >= most && (!leg || z.type === "walker"))
+            legOff = sever(z, on.limb[0] + (leg ? "Shin" : "Fore"), dir) && leg;
         }
         if (
           !z.crawling &&
           z.type === "walker" &&
-          z.legDamage > z.maxHp * 0.55
+          (legOff || z.legDamage > z.maxHp * 0.55)
         ) {
+          // (a walker brought down by shots in the legs has lost one of them)
+          if (!legOff && whole && !z.lost.lShin && !z.lost.rShin)
+            sever(z, (rng() < 0.5 ? "l" : "r") + "Shin", dir);
           z.crawling = true;
           z.attackT = -1;
           emit("enemy:voice", {
@@ -559,15 +611,17 @@ export async function createZombies(G) {
 
   function place(z) {
     const r = z.rig;
-    const y = z.pos.y - z.sink + (z.alive ? z.ctl.lift : 0);
+    const y = z.pos.y - z.sink + (z.alive ? z.ctl.lift : z.air);
     if (
       r.position.x !== z.pos.x ||
       r.position.y !== y ||
       r.position.z !== z.pos.z ||
-      r.rotation.y !== z.yaw
+      r.rotation.y !== z.yaw ||
+      r.rotation.x !== z.tilt
     ) {
       r.position.set(z.pos.x, y, z.pos.z);
       r.rotation.y = z.yaw;
+      r.rotation.x = z.tilt;
       r.updateMatrix();
       z.dirty = true;
     }
@@ -586,6 +640,127 @@ export async function createZombies(G) {
     z.holder.matrix.copy(z.rig.matrix);
     z.holder.updateMatrixWorld(true);
     z.dirty = false;
+    for (const st of z.stumps) limbs.place(st.mesh, st.bone, st.radius);
+  }
+
+  // ---------- dismemberment (fx/limbs.js; which limb, and when, is combat/fate.js) ----------
+  // A limb comes off: its bone is shrunk away so the body closes up at the joint, a torn end
+  // is put over it, the limb itself is thrown (unless it burst: `pop`), and the end spurts.
+  function sever(z, limb, dir, o = {}) {
+    if (z.lost[limb]) return false;
+    const bone = z.holder.getObjectByName(LIMBS[limb]);
+    if (!bone || !bone.parent) return false;
+    if (z.dirty) sync(z);
+    const body = z.template.scene;
+    const cut = limbs.of(body, bone.name);
+    if (!cut.parts.length) return false;
+    const at = tmp.a.setFromMatrixPosition(bone.matrixWorld).clone();
+    if (!o.pop) {
+      // off the way of the hit and upwards, tumbling
+      const v = tmp.b.set(rand(-1.2, 1.2), rand(2.2, 4.6), rand(-1.2, 1.2));
+      if (dir) v.addScaledVector(tmp.c.set(dir.x, 0, dir.z), rand(2, 4.8));
+      limbs.toss({
+        body,
+        bone: bone.name,
+        matrix: bone.matrixWorld,
+        materials: z.meshes.map((m) => m.material),
+        vel: v,
+        spin: rand(6, 15),
+        ground: z.pos.y,
+      });
+    }
+    bone.scale.setScalar(1e-4);
+    z.lost[limb] = true;
+    if (WITH[limb]) z.lost[WITH[limb]] = true;
+    const radius = cut.radius * 1.08;
+    const mesh = limbs.stump(radius);
+    root.add(mesh);
+    z.stumps.push({
+      limb,
+      bone,
+      mesh,
+      radius,
+      bleed: (z.alive ? 3.2 : 2) * rand(0.5, 1.15),
+      t: 0,
+      next: 0,
+    });
+    pose(z);
+    sync(z);
+    emit("enemy:severed", {
+      enemy: z,
+      limb,
+      pos: at,
+      dir,
+      pop: !!o.pop,
+      ground: z.pos.y,
+    });
+    return true;
+  }
+  // a rig going back to the pool is whole again
+  function mend(z) {
+    for (const st of z.stumps) {
+      st.bone.scale.set(1, 1, 1);
+      root.remove(st.mesh);
+    }
+    if (z.stumps.length) z.dirty = true;
+    z.stumps.length = 0;
+    z.lost = {};
+    z.limbDmg.lArm = z.limbDmg.rArm = z.limbDmg.lLeg = z.limbDmg.rLeg = 0;
+  }
+  // the torn ends pump for a few seconds, in beats
+  function bleed(z, dt) {
+    for (const st of z.stumps) {
+      if (st.bleed <= 0) continue;
+      st.bleed -= dt;
+      st.t += dt;
+      if ((st.next -= dt) > 0 || Math.sin(st.t * 10.5) < 0.1) continue;
+      st.next = 0.06;
+      const e = st.mesh.matrix.elements;
+      // (the way the limb ran is the cap's +Y)
+      tmp.d.set(e[4], e[5], e[6]).normalize().multiplyScalar(2.4);
+      emit("gore:spurt", {
+        pos: tmp.a.set(e[12], e[13], e[14]),
+        dir: tmp.d,
+        k: Math.min(1, st.bleed / 1.5),
+      });
+    }
+  }
+  // Which arm or leg a point on the body is on: { limb: "lArm" | "rArm" | "lLeg" | "rLeg" }
+  // or null. (The bones as they were last read: at the latest a frame ago.)
+  const LIMB_SEGS = [
+    ["lArm", "lArm", "lFore", "lHand", 0.11],
+    ["rArm", "rArm", "rFore", "rHand", 0.11],
+    ["lLeg", "lUp", "lLeg", "lFoot", 0.14],
+    ["rLeg", "rUp", "rLeg", "rFoot", 0.14],
+  ];
+  const onLimb = { limb: "" };
+  function segDist2(p, a, b) {
+    const abx = b.x - a.x,
+      aby = b.y - a.y,
+      abz = b.z - a.z;
+    const l2 = abx * abx + aby * aby + abz * abz || 1;
+    let t = ((p.x - a.x) * abx + (p.y - a.y) * aby + (p.z - a.z) * abz) / l2;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const dx = p.x - a.x - abx * t,
+      dy = p.y - a.y - aby * t,
+      dz = p.z - a.z - abz * t;
+    return dx * dx + dy * dy + dz * dz;
+  }
+  function limbAt(z, p) {
+    const P = z.P;
+    let best = null;
+    let bd = 1e9;
+    for (const [limb, a, b, c, r] of LIMB_SEGS) {
+      const reach =
+        r * z.scale * (limb.endsWith("Leg") ? z.hit.leg : z.hit.arm);
+      const d = Math.min(segDist2(p, P[a], P[b]), segDist2(p, P[b], P[c]));
+      if (d < reach * reach && d < bd) ((bd = d), (best = limb));
+    }
+    // (a hit nearer the spine than the limb is a body hit: an arm hangs beside the chest)
+    if (best && segDist2(p, P.hips, P.neck) < bd) return null;
+    if (!best) return null;
+    onLimb.limb = best;
+    return onLimb;
   }
 
   function readBones(z) {
@@ -765,6 +940,7 @@ export async function createZombies(G) {
     const tune = TUNE[z.type];
     // hit volumes and the eye follow the pose the renderer last drew
     readBones(z);
+    if (z.stumps.length) bleed(z, dt);
 
     sense(z, dt);
     z.cooldown -= dt;
@@ -993,18 +1169,49 @@ export async function createZombies(G) {
     pose(z);
   }
 
-  function kill(z, dir, part, dealt) {
+  // fate: what becomes of the body (combat/fate.js). Its launch { speed, up } throws it (a
+  // blast of shot at arm's length, an explosion); without one it is nudged the way of the
+  // hit and drops. Its limbs come off, and a head that takes a bullet may burst.
+  // on: the arm or leg the killing hit landed on, if it did.
+  function kill(z, dir, part, dealt, fate, on) {
+    if (!fate)
+      fate = fateOf(
+        { type: z.type, rank: z.rank, scale: z.scale, maxHp: z.maxHp, pin: 0 },
+        { head: part === "weak" },
+        dealt,
+        rng,
+      );
+    const launch = fate.launch;
     z.alive = false;
     z.hp = 0;
     z.attackT = -1;
     z.screamT = 0;
     z.deadT = 0;
     z.speed = 0;
+    z.air = z.airV = z.tilt = 0;
+    z.flying = false;
     let fromBehind = false;
     if (dir) {
       fromBehind = dir.x * z.fwd.x + dir.z * z.fwd.z > 0.15;
-      const push = Math.min(2.6, 0.6 + dealt / 45);
+      const push = launch ? launch.speed : Math.min(2.6, 0.6 + dealt / 45);
       z.knock.set(dir.x, 0, dir.z).normalize().multiplyScalar(push);
+      if (launch && launch.turn) {
+        // (not quite along the hit: no two go the same way)
+        const c = Math.cos(launch.turn),
+          n = Math.sin(launch.turn);
+        z.knock.set(
+          z.knock.x * c + z.knock.z * n,
+          0,
+          z.knock.z * c - z.knock.x * n,
+        );
+      }
+      if (launch && !z.crawling) {
+        z.flying = true;
+        z.airV = launch.up;
+        z.flight = (2 * launch.up) / FLIGHT.gravity; // seconds in the air
+        // it goes over backwards as it goes (forwards if it was hit from behind)
+        z.tiltTo = (fromBehind ? 1 : -1) * Math.min(0.6, 0.12 * launch.speed);
+      }
     }
     if (z.crawling) {
       // already on the ground: just go limp where it lies
@@ -1015,8 +1222,14 @@ export async function createZombies(G) {
         z,
         fromBehind ? "death_front" : "death_back",
         0.12,
-        part === "weak" ? 1.5 : 1.25,
+        // (a thrown body is flat by the time it comes down)
+        z.flying ? Math.max(1.5, 0.9 / z.flight) : part === "weak" ? 1.5 : 1.25,
       );
+    // what comes off it
+    if (fate.pop) sever(z, "head", dir, { pop: true });
+    if (fate.limbs) for (const limb of fate.limbs) sever(z, limb, dir);
+    if (on && (STATUS.rank[z.rank] || {}).severed !== false && rng() < 0.5)
+      sever(z, on.limb[0] + (on.limb.endsWith("Leg") ? "Shin" : "Fore"), dir);
     corpses.push(z);
     while (corpses.length > TUNE.maxCorpses) {
       const old = corpses.shift();
@@ -1029,15 +1242,33 @@ export async function createZombies(G) {
       type: z.type,
       part,
       rank: z.rank,
+      dir,
+      thrown: z.flying,
+      gore: fate.gore, // how much it bursts (combat/fate.js)
     });
   }
 
   function updateCorpse(z, dt) {
     z.deadT += dt;
-    if (z.knock.lengthSq() > 1e-4 && z.deadT < 0.7) {
+    if (z.stumps.length) bleed(z, dt);
+    if (z.flying) {
+      // through the air: it keeps what it left the ground with (walls stop it), comes down
+      // under gravity, and skids to a stop where it lands
       z.vel.set(z.knock.x, -2, z.knock.z);
       G.physics.moveCapsule(z.pos, z.vel, dt, 0.3, 1.0, true);
-      z.knock.multiplyScalar(Math.exp(-dt * 5));
+      z.airV -= FLIGHT.gravity * dt;
+      z.air += z.airV * dt;
+      z.tilt = z.tiltTo * Math.sin(Math.PI * Math.min(1, z.deadT / z.flight));
+      if (z.air <= 0 && z.airV < 0) {
+        z.air = z.tilt = 0;
+        z.flying = false;
+        z.knock.multiplyScalar(0.55);
+        emit("enemy:landed", { enemy: z, pos: z.pos, speed: -z.airV });
+      }
+    } else if (z.knock.lengthSq() > 1e-4 && z.deadT < 1.6) {
+      z.vel.set(z.knock.x, -2, z.knock.z);
+      G.physics.moveCapsule(z.pos, z.vel, dt, 0.3, 1.0, true);
+      z.knock.multiplyScalar(Math.exp(-dt * FLIGHT.skid));
     }
     if (z.deadT > TUNE.corpseTime) {
       z.sink += dt * 0.35;
@@ -1143,14 +1374,22 @@ export async function createZombies(G) {
     const torso = tmp.b.length();
     tmp.b.multiplyScalar(Math.max(0, torso - rb) / (torso || 1)).add(P.hips);
     test(rayCapsule(o, d, P.hips, tmp.b, rb, max), "body");
-    test(rayCapsule(o, d, P.lArm, P.lFore, 0.075 * ra, max), "arm");
-    test(rayCapsule(o, d, P.lFore, P.lHand, 0.065 * ra, max), "arm");
-    test(rayCapsule(o, d, P.rArm, P.rFore, 0.075 * ra, max), "arm");
-    test(rayCapsule(o, d, P.rFore, P.rHand, 0.065 * ra, max), "arm");
-    test(rayCapsule(o, d, P.lUp, P.lLeg, 0.105 * rl, max), "leg");
-    test(rayCapsule(o, d, P.lLeg, P.lFoot, 0.085 * rl, max), "leg");
-    test(rayCapsule(o, d, P.rUp, P.rLeg, 0.105 * rl, max), "leg");
-    test(rayCapsule(o, d, P.rLeg, P.rFoot, 0.085 * rl, max), "leg");
+    // (what has come off is not there to be hit)
+    const L = z.lost;
+    if (!L.lArm)
+      test(rayCapsule(o, d, P.lArm, P.lFore, 0.075 * ra, max), "arm");
+    if (!L.lFore)
+      test(rayCapsule(o, d, P.lFore, P.lHand, 0.065 * ra, max), "arm");
+    if (!L.rArm)
+      test(rayCapsule(o, d, P.rArm, P.rFore, 0.075 * ra, max), "arm");
+    if (!L.rFore)
+      test(rayCapsule(o, d, P.rFore, P.rHand, 0.065 * ra, max), "arm");
+    if (!L.lLeg) test(rayCapsule(o, d, P.lUp, P.lLeg, 0.105 * rl, max), "leg");
+    if (!L.lShin)
+      test(rayCapsule(o, d, P.lLeg, P.lFoot, 0.085 * rl, max), "leg");
+    if (!L.rLeg) test(rayCapsule(o, d, P.rUp, P.rLeg, 0.105 * rl, max), "leg");
+    if (!L.rShin)
+      test(rayCapsule(o, d, P.rLeg, P.rFoot, 0.085 * rl, max), "leg");
     if (!part) return false;
     out.dist = best;
     out.point.copy(o).addScaledVector(d, best);
@@ -1284,6 +1523,7 @@ export async function createZombies(G) {
       for (const z of pool) if (z.active) z._deactivate();
       list.length = 0;
       corpses.length = 0;
+      limbs.clear();
     },
     alert(pos, radius = 40) {
       for (const z of list) {
@@ -1305,9 +1545,10 @@ export async function createZombies(G) {
       noiseGate -= dt;
       pathBudget = PATHS_PER_FRAME;
       for (let i = list.length - 1; i >= 0; i--) list[i]._update(dt);
+      limbs.update(dt);
       separate();
     },
-    debug: { pool, corpses, templates, clips, hitTime },
+    debug: { pool, corpses, templates, clips, hitTime, limbs, sever },
   };
 
   G.events.on("weapon:fire", (e) => {

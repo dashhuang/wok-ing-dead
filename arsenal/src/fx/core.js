@@ -106,10 +106,12 @@ export const P = {
   SHARD: 6,
   DROP: 7,
   PAPER: 8,
+  SPARK: 9, // a hard little point of fire that flickers on and off as it dies
 };
-const STRIDE = 28;
+const STRIDE = 32;
 // per particle: 0 px 1 py 2 pz 3 vx 4 vy 5 vz 6 age 7 life 8 s0 9 s1 10 rot 11 rv 12-14 c0 15-17 c1
 //               18 alpha 19 drag 20 grav 21 type 22 stretch 23 seed 24 fadeIn 25 fadePow 26 ground 27 turb
+//               28 trail rate 29 trail owed 30 trail life 31 trail size
 
 const PVERT = /* glsl */ `
 attribute vec4 aA; attribute vec4 aB; attribute vec4 aC; attribute vec4 aD;
@@ -182,9 +184,13 @@ void main() {
   } else if (type < 7.5) {     // droplet
     shape = smoothstep(1.0, 0.72, d);
     col *= 0.7 + 0.6 * smoothstep(0.9, 0.0, length(vUv - vec2(-0.3, 0.35)));
-  } else {                     // paper scrap
+  } else if (type < 8.5) {     // paper scrap
     shape = step(max(abs(vUv.x) * 1.5, abs(vUv.y)), 0.8);
     col *= 0.8 + 0.35 * vUv.y;
+  } else {                     // spark: a point of fire, steady at first, then guttering
+    float beat = fract(seed * 17.0 + age * (5.0 + seed * 11.0));
+    float gutter = mix(1.0, step(0.45, beat), smoothstep(0.25, 0.6, age));
+    shape = (exp(-d * d * 16.0) + 0.3 * exp(-d * d * 3.5)) * smoothstep(1.0, 0.7, d) * (0.25 + 0.75 * gutter);
   }
   float a = shape * vCol.a * vFog;
   if (a < 0.003) discard;
@@ -192,9 +198,33 @@ void main() {
   else gl_FragColor = vec4(col, a);
 }`;
 
+// what a shed spark is made of (one object, filled in and handed to emit each time)
+const TRAIL = {
+  pos: { x: 0, y: 0, z: 0 },
+  vel: { x: 0, y: 0, z: 0 },
+  life: 0.3,
+  size: [0.01, 0.004],
+  color: [
+    [1, 1, 1],
+    [1, 1, 1],
+  ],
+  alpha: 0.9,
+  drag: 2.6,
+  gravity: 1.2,
+  type: 1,
+  stretch: 0,
+  fadeIn: 0,
+  fadePow: 1.25,
+  ground: true,
+};
+const EMBER = [1.5, 0.4, 0.05];
+
 class Particles {
   constructor(capacity, additive, noise) {
     this.cap = capacity;
+    // how much of the sparks asked for by `trail` are really shed (see createFx: less when
+    // the pool is filling up, and on the low quality preset)
+    this.trailScale = 1;
     this.data = new Float32Array(capacity * STRIDE);
     this.alive = new Uint8Array(capacity);
     this.head = 0;
@@ -241,7 +271,12 @@ class Particles {
   }
   /**
    * emit({ pos, vel, life, size: [start, end] | n, color: [r,g,b] | [[...],[...]], alpha, drag, gravity,
-   *        type, stretch, rot, spin, fadeIn, fadePow, ground, turb })
+   *        type, stretch, rot, spin, fadeIn, fadePow, ground, turb, trail })
+   * trail: { rate, life, size }: the particle sheds sparks as it flies (a firework star, a
+   * burning fragment): `rate` a second, each living about `life` seconds and `size` across.
+   * They are left where they were shed, in the particle's colour at that moment, drawn as
+   * dashes end to end while it is fast (so the trail is a line, not a row of dots), and as
+   * guttering points once it has slowed.
    */
   emit(o) {
     const i = this.head;
@@ -283,6 +318,50 @@ class Particles {
     d[k + 25] = o.fadePow ?? 1.5;
     d[k + 26] = o.ground ? 1 : 0;
     d[k + 27] = o.turb ?? 0;
+    const tr = o.trail;
+    d[k + 28] = tr ? tr.rate : 0;
+    d[k + 29] = tr ? Math.random() : 0;
+    d[k + 30] = tr ? tr.life : 0;
+    d[k + 31] = tr ? tr.size : 0;
+  }
+  // n sparks shed by the particle at k over the step it has just taken
+  shed(k, n, dt, f) {
+    const d = this.data;
+    const T = TRAIL;
+    const vx = d[k + 3],
+      vy = d[k + 4],
+      vz = d[k + 5];
+    const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
+    const size = d[k + 31];
+    // how much of the path each spark has to cover, as a dash twice (size x stretch) long
+    const reach = (speed * dt) / n;
+    // (below about two metres a second the dashes would be dots anyway: guttering points then)
+    const dash = reach > size * 2.4;
+    for (let j = 0; j < n; j++) {
+      const back = ((j + Math.random()) / n) * dt;
+      T.pos.x = d[k] - vx * back;
+      T.pos.y = d[k + 1] - vy * back;
+      T.pos.z = d[k + 2] - vz * back;
+      // (a little of the star's own motion: it gives the dash its direction, and the
+      // embers drift on the way the star was going)
+      const j0 = dash ? 0.05 : 0.22;
+      T.vel.x = vx * 0.06 + (Math.random() - 0.5) * j0;
+      T.vel.y = vy * 0.06 + (Math.random() - 0.5) * j0;
+      T.vel.z = vz * 0.06 + (Math.random() - 0.5) * j0;
+      T.life = d[k + 30] * (0.55 + 0.7 * Math.random());
+      T.size[0] = size;
+      T.size[1] = size * 0.4;
+      for (let c = 0; c < 3; c++) {
+        const now = d[k + 12 + c] + (d[k + 15 + c] - d[k + 12 + c]) * f;
+        T.color[0][c] = now;
+        // burning down: the colour goes out of it and what is left is a dull orange
+        T.color[1][c] = now * 0.45 + EMBER[c] * 0.6;
+      }
+      T.type = dash ? P.STREAK : P.SPARK;
+      T.stretch = dash ? Math.min(40, (reach / (2 * size)) * 1.25) : 0;
+      T.gravity = dash ? 1.1 : 1.8;
+      this.emit(T);
+    }
   }
   update(dt, t) {
     const d = this.data;
@@ -316,6 +395,12 @@ class Particles {
         d[k + 4] = Math.abs(d[k + 4]) * 0.35;
         d[k + 3] *= 0.6;
         d[k + 5] *= 0.6;
+      }
+      if (d[k + 28] > 0 && this.head !== i) {
+        const owed = d[k + 29] + d[k + 28] * dt * this.trailScale;
+        const shed = Math.min(4, owed | 0);
+        d[k + 29] = owed - (owed | 0);
+        if (shed > 0) this.shed(k, shed, dt, f);
       }
       d[k + 10] += d[k + 11] * dt;
       const e = 1 - (1 - f) * (1 - f); // ease-out for growth
@@ -795,6 +880,10 @@ export function createFx(stage) {
     get time() {
       return time;
     },
+    /** 1, or less where there is less to spend on effects (the game's low preset): counts scale by it. */
+    get detail() {
+      return stage.detail ?? 1;
+    },
     /** Additive (glowing) particle. */
     glow(o) {
       add.emit(o);
@@ -963,6 +1052,10 @@ export function createFx(stage) {
       const fog = scene.fog && scene.fog.density ? scene.fog.density : 0;
       add.mat.uniforms.uFog.value = fog;
       alp.mat.uniforms.uFog.value = fog;
+      // trails are the first thing to thin out when a lot is burning at once
+      add.trailScale =
+        (stage.detail ?? 1) *
+        Math.max(0.25, Math.min(1, 1.5 - 2.2 * (add.count / add.cap)));
       add.update(dt, t);
       alp.update(dt, t);
       for (const r of ribbons) {

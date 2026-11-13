@@ -34,7 +34,10 @@ const FW_PALETTES = [
 const pick = (a) => a[(Math.random() * a.length) | 0];
 
 // ---------------------------------------------------------------- shared pieces
+// o.self: the share of it that reaches back to the shooter, o.selfMax: at most this much
 function splash(ctx, pos, radius, dmg, o = {}) {
+  if (o.self > 0)
+    ctx.blowback(pos, radius, Math.min(dmg * o.self, o.selfMax ?? Infinity));
   for (const h of ctx.targets.inSphere(pos, radius)) {
     const k = 1 - 0.6 * Math.min(1, h.dist / radius);
     ctx.hit(h.z, dmg * k, {
@@ -159,7 +162,8 @@ export const BEHAVIOURS = {
           ctx.hit(h.z, 10 * pellets, {
             dir: ctx.aim.dir.clone(),
             element: "fire",
-            knock: 0.5,
+            // (a cone of fire: it leans on them, harder the nearer they are)
+            knock: 0.5 + 1.1 * Math.max(0, 1 - h.dist / 5),
             point: h.z.chest,
             blood: false,
             spread: ctx.cap ? 4 : 3,
@@ -195,7 +199,7 @@ export const BEHAVIOURS = {
           range: 60,
           pierce: ctx.cap ? 99 : 3,
           damage: () => 150 * (ctx.cap ? 1 + 0.25 * n++ : 1),
-          knock: 1.6,
+          knock: 2.2,
           stagger: 0.7,
           tracer: {
             width: 0.07,
@@ -214,7 +218,14 @@ export const BEHAVIOURS = {
           smoke: 4,
           light: 40,
         });
-        const knocked = new Set();
+        // Each pellet hurts; the pattern shoves once, by how close it was fired and how
+        // much of it landed. A pellet that kills throws the body with the whole of it.
+        const K = F.shotgun.shove;
+        const shove = (d) =>
+          K.near +
+          (K.far - K.near) *
+            Math.max(0, Math.min(1, (d - K.from) / (K.to - K.from)));
+        const knocked = new Map();
         for (let i = 0; i < F.shotgun.pellets; i++) {
           ctx.hitscan({
             dir: ctx.spread(F.shotgun.spread),
@@ -223,11 +234,21 @@ export const BEHAVIOURS = {
             damage: F.shotgun.damage,
             tracer: { width: 0.014, color: C(0xffd9a0, 2.2), len: 5 },
             impact: { scale: 0.55 },
-            onHit: (z) => knocked.add(z),
+            onHit: (z, h) => {
+              const k = knocked.get(z) || { n: 0, d: h.dist };
+              k.n++;
+              knocked.set(z, k);
+            },
             knock: 0,
+            launch: (z, d) => shove(d),
           });
         }
-        for (const z of knocked) ctx.push(z, ctx.aim.dir, 1);
+        for (const [z, k] of knocked)
+          ctx.push(
+            z,
+            ctx.aim.dir,
+            shove(k.d) * Math.min(1, k.n / (F.shotgun.pellets * 0.5)),
+          );
         ctx.kick(1.25);
         ctx.shake(0.2);
       }
@@ -486,11 +507,10 @@ export const BEHAVIOURS = {
       casingAt: 0.35,
       kick: 1.4,
     }),
-    hint: { a: "按住右键开镜" },
     fire(ctx) {
       const { E, fx } = ctx;
       const m = ctx.muzzle();
-      const dir = ctx.spread(ctx.zoomed ? 0.0004 : 0.0015);
+      const dir = ctx.spread(0.0015);
       if (ctx.b === "b") {
         const charged = ctx.shots % 3 === 2;
         E.muzzle(m, dir, {
@@ -586,10 +606,6 @@ export const BEHAVIOURS = {
       }
       ctx.kick(1.4);
       ctx.shake(0.2);
-    },
-    alt(ctx, phase) {
-      if (ctx.b !== "a") return;
-      ctx.setZoom(phase === "up" ? 1 : 3.2);
     },
   },
 
@@ -731,7 +747,11 @@ export const BEHAVIOURS = {
               return "stop";
             },
           });
-        shoot(m, ctx.spread(0.012), true);
+        shoot(
+          m,
+          ctx.launch(m, 90, { spread: 0.012, gravity: 4 }).normalize(),
+          true,
+        );
       } else if (ctx.b === "a") {
         // 排钉: five long nails side by side
         const right = _c.crossVectors(ctx.aim.dir, UP).normalize().clone();
@@ -741,10 +761,11 @@ export const BEHAVIOURS = {
             .spread(0.006)
             .addScaledVector(right, k * 0.035)
             .normalize();
+          const from = ctx.muzzle("m" + i);
           proj.spawn({
             kind: "spike",
-            pos: ctx.muzzle("m" + i),
-            vel: dir.multiplyScalar(95),
+            pos: from,
+            vel: ctx.launch(from, 95, { dir, gravity: 3 }),
             gravity: 3,
             life: 2.5,
             radius: 0.035,
@@ -772,7 +793,7 @@ export const BEHAVIOURS = {
         proj.spawn({
           kind: "nail",
           pos: m,
-          vel: ctx.spread(0.012).multiplyScalar(90),
+          vel: ctx.launch(m, 90, { spread: 0.012, gravity: 4 }),
           gravity: 4,
           life: 2.5,
           radius: 0.03,
@@ -1104,14 +1125,14 @@ export const BEHAVIOURS = {
         const pal = o.colors || pick(FW_PALETTES);
         E.firework(pos, {
           colors: pal,
-          radius: o.radius ?? 2.4,
-          count: o.count ?? 90,
+          radius: o.radius ?? 3.6,
+          count: o.count ?? 125,
           kind: o.kind || pick(["peony", "peony", "ring", "willow"]),
           crackle: o.crackle,
         });
         if (o.blast !== false)
           E.explosion(pos, {
-            radius: (o.radius ?? 2.4) * 0.45,
+            radius: (o.radius ?? 3.6) * 0.4,
             smoke: 0.5,
             sparks: 0,
             shake: 0.1,
@@ -1180,8 +1201,8 @@ export const BEHAVIOURS = {
           const pal = pick(FW_PALETTES);
           burst(pos, {
             colors: [...pal, 0xffffff],
-            radius: 5 * c,
-            count: Math.round(220 * c),
+            radius: 6.5 * c,
+            count: Math.round(260 * c),
             kind: "willow",
             crackle: true,
             blast: false,
@@ -1190,12 +1211,14 @@ export const BEHAVIOURS = {
           fx.after(0.18, () =>
             E.firework(pos.clone().add(V(0, 0.4, 0)), {
               colors: [pal[1], 0xffffff],
-              radius: 3.2 * c,
-              count: 70,
+              radius: 4.4 * c,
+              count: 90,
               kind: "ring",
             }),
           );
           splash(ctx, pos, 7 * c * (ctx.cap ? 1.5 : 1), 320 * c, {
+            self: F.firework.self,
+            selfMax: F.firework.selfMax,
             element: "fire",
             status: "fire",
             stacks: 2,
@@ -1208,7 +1231,8 @@ export const BEHAVIOURS = {
         proj.spawn({
           kind: "shell",
           pos: m,
-          vel: ctx.aim.dir.clone().multiplyScalar(30 + 14 * ctx.charge),
+          // (lobbed: it heads for where the crosshair is and falls short of it, as a mortar does)
+          vel: ctx.launch(m, 30 + 14 * ctx.charge),
           gravity: 6,
           life: 2.2,
           radius: 0.12,
@@ -1239,6 +1263,8 @@ export const BEHAVIOURS = {
       const boom = (pos) => {
         burst(pos);
         splash(ctx, pos, F.firework.radius, F.firework.splash, {
+          self: F.firework.self,
+          selfMax: F.firework.selfMax,
           element: "fire",
           status: "fire",
           knock: 1.2,
@@ -1247,7 +1273,7 @@ export const BEHAVIOURS = {
       const rocket = proj.spawn({
         kind: "rocket",
         pos: m,
-        vel: ctx.spread(0.02).multiplyScalar(38),
+        vel: ctx.launch(m, 38, { spread: 0.02, gravity: 1.2 }),
         gravity: 1.2,
         life: ctx.b === "a" ? 12 / 38 : 1.25,
         radius: 0.06,
@@ -1312,8 +1338,10 @@ export const BEHAVIOURS = {
         },
       });
       const star = (pos, pal) => {
-        E.firework(pos, { colors: pal, radius: 1.2, count: 36, kind: "peony" });
+        E.firework(pos, { colors: pal, radius: 1.9, count: 50, kind: "peony" });
         splash(ctx, pos, 1.8, 40, {
+          self: F.firework.self,
+          selfMax: F.firework.selfMax,
           element: "fire",
           status: "fire",
           knock: 0.5,
@@ -1615,7 +1643,7 @@ export const BEHAVIOURS = {
         proj.spawn({
           kind: null,
           pos: m,
-          vel: ctx.aim.dir.clone().multiplyScalar(6.5),
+          vel: ctx.launch(m, 6.5),
           life: 6,
           radius: 0.35,
           onTick(p, dt) {
@@ -1698,7 +1726,7 @@ export const BEHAVIOURS = {
       });
       const common = {
         pos: m,
-        vel: ctx.spread(0.006).multiplyScalar(70),
+        vel: ctx.launch(m, 70, { spread: 0.006, gravity: 5 }),
         gravity: 5,
         life: 3,
         radius: 0.04,
@@ -1968,7 +1996,7 @@ export const BEHAVIOURS = {
               ? "talisman_b"
               : "talisman",
         pos: m,
-        vel: ctx.spread(0.01).multiplyScalar(26),
+        vel: ctx.launch(m, 26, { spread: 0.01 }),
         life: 2.2,
         radius: 0.09,
         flutter: 0.22,
@@ -2106,6 +2134,7 @@ export const BEHAVIOURS = {
           .clone();
         ctx.hit(h.z, F.coinsword.damage * (last ? 1.5 : 1), {
           dir,
+          cut: true,
           point: h.z.chest,
           element: "seal",
           knock: last ? 1.2 : 0.4,
@@ -2389,6 +2418,7 @@ export const BEHAVIOURS = {
           .clone();
         ctx.hit(h.z, F.guandao.damage * (up ? 2 : 1), {
           dir,
+          cut: true,
           point: h.z.chest,
           element: ctx.b === "a" ? "fire" : undefined,
           knock: up ? 1 : 2,

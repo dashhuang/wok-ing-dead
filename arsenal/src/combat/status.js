@@ -16,6 +16,7 @@
 import * as THREE from "three";
 import { C, rand, srand } from "../fx/core.js";
 import { STATUS } from "../data/status.js";
+import { fateOf } from "./fate.js";
 
 export { STATUS };
 
@@ -41,6 +42,8 @@ export function clearStatus(z) {
   z.lift = 0;
   z.liftV = 0;
   z.burnAcc = 0;
+  z.blow = 0; // what has landed on it in the last instant (a pattern of shot is one blow)
+  z.blowT = 0;
   z.vel && z.vel.set(0, 0, 0);
   return z;
 }
@@ -49,7 +52,9 @@ export function clearStatus(z) {
  * host: {
  *   list            the zombies in play (an array the host keeps up to date)
  *   fx, E           the effects runtime and the named effects
- *   hurt(z, dmg, o, direct) -> true if that killed it. Takes the health off, shows the blood,
+ *   hurt(z, dmg, o, direct, fate) -> true if that killed it. `fate` is what becomes of the
+ *     body if it did (combat/fate.js: how it is thrown, what comes off it), null for a hit
+ *     that is not a blow (a burn). Takes the health off, shows the blood,
  *                   plays the death; on a death it calls rules.died(z).
  *   rng()           optional; Math.random otherwise
  *   onReaction(name, z)   optional
@@ -121,7 +126,9 @@ export function createStatus(host) {
     },
 
     /**
-     * damage(z, amount, { dir, point, head, element, kind, knock, lift, stagger, noChain, blood, pinBonus })
+     * damage(z, amount, { dir, point, head, element, kind, knock, launch, cut, lift, stagger, noChain, blood, pinBonus })
+     * cut: a blade's stroke (what it kills it takes a piece off).
+     * launch: the force the hit throws the body with if it kills (as a knock-back; `knock` if absent).
      * element only colours the number; statuses are applied with apply().
      * kind: "hit" (default) | "stream" | "dot" | "share" | "blast" | "chain" | "react".
      * Returns true when this hit killed the target.
@@ -163,7 +170,19 @@ export function createStatus(host) {
       const chain = z.st.shock > 0 && !o.noChain && o.kind !== "dot";
       if (chain) z.st.shock = 0;
       dealing = o;
-      const killed = host.hurt(z, dmg, o, direct) === true;
+      // (the blow: this hit and whatever landed with it. A body's fate goes by the blow)
+      if (direct) {
+        z.blow = (z.blowT > 0 ? z.blow : 0) + dmg;
+        z.blowT = S.launch.window;
+      }
+      const killed =
+        host.hurt(
+          z,
+          dmg,
+          o,
+          direct,
+          direct ? fateOf(z, o, z.blow, rng) : null,
+        ) === true;
       dealing = null;
       if (chain) {
         let from = z;
@@ -307,6 +326,7 @@ export function createStatus(host) {
         if (s.burnT <= 0) s.burn = 0;
       }
       if (!z.alive) return;
+      if (z.blowT > 0) z.blowT -= dt;
       if (s.shock > 0) s.shock -= dt;
       if (s.venom > 0 && (s.venomT -= dt) <= 0) s.venom = 0;
       if (s.seal > 0 && (s.sealT -= dt) <= 0) s.seal = 0;

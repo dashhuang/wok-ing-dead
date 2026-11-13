@@ -103,6 +103,11 @@ export const WEAPONS = [
       spread: 0.045,
       range: 34,
       falloff: [10, 30, 0.25], // full damage to 10 m, down to a quarter by 30
+      // The shove of a blast of shot: `near` inside `from` metres, down to `far` by `to`
+      // (1 = about 0.7 m back). It is for a zombie that takes at least half the pattern; one
+      // caught by a pellet or two gets that share of it. A kill throws the body with it.
+      // (`shove`, not `knock`: the balance simulator reads a weapon's `knock` as one number)
+      shove: { near: 3.2, far: 0.7, from: 2.5, to: 12 },
     },
     mag: 6,
     reserve: 36,
@@ -190,7 +195,7 @@ export const WEAPONS = [
       a: {
         name: "点名",
         element: "none",
-        text: "按住瞄准可依次点名最多 6 个目标，松开后扇击连发，每发自动找各自的头。",
+        text: "按住副攻击可依次点名最多 6 个目标，松开后扇击连发，每发自动找各自的头。",
         look: "换 8 英寸长枪管带顶肋和金线嵌纹，击锤加宽成扇击翼，握把底挂朱红流苏。",
         cap: {
           name: "生死簿",
@@ -226,7 +231,7 @@ export const WEAPONS = [
       a: {
         name: "穿杨",
         element: "none",
-        text: "加装 4 倍长镜。子弹穿透所有目标并在墙面弹射一次，弱点伤害 ×3。",
+        text: "子弹穿透所有目标并在墙面弹射一次，弱点伤害 ×3。",
         look: "机匣顶装长筒黄铜瞄准镜和镜桥，枪管加长配枪口帽，枪托加皮质贴腮和备弹袋。",
         cap: { name: "百步", text: "目标越远伤害越高，60 米以上 +150%。" },
       },
@@ -319,7 +324,18 @@ export const WEAPONS = [
     slot: "主",
     element: "fire",
     tagline: "过年剩下的，今晚全放了。",
-    fire: { kind: "projectile", damage: 60, splash: 80, radius: 3, rpm: 100 },
+    // self: the share of a burst's damage the shooter takes standing at its centre, falling
+    // to nothing at its edge (a wall in between stops it); selfMax: the most one burst may
+    // take. Every burst of every form: fire it at your own feet and it bites.
+    fire: {
+      kind: "projectile",
+      damage: 60,
+      splash: 80,
+      radius: 3.6,
+      rpm: 100,
+      self: 0.25,
+      selfMax: 40,
+    },
     mag: 6,
     reserve: 30,
     reload: "整排换装 2.6 秒",
@@ -559,7 +575,7 @@ export const EXISTING = [
     branches: {
       a: {
         name: "双持",
-        text: "左右各一把，交替射击，射速翻倍，无法瞄准。",
+        text: "左右各一把，交替射击，射速翻倍。",
         cap: {
           name: "左右开弓",
           text: "两把枪打空的间隔小于 0.5 秒时瞬间装填。",

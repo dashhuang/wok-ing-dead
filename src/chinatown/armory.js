@@ -11,6 +11,7 @@
 // of view); everything a weapon throws into the street (particles, projectiles, decals) is an
 // ordinary object in the scene.
 import { createGameTargets } from "./armtargets.js";
+import { bloodOf } from "../../arsenal/src/combat/fate.js";
 
 // a prop is no weapon: neither hand has a trigger to stay on, so both wrists are eased
 const BOTH = { left: true, right: true };
@@ -129,6 +130,11 @@ export async function createArmory(G) {
     get steady() {
       return G.player.crouching ? 0.85 : 1;
     },
+    // how much the effects may spend (arsenal/src/fx/core.js): half as many sparks on the
+    // low preset, which is what a phone runs
+    get detail() {
+      return G.quality && G.quality.name === "low" ? 0.5 : 1;
+    },
     get recoilKeep() {
       return G.input && G.input.touch ? 0.4 : 1;
     },
@@ -194,6 +200,8 @@ export async function createArmory(G) {
     emit() {},
     // the game's zombies instead of the firing range's
     makeTargets: (l, fx, E) => createGameTargets(G, l, fx, E, root),
+    // a weapon's own blast catching the player (a firework set off too close)
+    hurt: (dmg, from) => G.player.damage(dmg, from),
     // a reload draws on the run's pools instead of filling the magazine from nowhere
     supply: {
       can: (W) => !hooks.canReload || hooks.canReload(W.id, W),
@@ -203,6 +211,67 @@ export async function createArmory(G) {
   const combat = await combatMod.createCombat(lab);
   const fx = lab.fx;
   const targets = combat.targets;
+
+  // ---------------------------------------------------------------- blood
+  // Every hit on the dead bleeds and every kill bursts, whichever weapon did it: the game's
+  // own two guns as well as the armoury's (both announce a hit as an "impact" on an enemy,
+  // and a death as "enemy:killed"). This is on top of the game's own small puff.
+  {
+    const E = lab.effects;
+    const UP = new V3(0, 1, 0);
+    const at = new V3();
+    G.events.on("impact", (e) => {
+      if (!e || e.surface !== "enemy" || e.killed || !e.point) return;
+      const gz = e.enemy;
+      // more for the head, and for a hit that takes a large share of its health (the game's
+      // own guns do not say how much: the zombie remembers what it last took)
+      const power =
+        e.power ?? (gz && gz.maxHp ? (gz.lastDealt || 0) / gz.maxHp : 0.3);
+      E.blood(e.point, e.dir || UP, bloodOf(power, e.part === "weak"), {
+        quiet: true,
+        ground: gz ? gz.pos.y : 0,
+      });
+    });
+    G.events.on("enemy:killed", (e) => {
+      const gz = e && e.enemy;
+      if (!gz) return;
+      const head = e.part === "weak";
+      at.copy(gz.pos);
+      at.y += (head ? 1.62 : 1.15) * gz.scale;
+      E.gore(at, e.dir || UP, {
+        size: gz.scale,
+        head,
+        ground: gz.pos.y,
+        thrown: !!e.thrown,
+        amount: e.gore ?? 1,
+        quiet: true,
+      });
+    });
+    // a limb comes off: a burst where it was torn, then the end pumps and the piece trails
+    // (the zombies ask for each spurt and each mark as they happen)
+    G.events.on("enemy:severed", (e) => {
+      if (!e || !e.pos) return;
+      E.blood(e.pos, e.dir || UP, bloodOf(0.6, !!e.pop), {
+        quiet: true,
+        ground: e.ground ?? 0,
+      });
+    });
+    G.events.on("gore:spurt", (e) => e && E.spurt(e.pos, e.dir, e.k));
+    G.events.on("gore:splat", (e) => e && E.splat(e.pos, e.size));
+    // a thrown body comes down: the thud of it, and what it leaves where it lands
+    G.events.on("enemy:landed", (e) => {
+      if (!e || !e.pos) return;
+      audio && audio.world("fall", e.pos, { gain: 0.9, gap: 0.06 });
+      fx.decal({
+        kind: "splat",
+        pos: at.copy(e.pos).clone(),
+        size: 0.8 + Math.random() * 0.5,
+        color: [0.72, 0.01, 0.01],
+        life: 22,
+        alpha: 0.85,
+      });
+    });
+  }
 
   // ---------------------------------------------------------------- materials: brightness and blending
   const stageGain = ARMORY_TUNE.stageGain[G.stage] || 1;

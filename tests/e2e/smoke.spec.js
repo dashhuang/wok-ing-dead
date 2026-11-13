@@ -158,7 +158,7 @@ test("a player can start, arm, level up, pause, die and retry with real input", 
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(e.message));
 
-  await page.goto("/?lang=zh-CN");
+  await page.goto("/?lang=zh-CN&q=low");
   await waitForTitle(page);
   await expectButtonsReachable(page);
 
@@ -199,6 +199,10 @@ test("a player can start, arm, level up, pause, die and retry with real input", 
   await expect.poll(() => state(page)).toBe("paused");
   await waitForScreen(page, "paused");
   await expectButtonsReachable(page);
+  await clickAct(page, "settings");
+  await page.locator('.panel [data-lang="en"]').click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await clickAct(page, "close-panel");
   await clickAct(page, "resume");
   await expect.poll(() => state(page)).toBe("playing");
 
@@ -235,6 +239,19 @@ test("a player can start, arm, level up, pause, die and retry with real input", 
     .toBe("pistol");
   await chooseFirstWeapon(page, 1);
   expect(await page.evaluate(() => window.__G.run.state.level)).toBe(0);
+
+  // Secondary input must never raise the sights, even after switching weapons.
+  for (const id of ["pistol", "rifle", "lever"]) {
+    await page.evaluate((id) => window.__G.run.debug.set(id, 5, "a"), id);
+    await page.mouse.down({ button: "right" });
+    await expect
+      .poll(() => page.evaluate(() => window.__G.input.ads))
+      .toBe(true);
+    await page.waitForTimeout(600);
+    expect(await page.evaluate(() => window.__G.weapon.ads)).toBe(0);
+    expect(await page.evaluate(() => window.__G.player.ads)).toBe(0);
+    await page.mouse.up({ button: "right" });
+  }
 
   const runtime = await page.evaluate(() => ({
     fatal: window.__fatal,
@@ -456,6 +473,57 @@ test("the firing range sets a run up by hand", async ({ page }) => {
   await expect.poll(async () => (await range()).trial).toEqual([]);
   await expect.poll(async () => (await range()).standing).toBeGreaterThan(3);
 
+  // Limbs. Enough into a shin takes it off at the knee and the walker goes down to crawl;
+  // enough into a forearm takes that and it stays up; a kill takes what the weapon's rule
+  // says (here: the head bursts, an arm goes at the shoulder) and the pieces lie in the street.
+  const limbs = await page.evaluate(() => {
+    const G = window.__G;
+    const D = G.enemies.debug;
+    const [a, b] = G.enemies.list.filter(
+      (z) => z.alive && z.passive && z.type === "walker" && !z.rank,
+    );
+    const dir = a.pos.clone().set(0, 0, -1);
+    const mid = (z, p, q) => z.P[p].clone().lerp(z.P[q], 0.5);
+    const gone = (z, bone) => z.holder.getObjectByName(bone).scale.x < 0.001;
+    for (let i = 0; i < 12 && a.alive && !a.crawling; i++)
+      a.damage(a.maxHp * 0.12, mid(a, "lLeg", "lFoot"), dir, "leg");
+    for (let i = 0; i < 12 && b.alive && !b.lost.lFore; i++)
+      b.damage(b.maxHp * 0.12, mid(b, "lFore", "lHand"), dir, "body");
+    const out = {
+      leg: { alive: a.alive, crawling: a.crawling, lost: Object.keys(a.lost) },
+      arm: { alive: b.alive, crawling: b.crawling, lost: Object.keys(b.lost) },
+      shin: gone(a, "LeftLeg") || gone(a, "RightLeg"),
+      forearm: gone(b, "LeftForeArm"),
+    };
+    const before = D.limbs.count;
+    b.damage(99999, b.pos.clone(), dir, "body", {
+      launch: null,
+      limbs: ["rArm"],
+      pop: true,
+    });
+    out.killed = {
+      alive: b.alive,
+      lost: Object.keys(b.lost).sort().join(),
+      stumps: b.stumps.length,
+      head: gone(b, "Head"),
+      pieces: D.limbs.count - before,
+    };
+    return out;
+  });
+  expect(limbs.leg.alive).toBe(true);
+  expect(limbs.leg.crawling).toBe(true);
+  expect(limbs.leg.lost.some((l) => l.endsWith("Shin"))).toBe(true);
+  expect(limbs.shin).toBe(true);
+  expect(limbs.arm).toEqual({ alive: true, crawling: false, lost: ["lFore"] });
+  expect(limbs.forearm).toBe(true);
+  expect(limbs.killed).toEqual({
+    alive: false,
+    lost: "head,lFore,rArm,rFore",
+    stumps: 3,
+    head: true,
+    pieces: 1, // (the arm: a burst head leaves nothing to fly off)
+  });
+
   // the special dead on request, then a course of the meal
   await press('[data-spawn="elite"]');
   await press('[data-spawn="bloater"]');
@@ -484,6 +552,21 @@ test("the firing range sets a run up by hand", async ({ page }) => {
   expect(url).not.toContain("ammo=");
   expect(url).not.toContain("body=");
 
+  // a body that went back to the pool in pieces comes out of it whole
+  const whole = await page.evaluate(() =>
+    window.__G.enemies.list
+      .filter((z) => z.alive)
+      .every(
+        (z) =>
+          !Object.keys(z.lost).length &&
+          !z.stumps.length &&
+          ["Head", "LeftForeArm", "RightArm", "LeftLeg", "RightLeg"].every(
+            (b) => z.holder.getObjectByName(b).scale.x === 1,
+          ),
+      ),
+  );
+  expect(whole).toBe(true);
+
   const runtime = await page.evaluate(() => ({
     fatal: window.__fatal,
     errors: window.__errors,
@@ -491,4 +574,44 @@ test("the firing range sets a run up by hand", async ({ page }) => {
   expect(runtime.fatal).toBeNull();
   expect(runtime.errors).toEqual([]);
   expect(pageErrors).toEqual([]);
+});
+
+test.describe("secondary fire on touch screens", () => {
+  test.use({ hasTouch: true });
+  test("press and release work in portrait and landscape without zoom", async ({
+    page,
+    context,
+  }) => {
+    await page.goto("/?lang=zh-CN&q=low&w=lever&b=a&lv=5");
+    await waitForTitle(page);
+    await page.locator('[data-act="deploy"]').tap();
+    await expect.poll(() => state(page)).toBe("playing");
+    const cdp = await context.newCDPSession(page);
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 844, height: 390 },
+    ]) {
+      await page.setViewportSize(viewport);
+      const button = page.locator(".t-ads");
+      await expect(button).toHaveText("副攻击");
+      const box = await button.boundingBox();
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchStart",
+        touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }],
+      });
+      await expect
+        .poll(() => page.evaluate(() => window.__G.input.ads))
+        .toBe(true);
+      await page.waitForTimeout(600);
+      expect(await page.evaluate(() => window.__G.weapon.ads)).toBe(0);
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchEnd",
+        touchPoints: [],
+      });
+      await expect
+        .poll(() => page.evaluate(() => window.__G.input.ads))
+        .toBe(false);
+      await expect(button).not.toHaveClass(/active/);
+    }
+  });
 });

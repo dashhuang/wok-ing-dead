@@ -107,7 +107,7 @@ export default {
   "ctl.move": "移動",
   "ctl.look": "視点",
   "ctl.fire": "射撃",
-  "ctl.aim": "エイム",
+  "ctl.aim": "副攻撃",
   "ctl.reload": "リロード",
   "ctl.swap": "武器切替",
   "ctl.cut": "竈に火を入れる",
@@ -117,7 +117,7 @@ export default {
   "ctl.melee": "近接攻撃",
   "ctl.pause": "一時停止",
   "ctl.moveLook": "移動 · 視点",
-  "ctl.fireAim": "射撃 · エイム",
+  "ctl.fireAim": "射撃 · 副攻撃",
   "ctl.mouse": "マウス",
   "ctl.lmb": "左クリック",
   "ctl.rmb": "右クリック",
@@ -136,13 +136,13 @@ export default {
   "ctl.touchMove": "左手の親指、どこでも",
   "ctl.touchLook": "画面右側をドラッグ",
   "ctl.touchFire": "射撃ボタン長押し、ドラッグで追従",
-  "ctl.touchAim": "エイムボタンで切替",
+  "ctl.touchAim": "副攻撃ボタン長押し、離すと終了",
   "ctl.touchReload": "リロードボタン",
   "ctl.touchJump": "ジャンプボタン",
   "ctl.touchCut": "竈の前で使用ボタン長押し",
   "ctl.touchSprint": "スティックを前に倒し切る",
   "ctl.noteMouseHtml":
-    "ブラウザがマウスをロックできない場合は、マウスボタンを押したままドラッグして視点を動かせます（左は射撃、右はエイムも兼ねます）。矢印キーまたは <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> で旋回、<kbd>Enter</kbd> で射撃。",
+    "ブラウザがマウスをロックできない場合は、マウスボタンを押したままドラッグして視点を動かせます（左は射撃、右は副攻撃も兼ねます）。矢印キーまたは <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> で旋回、<kbd>Enter</kbd> で射撃。",
   "ctl.notePadHtml":
     "メニューでは十字キーか左スティックで選択、<kbd>A</kbd> で決定、<kbd>B</kbd> で戻ります。ブラウザはクリックかキー入力の後でないと音を出さないため、コントローラーだけで始めて無音の場合は一度クリックしてください。",
 
@@ -154,7 +154,7 @@ export default {
   "legend.padReload": "リロード / 竈に点火",
   "legend.touchMove": "左手で移動",
   "legend.touchLook": "右手で視点",
-  "legend.touchButtons": "射撃 · エイム · リロード · ジャンプは画面上",
+  "legend.touchButtons": "射撃 · 副攻撃 · リロード · ジャンプは画面上",
 
   "about.title": "このバージョンについて",
   "about.body":
@@ -241,7 +241,7 @@ export default {
   "input.click": "クリックしてマウスをロック",
 
   "touch.fire": "射撃",
-  "touch.aim": "エイム",
+  "touch.aim": "副攻撃",
   "touch.reload": "リロード",
   "touch.swap": "切替",
   "touch.jump": "ジャンプ",
@@ -400,7 +400,7 @@ export default {
   "run.branch.revolver.b": "開眼",
   "run.branch.revolver.b.d": "貫通して封印。動けない敵には必ず会心",
   "run.branch.lever.a": "百発百中",
-  "run.branch.lever.a.d": "4倍スコープ。全て貫通し跳弾する",
+  "run.branch.lever.a.d": "全ての敵を貫通し跳弾する",
   "run.branch.lever.b": "驚雷",
   "run.branch.lever.b.d": "3発ごとに落雷を呼ぶ",
   "run.branch.nailgun.a": "横一列",

@@ -67956,7 +67956,6 @@ void main() {
       for (let ne in o) o[ne].clear();
       (i.clear(),
         (u = 0),
-        (W = !1),
         R &&
           (R.btn.ads.classList.remove("active"), oe(), (A = null), (N = null)));
     }
@@ -68091,8 +68090,7 @@ void main() {
       H = 0,
       N = null,
       Z = 0,
-      Q = 0,
-      W = !1;
+      Q = 0;
     function J() {
       let ne = document.createElement("div");
       ((ne.className = "touch"),
@@ -68137,10 +68135,6 @@ void main() {
               ze.stopPropagation(),
               (z = performance.now()));
             let Ge = ze.changedTouches[0];
-            if (Re === "ads") {
-              ((W = !W), Ue.classList.toggle("active", W));
-              return;
-            }
             (Re === "fire" &&
               ((N = Ge.identifier), (Z = Ge.clientX), (Q = Ge.clientY)),
               Ue.classList.add("active"),
@@ -68149,16 +68143,15 @@ void main() {
           { passive: !1 },
         );
         let Ve = (ze) => {
-          if ((ze.preventDefault(), ze.stopPropagation(), Re !== "ads")) {
-            if (Re === "fire") {
-              let Ge = !1;
-              for (let _e of ze.changedTouches)
-                _e.identifier === N && (Ge = !0);
-              if (!Ge) return;
-              N = null;
-            }
-            (Ue.classList.remove("active"), v("touch", Re, !1));
+          ze.preventDefault();
+          ze.stopPropagation();
+          if (Re === "fire") {
+            let Ge = !1;
+            for (let _e of ze.changedTouches) _e.identifier === N && (Ge = !0);
+            if (!Ge) return;
+            N = null;
           }
+          (Ue.classList.remove("active"), v("touch", Re, !1));
         };
         (Ue.addEventListener("touchend", Ve, { passive: !1 }),
           Ue.addEventListener("touchcancel", Ve, { passive: !1 }),
@@ -68426,7 +68419,7 @@ void main() {
       ((m.move.x = ye),
         (m.move.y = Te),
         (m.fire = r && i.has("fire")),
-        (m.ads = r && (i.has("ads") || W)),
+        (m.ads = r && i.has("ads")),
         (m.sprint = r && Re),
         (m.crouch = r && i.has("crouch")));
     }
@@ -68665,7 +68658,7 @@ void main() {
         te = n.weapon || {};
       if (
         (te.stub || typeof te.ads != "number"
-          ? ((I = j0(I, A.enabled && G.ads ? 1 : 0, 14, J)), (A.ads = I))
+          ? ((I = j0(I, 0, 14, J)), (A.ads = I))
           : (A.ads = Is(te.ads)),
         !A.alive)
       ) {
@@ -78832,12 +78825,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         },
         snap() {
           let B = n.player,
-            X =
-              (!!B.sprinting || l.sprint) &&
-              !n.input.fire &&
-              !n.input.ads &&
-              !a.reload;
-          ((a.adsLin = (n.input.ads || l.ads) && !u.active ? 1 : 0),
+            X = (!!B.sprinting || l.sprint) && !n.input.fire && !a.reload;
+          ((a.adsLin = 0),
             (a.adsE = Ot(a.adsLin)),
             (E.ads = a.adsE),
             (a.adsWant = a.adsLin > 0),
@@ -79371,11 +79360,11 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         ye = !!re.fire && g && !l.noFire,
         Te = ye && !a.prevFire;
       ((a.prevFire = ye), ye || (a.dryDone = !1));
-      let Re = (!!X.sprinting || l.sprint) && !ye && !re.ads && !a.reload;
+      let Re = (!!X.sprinting || l.sprint) && !ye && !a.reload;
       if (
         ((a.sprintT = j0(a.sprintT, Re ? 1 : 0, 9, B)),
         (a.spWant = Re),
-        (a.urgent = !Re && (ye || !!re.ads || !!a.reload)),
+        (a.urgent = !Re && (ye || !!a.reload)),
         re.pressed && re.pressed("reload") && z(),
         a.autoReload >= 0 && ((a.autoReload -= B), a.autoReload < 0 && z()),
         l.reloadT != null && !a.reload && R(l.empty),
@@ -79455,7 +79444,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
               alpha: 0.22,
             }))),
         (a.heat = Math.max(0, a.heat - B * 0.2)));
-      let Ve = (!!re.ads || l.ads) && !a.reload && !ne && a.sprintT < 0.35;
+      // Existing weapons are hip-fire only. The legacy input.ads channel is secondary fire.
+      let Ve = false;
       ((a.adsLin = Hn(a.adsLin + (Ve ? B : -B) / he.adsTime, 0, 1)),
         (a.adsE = Ot(a.adsLin)),
         (E.ads = a.adsE),
@@ -79472,7 +79462,6 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       ((a.spreadS = j0(a.spreadS, Ne, 18, B)),
         (E.spread = a.spreadS),
         ye ||
-        !!re.ads ||
         !!a.reload ||
         ne ||
         ze > 0.2 ||

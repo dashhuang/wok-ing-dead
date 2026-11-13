@@ -10,6 +10,9 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { rand, srand } from "../fx/core.js";
 import { FONT_KAI } from "../kit/index.js";
 import { createStatus, clearStatus } from "./status.js";
+import { STATUS } from "../data/status.js";
+import { bloodOf } from "./fate.js";
+import { LIMBS, WITH, createLimbs } from "../fx/limbs.js";
 import { ZOMBIES } from "../../../src/chinatown/zombietune.js";
 
 const CHARACTERS = [
@@ -182,21 +185,35 @@ export async function createTargets(lab, fx, E) {
 
   const list = [];
   const _a = new THREE.Vector3();
+  const _b = new THREE.Vector3();
+  const UP = new THREE.Vector3(0, 1, 0);
+  // severed limbs lying in the alley
+  const limbs = createLimbs({
+    scene: root,
+    blood: (pos, dir, k) => E.spurt(pos, dir, k),
+    splat: (pos, size) => E.splat(pos, size),
+  });
   // the rules every weapon's hit goes through, here and in the game
   const rules = createStatus({
     list,
     fx,
     E,
-    hurt(z, dmg, o, direct) {
+    rng: () => api.rng(), // (a test can load the dice: targets.rng = () => 0.5)
+    hurt(z, dmg, o, direct, fate) {
       z.hp -= dmg;
-      if (direct && o.blood !== false)
-        E.blood(o.point || z.chest, o.dir, o.head ? 1.4 : 0.8);
+      // (a hit that kills bursts instead: see kill())
+      if (direct && o.blood !== false && z.hp > 0)
+        E.blood(
+          o.point || z.chest,
+          o.dir,
+          bloodOf(dmg / z.maxHp, o.head, api.rng),
+        );
       // any hit knocks a walker off its stride for a moment, as in the game
       const flinch = ZOMBIES[z.type].flinch;
       if (flinch && z.pin <= 0)
         z.stagger = Math.max(z.stagger, o.head ? flinch.weak : flinch.body);
       if (z.hp > 0) return false;
-      kill(z, o);
+      kill(z, o, fate);
       return true;
     },
   });
@@ -210,6 +227,7 @@ export async function createTargets(lab, fx, E) {
     const tpl = templates[slot[2]];
     const rig = cloneSkinned(tpl.scene);
     const mats = [];
+    const meshes = [];
     rig.traverse((o) => {
       if (!o.isMesh) return;
       o.material = o.material.clone();
@@ -219,6 +237,7 @@ export async function createTargets(lab, fx, E) {
         color: o.material.color.clone(),
       };
       mats.push(o.material);
+      meshes.push(o);
     });
     const holder = new THREE.Group();
     holder.add(rig);
@@ -258,6 +277,12 @@ export async function createTargets(lab, fx, E) {
       mixer,
       actions,
       mats,
+      // (for what comes off it: the body it was cloned from, its meshes in order, what is
+      // gone and the torn ends that are left)
+      tpl,
+      meshes,
+      lost: {},
+      stumps: [],
       head,
       papers,
       paperRoot,
@@ -315,6 +340,13 @@ export async function createTargets(lab, fx, E) {
     z.dead = 0;
     z.stagger = 0;
     z.mark = 0;
+    // whole again
+    for (const st of z.stumps) {
+      st.bone.scale.set(1, 1, 1);
+      root.remove(st.mesh);
+    }
+    z.stumps.length = 0;
+    z.lost = {};
     clearStatus(z);
     for (const s of z.stuck) s.parent && s.parent.remove(s);
     z.stuck.length = 0;
@@ -398,6 +430,9 @@ export async function createTargets(lab, fx, E) {
     return t;
   }
   const api = {
+    rng: Math.random,
+    limbs,
+    sever,
     // damage, apply, pin, scare, push, inSphere, inCone, nearest, alive, on, setInfusions …
     ...rules,
     rules,
@@ -441,11 +476,36 @@ export async function createTargets(lab, fx, E) {
     },
   };
 
-  function kill(z, o) {
+  // fate: what becomes of the body (combat/fate.js): how it is thrown and what comes off it.
+  // The game's zombies do the same.
+  function kill(z, o, fate) {
+    const launch = fate && fate.launch;
     z.alive = false;
     z.state = "dead";
     z.dead = 0;
     z.mixer.timeScale = 1;
+    z.lift = z.liftV = 0;
+    z.vel.set(0, 0, 0);
+    z.fly = null;
+    if (o.dir) {
+      E.gore(o.head ? z.headPos : z.chest, o.dir, {
+        size: z.scale,
+        head: !!o.head,
+        thrown: !!launch,
+        amount: fate ? fate.gore : 1,
+      });
+      if (launch) {
+        _a.set(o.dir.x, 0, o.dir.z)
+          .normalize()
+          .applyAxisAngle(UP, launch.turn || 0)
+          .multiplyScalar(launch.speed);
+        z.fly = { x: _a.x, z: _a.z, up: launch.up, air: true };
+      }
+      if (fate) {
+        if (fate.pop) sever(z, "head", o.dir, { pop: true });
+        if (fate.limbs) for (const limb of fate.limbs) sever(z, limb, o.dir);
+      }
+    }
     const facing = _a.set(
       Math.sin(z.holder.rotation.y),
       0,
@@ -461,8 +521,69 @@ export async function createTargets(lab, fx, E) {
     rules.died(z);
   }
 
+  // A limb comes off (fx/limbs.js): the bone is shrunk away, a torn end goes over the joint,
+  // the limb is thrown unless it burst, and the end spurts for a moment.
+  function sever(z, limb, dir, o = {}) {
+    if (z.lost[limb]) return false;
+    const bone = z.rig.getObjectByName(LIMBS[limb]);
+    if (!bone) return false;
+    z.holder.updateMatrixWorld(true);
+    const cut = limbs.of(z.tpl.scene, bone.name);
+    if (!cut.parts.length) return false;
+    const at = bone.getWorldPosition(new THREE.Vector3());
+    if (!o.pop) {
+      const v = new THREE.Vector3(srand(1.2), rand(2.2, 4.6), srand(1.2));
+      if (dir) v.addScaledVector(_a.set(dir.x, 0, dir.z), rand(2, 4.8));
+      limbs.toss({
+        body: z.tpl.scene,
+        bone: bone.name,
+        matrix: bone.matrixWorld,
+        materials: z.meshes.map((m) => m.material),
+        vel: v,
+        spin: rand(6, 15),
+        ground: 0,
+      });
+    }
+    bone.scale.setScalar(1e-4);
+    z.lost[limb] = true;
+    if (WITH[limb]) z.lost[WITH[limb]] = true;
+    const radius = cut.radius * 1.08;
+    const mesh = limbs.stump(radius);
+    root.add(mesh);
+    z.stumps.push({
+      limb,
+      bone,
+      mesh,
+      radius,
+      bleed: rand(1, 2.4),
+      t: 0,
+      next: 0,
+    });
+    E.blood(at, dir || UP, bloodOf(0.6, !!o.pop, api.rng), { quiet: true });
+    return true;
+  }
+  // the torn ends follow the body, and pump for a moment
+  function tend(z, dt) {
+    z.holder.updateMatrixWorld(true);
+    for (const st of z.stumps) {
+      limbs.place(st.mesh, st.bone, st.radius);
+      if (st.bleed <= 0) continue;
+      st.bleed -= dt;
+      st.t += dt;
+      if ((st.next -= dt) > 0 || Math.sin(st.t * 10.5) < 0.1) continue;
+      st.next = 0.06;
+      const e = st.mesh.matrix.elements;
+      E.spurt(
+        _a.set(e[12], e[13], e[14]),
+        _b.set(e[4], e[5], e[6]).normalize().multiplyScalar(2.4),
+        Math.min(1, st.bleed / 1.5),
+      );
+    }
+  }
+
   function update(dt, t) {
     clock = t;
+    limbs.update(dt);
     const eye = stage.eye;
     for (const z of list) {
       if (z.parked) continue;
@@ -478,8 +599,31 @@ export async function createTargets(lab, fx, E) {
       if (!z.alive) {
         z.dead += dt;
         z.mixer.update(dt);
+        const f = z.fly;
+        if (f) {
+          // through the air, down under gravity, then a skid (between the alley's walls)
+          const half = stage.range.bounds.halfW - 0.5;
+          z.pos.x = Math.max(-half, Math.min(half, z.pos.x + f.x * dt));
+          z.pos.z += f.z * dt;
+          if (f.air) {
+            f.up -= STATUS.launch.gravity * dt;
+            z.lift = Math.max(0, z.lift + f.up * dt);
+            if (z.lift === 0 && f.up < 0) {
+              f.air = false;
+              f.x *= 0.55;
+              f.z *= 0.55;
+            }
+          } else {
+            const k = Math.exp(-STATUS.launch.skid * dt);
+            f.x *= k;
+            f.z *= k;
+            if (f.x * f.x + f.z * f.z < 0.01) z.fly = null;
+          }
+          z.holder.position.set(z.pos.x, z.lift, z.pos.z);
+        }
         // all corpses sink after a while and come back at the far end
         refresh(z);
+        if (z.stumps.length) tend(z, dt);
         rules.corpse(z, dt, z.dead);
         if (z.dead > 4.5) z.holder.position.y -= dt * 0.5;
         if (z.dead > (mode === "horde" ? 3.2 : 6.5)) respawn(z);
