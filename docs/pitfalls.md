@@ -60,6 +60,11 @@
 - 本机量内存：Playwright 的 WebKit（`npx playwright install webkit`）带 iPhone UA 打开，`vmmap -summary <WebContent pid>` 看
   `CG Raster Data`（画布）、`Untagged (graphics)`（解码图片）、`WebKit Malloc`、`JS VM Reservations`。手机经局域网打开
   `vite preview --host` 的构建即可实测，不用部署。起服务前先 `lsof -iTCP:<端口>`，别的会话常占着 5185–5187。
+- **在 iPhone 上找帧率瓶颈**：先用固定机位（`?autostart=1&noaudio=1&dynres=0`），不要用跑分路线比较配置：
+  镜头在走，前后两次读数看到的东西不同，同一配置能差出几倍。手机连续跑几分钟会发热降频，配置要交替测几轮。
+  计数脚本做法：本机 `npm run build` 后往 `dist/index.html` 的 `<head>` 里插一个只在 `?prof=1` 时生效的脚本，
+  包一层 `requestAnimationFrame`、`renderer.render` 和 WebGL 的 draw / uniform / useProgram，在屏幕上显示每帧次数和耗时，
+  手机经局域网打开即可读数（不用 Web Inspector）。Safari 上 `renderer.render` 的 CPU 时间约等于调用次数 × 每次 40～100 µs。
 - **长音频不要整首 `decodeAudioData`**：解码后是 32 位浮点 PCM，48 kHz 立体声每分钟约 22 MB。两首配乐（共约 4 分 49 秒）
   解码后约 110 MB，是 MP3 的十几倍。配乐、环境长音轨用 `<audio>` 加 `createMediaElementSource` 边播边解；短音效才解码成 buffer。
 

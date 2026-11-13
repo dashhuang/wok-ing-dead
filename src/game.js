@@ -23,6 +23,7 @@ import { createNavigation, STEP_HEIGHT } from "./chinatown/navigation.js";
 import { createSpawnPicker } from "./chinatown/spawning.js";
 import { createMusic } from "./chinatown/music.js";
 import { afterUpload, releaseTextureImages } from "./chinatown/texmem.js";
+import { programSort } from "./chinatown/drawsort.js";
 import { createCategoryVolumes } from "./chinatown/audiovolume.js";
 import * as DOORS from "./chinatown/doors.js";
 import { pickLook, sunDirection } from "./chinatown/look.js";
@@ -37010,6 +37011,8 @@ ${ge}`,
       (i.autoClear = !1),
       (i.info.autoReset = !1),
       i.setClearColor(0, 1));
+    // on a phone the frame waits on the number of WebGL calls: draw by program (chinatown/drawsort.js)
+    isHandheld() && i.setOpaqueSort(programSort(i));
     let s = i.getContext(),
       o = { post: !1, shadow: !1, sky: !1, other: 0 };
     i.debug.onShaderError = (G, te, oe, ee) => {

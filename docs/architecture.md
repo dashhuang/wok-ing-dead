@@ -199,6 +199,10 @@ AudioContext 挂起（切后台）时音乐元素一起暂停，回来后从原�
   - 界面不用 `backdrop-filter`（`<html data-quality>` 控制）。
 
   `render.setQuality()` 切档时，会让带这些宏的材质重新编译。
+- **iPhone 上帧时间看的是 WebGL 调用次数**（2026-11-13 在 iPhone Air 实测）：Safari 的每个 WebGL 调用都要转到图形进程，
+  一帧约 500 次绘制、1800 次 uniform、几百次切程序。隐藏整条街、关掉后期或换最便宜的材质，单项都只省几毫秒，
+  绘制次数和程序切换才是能直接改变帧时间的东西。手持设备上不透明物体按着色器程序和材质排序（`drawsort.js`，
+  `game.js` 里 `setOpaqueSort`），切程序从约 320 次降到约 85 次。新增网格、材质时先想能不能合并进已有的批次。
 - **手机的内存上限**（iPhone 把网页进程和它的显存算在一起，iPhone Air 约 2 GB，超了整页被杀）：手持设备上 `texmem.js` 在贴图上传后
   释放原图（`game.js` 里 three.js 上传 2D 贴图处调 `afterUpload`）。解码图片总是释放；画布只在标了 `markStatic` 后释放
   （建筑贴图、招牌图集最后一次 `finish`、僵尸贴图缩小、武器库 `kit.canvas`）。武器库画布在 `low` 档是半分辨率（`createKit({ canvasScale })`）。
