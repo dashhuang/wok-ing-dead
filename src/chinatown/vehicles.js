@@ -1308,9 +1308,9 @@ export function createVehicles(ctx) {
     wet: "glazed",
     key: "lens",
   });
-  // Glass. What it mirrors is the street, from a reflection the renderer captures at
-  // level.streetProbe once the level is built and hands to every material flagged
-  // userData.streetEnv; before that, and if it fails, the sky.
+  // Glass. What it mirrors is the street: the probe the renderer captures once the level is
+  // built and hands to every material flagged userData.street (render.streetEnv); before
+  // that, and where that probe is off, the sky.
   // Tinted glass with a cabin behind it. A metal has no colour of its own, only reflection, and
   // the blending adds that reflection at full strength over whatever shows through, dimmed by
   // the tint (opacity). Ordinary transparency would fade the reflection with the glass.
@@ -1329,7 +1329,7 @@ export function createVehicles(ctx) {
   G.mats.adopt(glass, { wet: [0, 1, 0, 0] });
   glass.userData.oneCell = true;
   glass.userData.noReflect = true;
-  glass.userData.streetEnv = true;
+  glass.userData.street = true;
   // The same panes seen from inside, as tint only: the windows on the far side of a cabin are
   // darkened a second time, so the street beyond a car barely shows through it. Drawn before
   // the glass (userData.renderOrder), or it would dim the reflections on the near windows.
@@ -1354,7 +1354,7 @@ export function createVehicles(ctx) {
   mirror.name = "ct_carglass";
   G.mats.adopt(mirror, { wet: [0, 0.6, 0.6, 0.9], macro: [0, 0, 1, 0.1] });
   mirror.userData.oneCell = true;
-  mirror.userData.streetEnv = true;
+  mirror.userData.street = true;
   const tyre = kit.game("tire");
   const glowHead = kit.glow(0xfff0d4, 3.2);
   const glowTail = kit.glow(0xff1a0a, 3.2);

@@ -25,6 +25,7 @@ import { ZOMBIES, EXTRA_BODIES } from "./zombietune.js";
 import { STATUS } from "../../arsenal/src/data/status.js";
 import { LEVELS } from "../../arsenal/src/data/levels.js";
 import { FEEL } from "../../arsenal/src/data/feel.js";
+import { STOCK_GUNS } from "./stockguns.js";
 
 const esc = (s) =>
   String(s).replace(
@@ -307,6 +308,15 @@ export function createRange(G, c) {
     ],
     ["弹药池", "src/chinatown/loadout.js", "AMMO", AMMO],
     ["每发消耗", "src/chinatown/loadout.js", "ARMS", ARMS],
+    // the game's own two guns: their numbers, read again on every edit (loadout.js tune,
+    // src/game.js); the reserve is the bullets pool in a run, so it is not offered here
+    ...["rifle", "pistol"].map((id) => [
+      `本体的枪：${wname(id)}`,
+      "src/chinatown/stockguns.js",
+      `STOCK_GUNS.${id}`,
+      STOCK_GUNS[id],
+      ["damage", "rpm", "range", "head", "pierce", "mag", "reload", "spread"],
+    ]),
     ["调料", "src/chinatown/runtune.js", "RUN.spices", RUN.spices],
     ["精英", "src/chinatown/runtune.js", "RUN.elite", RUN.elite],
     ["关底", "src/chinatown/runtune.js", "RUN.boss", RUN.boss],

@@ -2,6 +2,8 @@
 // emitter; a small fixed set of point lights is handed to whichever emitters matter most to
 // the camera right now and cross-faded, so the light count (and shader set) never changes.
 import * as THREE from "three";
+import { STREET, HALO_MAX, GLOW, bakeGlow } from "./streetfx.js";
+import { pickLook } from "./look.js";
 
 const GAIN = 11; // emitter power -> candela
 
@@ -27,12 +29,109 @@ export function createLights(ctx) {
   let torchLevel = 0;
   const emitters = ctx.emitters;
   for (const e of emitters) prepare(e);
+  const fx = pickLook(G.params).fx;
+
+  // ---- the pools every lamp and sign leaves on the ground, baked once (see streetfx.js) ----
+  if (fx.glow > 0) {
+    const data = bakeGlow(emitters, G.physics.boxes, GAIN);
+    const tex = new THREE.DataTexture(data, GLOW.res, GLOW.res);
+    tex.magFilter = tex.minFilter = THREE.LinearFilter;
+    tex.generateMipmaps = false;
+    tex.needsUpdate = true;
+    STREET.glowTex.value = tex;
+    // the fewer real lights a preset has, the nearer the baked pools have to take over
+    const near = count <= 3 ? 4 : count <= 5 ? 6 : 8;
+    STREET.glowFade.value = [near, near * 3, fx.glowNear, fx.glow];
+  }
+  STREET.haloK.value = fx.halo;
+  STREET.rainLit.value = fx.rainLit;
+
+  // ---- halos and lit rain: the lights the fog pass and the rain shader are told about ----
+  // Slots work like the point-light pool: an emitter keeps its slot while it ranks, and fades
+  // in and out, so nothing pops when the list changes.
+  const HALOS =
+    fx.halo > 0 || fx.rainLit > 0
+      ? { low: 6, medium: 10 }[G.quality.name] || HALO_MAX
+      : 0;
+  const halos = [];
+  for (let i = 0; i < HALOS; i++)
+    halos.push({ emitter: null, level: 0, target: 0 });
+  const haloRank = new Array(HALOS);
+  STREET.haloN.value = HALOS;
+  function chooseHalos() {
+    let n = 0;
+    for (const e of emitters) {
+      const dx = e.v.x - cam.x,
+        dy = e.v.y - cam.y,
+        dz = e.v.z - cam.z;
+      const d2 = dx * dx + dy * dy + dz * dz;
+      const d = Math.sqrt(d2);
+      const ahead = d > 0.5 ? (dx * fwd.x + dy * fwd.y + dz * fwd.z) / d : 1;
+      let s = (e.power * e.range) / (d2 + 60);
+      s *= 0.3 + 0.7 * Math.max(0, ahead + 0.3);
+      if (e.off || d > 110) s = 0;
+      if (e.halo) s *= 1.3;
+      e.hscore = s;
+      if (!(s > 0)) continue;
+      let i = n < HALOS ? n++ : HALOS;
+      if (i === HALOS && s <= haloRank[i - 1].hscore) continue;
+      if (i === HALOS) i--;
+      while (i > 0 && haloRank[i - 1].hscore < s) {
+        haloRank[i] = haloRank[i - 1];
+        i--;
+      }
+      haloRank[i] = e;
+    }
+    for (const e of emitters) e.hkeep = false;
+    for (let i = 0; i < n; i++) haloRank[i].hkeep = true;
+    for (const h of halos) if (h.emitter && !h.emitter.hkeep) h.target = 0;
+    for (let i = 0; i < n; i++) {
+      const e = haloRank[i];
+      if (e.halo) {
+        e.halo.target = 1;
+        continue;
+      }
+      const free = halos.find((h) => !h.emitter);
+      if (!free) continue;
+      free.emitter = e;
+      free.level = 0;
+      free.target = 1;
+      e.halo = free;
+    }
+  }
+  function updateHalos(dt) {
+    const pos = STREET.haloPos.value,
+      col = STREET.haloCol.value;
+    for (let i = 0; i < HALOS; i++) {
+      const h = halos[i],
+        e = h.emitter;
+      let k = 0;
+      if (e) {
+        h.level += (h.target - h.level) * Math.min(1, dt * 4);
+        if (h.target === 0 && h.level < 0.02) {
+          e.halo = null;
+          h.emitter = null;
+        } else {
+          k = e.power * GAIN * h.level * e.gain * flicker(e, clock);
+          pos[i * 4] = e.v.x;
+          pos[i * 4 + 1] = e.v.y;
+          pos[i * 4 + 2] = e.v.z;
+          pos[i * 4 + 3] = e.range;
+          col[i * 3] = e.c.r * k;
+          col[i * 3 + 1] = e.c.g * k;
+          col[i * 3 + 2] = e.c.b * k;
+        }
+      }
+      if (!k) col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = 0;
+    }
+  }
   function prepare(e) {
     e.v = new THREE.Vector3(e.pos[0], e.pos[1], e.pos[2]);
     e.c = new THREE.Color(e.color);
     e.gain = 1;
     e.phase = Math.random() * 100;
     e.slot = null;
+    e.halo = null;
     return e;
   }
   const cam = new THREE.Vector3();
@@ -96,6 +195,7 @@ export function createLights(ctx) {
       free.light.color.copy(e.c);
       free.light.distance = e.range;
     }
+    if (HALOS) chooseHalos();
   }
 
   function flicker(e, t) {
@@ -160,6 +260,7 @@ export function createLights(ctx) {
         p.light.intensity =
           e.power * GAIN * p.level * e.gain * flicker(e, clock);
       }
+      if (HALOS) updateHalos(dt);
     },
   };
 }

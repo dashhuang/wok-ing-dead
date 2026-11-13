@@ -4,13 +4,22 @@ import { createSettingsStore } from "./settings.js";
 import { presetToBoot } from "./bootguard.js";
 import * as L10N from "./i18n/index.js";
 import { createRun } from "./chinatown/run.js";
-import { STOCK_GUNS } from "./chinatown/stockguns.js";
+import {
+  STOCK_GUNS,
+  coneOf,
+  bloomAfterShot,
+  bloomAfter,
+  roundDamage,
+  reloadPace,
+} from "./chinatown/stockguns.js";
 import { createComms } from "./chinatown/comms.js";
 import { uiIcon } from "./chinatown/icons.js";
 import { createTelemetry } from "./telemetry/index.js";
 import { createNavigation, STEP_HEIGHT } from "./chinatown/navigation.js";
 import { createSpawnPicker } from "./chinatown/spawning.js";
 import * as DOORS from "./chinatown/doors.js";
+import { pickLook, sunDirection } from "./chinatown/look.js";
+import * as STREETFX from "./chinatown/streetfx.js";
 
 (() => {
   var bT = Object.defineProperty;
@@ -35809,8 +35818,8 @@ void main(){ vDir = position; vec4 p = projectionMatrix * vec4(mat3(viewMatrix) 
   }
   var $M = "// SALTLINE_SHADOW",
     e1 = null;
-  function ZM(n, e, t, i, s) {
-    let o = Z0.dir.clone().normalize(),
+  function ZM(n, e, t, i, s, dir) {
+    let o = (dir || Z0.dir).clone().normalize(),
       r = e.clone().add(t).multiplyScalar(0.5);
     (n.target.position.copy(r),
       n.position.copy(r).addScaledVector(o, 200),
@@ -36001,6 +36010,7 @@ uniform vec3 uCamPos, uSunRad, uAmb;
 uniform vec2 uTanHalf;
 uniform float uHasShadow, uMaxDist, uSigma, uFarZ, uFarHaze, uFlicker, uBoxDust;
 uniform vec3 uBoxMin, uBoxMax;
+${STREETFX.HALO_PARS}
 ${nv}
 float shape(float h){ return 0.30 + 0.70 * exp(-max(h, 0.0) / 5.5); }
 float hg(float mu, float g){ float g2 = g * g; return (1.0 - g2) / (12.566371 * pow(max(1.0 + g2 - 2.0 * g * mu, 1e-4), 1.5)); }
@@ -36040,6 +36050,8 @@ void main(){
     acc += T * src * (1.0 - Ti);
     T *= Ti; tPrev = t1;
   }
+  // halos round the street's lamps and signs (src/chinatown/streetfx.js)
+  ${STREETFX.HALO_FOG}
   // analytic continuation for far geometry (ship, cranes, skyline): fades into the horizon colour of that direction
   if (!isSky && dist > uMaxDist) {
     float h1 = uCamPos.y + rd.y * uMaxDist, h2 = uCamPos.y + rd.y * dist;
@@ -36430,6 +36442,8 @@ ${ge}`,
         sharpen: 0.3,
         lookPower: 1.18,
         lookSat: 1.22,
+        // the street's own grade (src/chinatown/look.js)
+        ...CT.post,
       },
       v = !1;
     try {
@@ -36517,6 +36531,7 @@ ${ge}`,
           uBoxDust: { value: 0 },
           uBoxMin: { value: new K(1e6, 1e6, 1e6) },
           uBoxMax: { value: new K(-1e6, -1e6, -1e6) },
+          ...STREETFX.uniformsFor.halo(),
           ...m(),
         },
         { defines: { VOL_STEPS: 16 } },
@@ -37023,13 +37038,13 @@ ${ge}`,
     r.add(u.mesh);
     let f = new Il(Z0.color, Z0.intensity);
     ((f.name = "sun"), (f.castShadow = !0));
-    let h = ZM(
-        f,
+    let sunFit = [
         new K(-41, -0.2, -33),
         new K(37, 32, 31),
         new K(-41, -3, -64),
         new K(72, 36, 34),
-      ),
+      ],
+      h = ZM(f, ...sunFit),
       p = () =>
         Math.min(n.quality.shadow || 2048, i.capabilities.maxTextureSize);
     (f.shadow.mapSize.set(p(), p()),
@@ -37166,7 +37181,40 @@ ${ge}`,
             Math.sin(te) * (Math.random() < 0.5 ? -1 : 1),
           )
           .normalize();
+        // the bolt lights the street from the side of the sky that flashed, from high up, so
+        // the light reaches the road between the buildings
+        let oe = u.material.uniforms.uFlashDir.value;
+        bolt.dir.set(oe.x, 0, oe.z).normalize().multiplyScalar(0.62).setY(0.78);
       });
+    // Lightning as a light: for the first half second of a flash the sun's directional light
+    // (the only shadow caster) is lent to the bolt: cold, far brighter, from the bolt's side of
+    // the sky. Everything in the street throws a hard shadow, the fog pass draws its shafts,
+    // then the light goes back. The static shadow cache notices the moved light and redraws
+    // itself, once on the way out and once on the way back; the low preset keeps the old
+    // sky-only flash to spare phones those two redraws.
+    let bolt = { dir: new K(-0.5, 0.78, 0.3), on: !1, force: !1 };
+    function strike() {
+      let G = CT.fx.lightning || 0,
+        te =
+          G > 0 && n.quality.name !== "low" && w.t < 0.5 && w.power > 0
+            ? w.power *
+              Math.exp(-w.t * 6) *
+              (0.7 + 0.3 * Math.sin(w.t * 47) * Math.sin(w.t * 13 + 1))
+            : 0;
+      if (te > 0.02) {
+        (bolt.on ||
+          ((bolt.on = bolt.force = !0),
+          ZM(f, ...sunFit, bolt.dir),
+          f.color.setRGB(0.72, 0.82, 1)),
+          (f.intensity = G * te));
+      } else
+        bolt.on &&
+          ((bolt.on = !1),
+          (bolt.force = !0),
+          ZM(f, ...sunFit),
+          f.color.copy(Z0.color),
+          (f.intensity = Z0.intensity));
+    }
     let S = {
       scale: 1,
       enabled: !(e.shot || e.show || e.dynres === "0"),
@@ -37282,9 +37330,11 @@ ${ge}`,
         i.clear(!0, !0, !1),
         (n.quality.name === "ultra" ||
           e.shot ||
+          bolt.force ||
           (k & 1) === 0 ||
           !f.shadow.map) &&
           (i.shadowMap.needsUpdate = !0),
+        (bolt.force = !1),
         i.render(r, a),
         T && (E.copyDepth(b), i.setRenderTarget(g)),
         s.depthRange(0, 0.05));
@@ -37308,9 +37358,11 @@ ${ge}`,
       // (a weapon drawn ahead of time needs its shaders for indoors and outdoors alike:
       // armory.js asks for one, then the other, for a few frames each)
       Q.envWarm && (le = Q.envWarm === "in" && !!Q.interiorEnv);
-      (le && (r.environment = Q.interiorEnv),
+      // outdoors the hands and the gun reflect the street they are in (see captureStreet)
+      let se = le ? Q.interiorEnv : Q.streetEnv;
+      (se && (r.environment = se),
         (r.environmentIntensity =
-          te * (le ? i_ / n_ : 1) * (Q.viewFill || 1.1)));
+          te * (se ? (le ? i_ : CT.fx.probe) / n_ : 1) * (Q.viewFill || 1.1)));
       try {
         i.render(r, l);
       } finally {
@@ -37436,7 +37488,7 @@ ${ge}`,
             );
           }
           try {
-            slStreetProbe();
+            captureStreet();
           } catch (G) {
             console.error(
               "[render] street probe failed: " + ((G && G.stack) || G),
@@ -37536,6 +37588,7 @@ ${ge}`,
                   0.35
                 : 0),
             (u.material.uniforms.uFlash.value = Math.max(0, w.value)),
+            strike(),
             A());
           for (let ee of z)
             try {
@@ -37579,61 +37632,7 @@ ${ge}`,
           };
         },
       },
-      W = null,
-      slStreet = null;
-    function slProbeRig() {
-      if (W) return;
-      let q = new Lc(128, { type: ro, generateMipmaps: !1 });
-      ((W = {
-        cubeRT: q,
-        cam: new Dc(0.15, 300, q),
-        pmrem: new Pa(i),
-        out: null,
-      }),
-        W.cam.layers.set(Ia));
-    }
-    // The street as car glass mirrors it (the glass is opaque: see chinatown/vehicles.js).
-    // One cube from the point the level names in level.streetProbe, captured and filtered
-    // like the hall's below, handed to every material flagged userData.streetEnv.
-    function slStreetProbe() {
-      let G = n.level && n.level.streetProbe;
-      if (!G) return;
-      slProbeRig();
-      (W.cam.position.set(G.x, G.y, G.z), W.cam.updateMatrixWorld(!0));
-      let te = i.toneMapping;
-      ((i.toneMapping = Cs),
-        (u.material.uniforms.uEnv.value = 1),
-        (i.shadowMap.needsUpdate = !0));
-      try {
-        W.cam.update(i, r);
-      } finally {
-        ((u.material.uniforms.uEnv.value = 0),
-          (i.toneMapping = te),
-          i.setRenderTarget(null));
-      }
-      (slStreet && slStreet.dispose(),
-        (slStreet = W.pmrem.fromCubemap(W.cubeRT.texture)),
-        (Q.streetEnv = slStreet.texture));
-      let oe = 0,
-        ee = new Set();
-      (r.traverse((le) => {
-        let xe = le.material
-          ? Array.isArray(le.material)
-            ? le.material
-            : [le.material]
-          : null;
-        if (xe)
-          for (let j of xe)
-            !j ||
-              ee.has(j) ||
-              !j.userData ||
-              j.userData.streetEnv !== !0 ||
-              !("envMap" in j) ||
-              (ee.add(j), (j.envMap = Q.streetEnv), (j.needsUpdate = !0), oe++);
-      }),
-        oe &&
-          console.log(`[render] street probe assigned to ${oe} material(s)`));
-    }
+      W = null;
     function J() {
       let G = n.level && n.level.interiorBoxes;
       if (!G || !G.length) return;
@@ -37641,7 +37640,16 @@ ${ge}`,
         oe = (te.min.x + te.max.x) / 2,
         ee = (te.min.z + te.max.z) / 2,
         le = te.min.y + Math.min(2.4, (te.max.y - te.min.y) * 0.4);
-      slProbeRig();
+      if (!W) {
+        let q = new Lc(128, { type: ro, generateMipmaps: !1 });
+        ((W = {
+          cubeRT: q,
+          cam: new Dc(0.15, 300, q),
+          pmrem: new Pa(i),
+          out: null,
+        }),
+          W.cam.layers.set(Ia));
+      }
       (W.cam.position.set(oe, le, ee), W.cam.updateMatrixWorld(!0));
       let xe = i.toneMapping;
       ((i.toneMapping = Cs),
@@ -37680,6 +37688,54 @@ ${ge}`,
       }),
         j &&
           console.log(`[render] interior probe assigned to ${j} material(s)`));
+    }
+    // One probe for the street: what the neon, the lanterns and the last light look like from
+    // the middle of Golden Dragon Street. The open-sky environment stays on walls and ground;
+    // the things that show a reflection (the gun and hands, vehicle paint, chrome, glass:
+    // materials flagged userData.street) take this one. Same size as the interior probe, so
+    // the first-person pass needs no third set of shaders.
+    function captureStreet() {
+      if (!CT.on || !(CT.fx.probe > 0) || Q.streetEnv) return;
+      let G = new Lc(128, { type: ro, generateMipmaps: !1 }),
+        te = new Dc(0.15, 300, G),
+        oe = new Pa(i);
+      (te.layers.set(Ia), te.position.set(-12, 2, 6), te.updateMatrixWorld(!0));
+      let ee = i.toneMapping;
+      ((i.toneMapping = Cs),
+        (u.material.uniforms.uEnv.value = 1),
+        (i.shadowMap.needsUpdate = !0));
+      try {
+        te.update(i, r);
+      } finally {
+        ((u.material.uniforms.uEnv.value = 0),
+          (i.toneMapping = ee),
+          i.setRenderTarget(null));
+      }
+      ((Q.streetEnv = oe.fromCubemap(G.texture).texture),
+        G.dispose(),
+        oe.dispose());
+      let le = new Set();
+      r.traverse((xe) => {
+        let j = xe.material
+          ? Array.isArray(xe.material)
+            ? xe.material
+            : [xe.material]
+          : null;
+        if (j)
+          for (let O of j)
+            !O ||
+              le.has(O) ||
+              !O.userData ||
+              O.userData.street !== !0 ||
+              O.userData.interior === !0 ||
+              !("envMap" in O) ||
+              (le.add(O),
+              (O.envMap = Q.streetEnv),
+              (O.envMapIntensity = (O.envMapIntensity || 1) * CT.fx.probe),
+              (O.needsUpdate = !0));
+      });
+      le.size &&
+        console.log(`[render] street probe assigned to ${le.size} material(s)`);
     }
     ((Q.captureInteriorProbe = J),
       Q.resize(),
@@ -39957,7 +40013,7 @@ float metalnessFactor = metalness * slORM.b;
   // cache keys, so switching quality recompiles (see render.setQuality).
   var slLite = !1;
   function g_(n, e) {
-    (Object.assign(n.uniforms, e),
+    (Object.assign(n.uniforms, e, STREETFX.uniformsFor.glow()),
       slLite && (n.fragmentShader = "#define SL_LITE\n" + n.fragmentShader),
       (n.vertexShader = n.vertexShader
         .replace(
@@ -39974,7 +40030,14 @@ float metalnessFactor = metalness * slORM.b;
         .replace(
           "#include <common>",
           `#include <common>
-` + pk,
+` +
+            pk +
+            STREETFX.GLOW_PARS,
+        )
+        // lamp and sign light baked onto the ground (src/chinatown/streetfx.js)
+        .replace(
+          "#include <lights_fragment_end>",
+          "#include <lights_fragment_end>\n" + STREETFX.glowApply("vSlPos"),
         )
         .replace("#include <map_fragment>", mk)
         .replace("#include <roughnessmap_fragment>", gk)
@@ -49043,6 +49106,7 @@ vec2 gRipple(vec2 p, float t, float cell, float seed){
         uMarkRect: { value: new Jt(Ha.x0, Ha.z0, 1 / Ha.w, 1 / Ha.h) },
         uReflMatrix: { value: new Je() },
         uReflScale: { value: new We(0.5, 0.5) },
+        ...STREETFX.uniformsFor.glow(),
       },
       i = new L0({ color: 16777215, roughness: 1, metalness: 0 });
     ((i.name = "apron_wet"),
@@ -49063,7 +49127,9 @@ vec2 gRipple(vec2 p, float t, float cell, float seed){
               .replace(
                 "#include <common>",
                 `#include <common>
-` + TP,
+` +
+                  TP +
+                  STREETFX.GLOW_PARS,
               )
               .replace("#include <map_fragment>", CT.on ? CT.asphalt(AP) : AP)
               .replace(
@@ -49088,11 +49154,12 @@ vec2 gRipple(vec2 p, float t, float cell, float seed){
               .replace(
                 "#include <lights_fragment_end>",
                 `#include <lights_fragment_end>
+${STREETFX.GLOW_GROUND}
   reflectedLight.directSpecular = min(reflectedLight.directSpecular, vec3(40.0));`,
               )));
       }),
       (i.customProgramCacheKey = () =>
-        "saltline-apron-3" +
+        "saltline-apron-4" +
         (n.quality.name === "low" ? "L" : "") +
         ((n.quality.planar || 0) > 0 ? "" : "N")),
       (i.userData.qualityKeyed = !0));
@@ -49457,6 +49524,7 @@ uniform float uTime, uRain, uPix, uDrip; uniform vec3 uVel, uBox, uSunDir, uSunC
 attribute vec4 aSeed;
 varying vec3 vCol; varying float vA; varying vec2 vUv;
 ${Ww}
+${STREETFX.RAIN_PARS}
 uniform vec4 uSky[8];   // roof openings (x, z, half w, half d): rain falls through these into the shed
 bool wSky(vec3 p){
   for (int i = 0; i < 8; i++) { if (abs(p.x - uSky[i].x) < uSky[i].z && abs(p.z - uSky[i].y) < uSky[i].w) return true; }
@@ -49489,7 +49557,7 @@ void main(){
   vec3 wp = p + dir * (len * (position.y - 0.5)) + side * (w * position.x);
   float a = (w0 / w) * smoothstep(0.7, 2.6, dist) * (1.0 - smoothstep(0.38, 0.5, dist / uBox.x));
   float c = dot(toP / max(dist, 1e-3), uSunDir);
-  vCol = uAmb + uSunCol * wPhase(c);
+  vCol = uAmb + uSunCol * wPhase(c) + stRainLight(p);
   vA = a * (0.55 + 0.45 * fract(aSeed.w * 13.3));
   gl_Position = kill > 0.5 ? vec4(2.0, 2.0, 2.0, 1.0) : projectionMatrix * viewMatrix * vec4(wp, 1.0);
 }`,
@@ -49505,6 +49573,7 @@ uniform float uTime, uRain; uniform vec3 uSunDir, uSunCol, uAmb, uMaskRect; unif
 attribute vec4 aSeed;
 varying vec3 vCol; varying float vA; varying vec2 vUv; varying float vLife;
 ${Ww}
+${STREETFX.RAIN_PARS}
 vec2 sHash(vec2 p){ vec3 q = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973)); q += dot(q, q.yzx + 33.33); return fract((q.xx + q.yz) * q.zy); }
 void main(){
   vUv = position.xy;
@@ -49528,7 +49597,7 @@ void main(){
   vec3 side = normalize(vec3(toP.z, 0.0, -toP.x));
   vec3 wp = p + side * (wd * position.x * 2.0) + vec3(0.0, ht * position.y + 0.004, 0.0);
   float c = dot(toP / max(dist, 1e-3), uSunDir);
-  vCol = uAmb * 1.4 + uSunCol * wPhase(c) * 0.8;
+  vCol = uAmb * 1.4 + uSunCol * wPhase(c) * 0.8 + stRainLight(p + vec3(0.0, 0.3, 0.0)) * 1.5;
   vA = (1.0 - life) * (1.0 - smoothstep(11.0, 15.0, dist)) * mix(0.5, 1.0, pud);
   vLife = life;
   gl_Position = kill > 0.5 ? vec4(2.0, 2.0, 2.0, 1.0) : projectionMatrix * viewMatrix * vec4(wp, 1.0);
@@ -49584,6 +49653,7 @@ void main(){
         uSunDir: { value: Z0.dir.clone() },
         uSunCol: { value: c },
         uAmb: { value: u },
+        ...STREETFX.uniformsFor.rain(),
       },
       h = [0, 1, 2, 3, 4, 5, 6, 7].map(() => new Jt(0, 0, -1, -1)),
       p = {
@@ -61315,18 +61385,31 @@ void main() {
         reset() {
           e.shots = e.hits = e.kills = 0;
         },
+        // gun: the rules of the round (chinatown/stockguns.js): what the head takes, the falloff,
+        // how many of the dead it goes through. The ray tests here only find what it reaches.
         playerShot(
           i,
           s,
-          { damage: o = 28, range: r = 300, impulse: a = 1 } = {},
+          {
+            damage: o = 28,
+            range: r = 300,
+            impulse: a = 1,
+            gun: g = null,
+          } = {},
         ) {
           e.shots++;
           let l = n.physics.raycast(i, s, r),
-            c = n.enemies.raycast(i, s, l ? l.dist : r);
-          if (c) {
+            w = l ? l.dist : r,
+            k = null,
+            left = g ? g.pierce || 0 : 0,
+            last = null;
+          for (;;) {
+            let c = n.enemies.raycast(i, s, w, k);
+            if (!c) break;
             e.hits++;
-            let u = c.part === "weak" ? 2.2 : 1,
-              f = c.enemy.damage(o * u, c.point, s, c.part) === !0,
+            let weak = c.part === "weak",
+              u = g ? roundDamage(g, o, c.dist, weak) : o * (weak ? 2.2 : 1),
+              f = c.enemy.damage(u, c.point, s, c.part) === !0,
               h = {
                 point: c.point,
                 normal: c.normal || s.clone().negate(),
@@ -61338,16 +61421,16 @@ void main() {
                 from: "player",
                 killed: f,
               };
-            return (
-              n.events.emit("impact", h),
+            (n.events.emit("impact", h),
               n.events.emit("player:hitEnemy", {
                 enemy: c.enemy,
                 part: c.part,
                 killed: f,
-                weak: c.part === "weak",
+                weak,
               }),
-              h
-            );
+              (last = h));
+            if (left-- <= 0) return h;
+            (k || (k = new Set())).add(c.enemy);
           }
           if (l) {
             let u = {
@@ -61362,7 +61445,7 @@ void main() {
             };
             return (n.events.emit("impact", u), u);
           }
-          return null;
+          return last;
         },
         enemyShot(i, s, { damage: o = 6, range: r = 200 } = {}) {
           let a = n.physics.raycast(i, s, r),
@@ -65099,9 +65182,10 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
       },
     },
     ft = {
-      // (the carbine's reload: its two lengths are in chinatown/stockguns.js, the keys below are timed to them)
-      tac: STOCK_GUNS.rifle.reload.tac,
-      empty: STOCK_GUNS.rifle.reload.empty,
+      // (the lengths the carbine's reload animation was made to; how long a reload really takes
+      // is chinatown/stockguns.js, and the animation's clock is paced to fit: rig.reloadPace)
+      tac: 2.24,
+      empty: 2.72,
       atMag: 0.36,
       magout: 0.4,
       clear: 0.52,
@@ -65132,9 +65216,9 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
       partial: 0.32,
     },
     It = {
-      // (the sidearm's reload, as above)
-      tac: STOCK_GUNS.pistol.reload.tac,
-      empty: STOCK_GUNS.pistol.reload.empty,
+      // (the sidearm's reload animation, as above)
+      tac: 1.5,
+      empty: 1.9,
       release: 0.12,
       magout: 0.18,
       swap: 0.48,
@@ -67159,6 +67243,8 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
     SHOULDER: () => er,
     TRIGGER_PULL: () => oS,
     TWIST_SHARE: () => Iy,
+    RAIN: () => armRain,
+    RAINTIME: () => armRainT,
     WETNESS: () => kh,
     WRIST_LIMITS: () => sS,
     armGeometry: () => aS,
@@ -67193,6 +67279,10 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
       skinIn: [0.52, 0.33, 0.235],
     },
     kh = { value: 0.7 },
+    // rain landing on bare arms: how much of it reaches them (1 out in the open, 0 under a
+    // roof) and the clock its drops keep (seconds)
+    armRain = { value: 1 },
+    armRainT = { value: 0 },
     ys = Ay,
     L1 = t0.map((n) => [n.len[0], n.len[0] + n.len[1], n.total]),
     Ty = P1.web,
@@ -67229,9 +67319,9 @@ vec3 armSurface(vec4 hc, vec4 rs, float gD, out float rough, out float h, out fl
   float A = hc.x, F = hc.y, D = hc.z, S = hc.w, x = rs.x, y = rs.y, z = rs.z; vec3 col; h = 0.0;
   if (rs.w > 0.5) {
     // bare skin: paler and pinker on the inside of the arm, a breath of colour at the elbow
-    col = mix(${Ui(ys.skin)}, ${Ui(ys.skinIn)}, smoothstep(0.35, -0.75, D)); rough = 0.50; kind = 6.0;
+    col = mix(${Ui(ys.skin)}, ${Ui(ys.skinIn)}, smoothstep(0.35, -0.75, D)); rough = 0.68; kind = 6.0;
     float elbow = exp(-pow((A - 0.275) / 0.035, 2.0)) * smoothstep(-0.2, 0.7, D);
-    col *= mix(vec3(1.0), vec3(1.0, 0.92, 0.9), 0.4 * elbow); rough = mix(rough, 0.6, elbow);
+    col *= mix(vec3(1.0), vec3(1.0, 0.92, 0.9), 0.4 * elbow); rough = mix(rough, 0.74, elbow);
     col *= 0.98 + 0.04 * aNoise(rs.xyz * vec3(60.0, 60.0, 22.0));
   } else {
     float j1 = ${Sy(0)}, j2 = ${Sy(1)}, j3 = ${Sy(2)};
@@ -67307,21 +67397,50 @@ vec3 armMicro(vec3 col, vec4 hc, vec4 rs, vec3 rn, float kind, float wet, inout 
   h += fine * (kFab * 0.00005 * weave + kLea * 0.00011 * (n1 * 0.7 + n2 * 0.3 - 0.5) + kRub * 0.00003 * (n2 - 0.5) + kRib * 0.00006 * weave + kShell * 0.000035 * weave + kRefl * 0.00004 * (n2 - 0.5) + kSkin * 0.000018 * (n1 * 0.6 + n2 * 0.4 - 0.5));
   col *= 1.0 + fine * (kFab * 0.06 * weave + kLea * 0.16 * (n1 - 0.5) + kRib * 0.08 * weave + kShell * 0.04 * weave) + (big - 0.5) * (0.16 * kLea + 0.10 * kFab + 0.10 * kShell + 0.06 * kRub);
   rough += (big - 0.5) * (0.10 * kLea + 0.10 * kShell + 0.12 * kRub) + fine * (n1 - 0.5) * 0.10 * kLea;
-  // wet skin shines
-  rough = mix(rough, 0.34, 0.6 * wet * kSkin);
+  // wet skin has a sheen, not a shine: it is the beads that catch the light
+  rough = mix(rough, 0.52, 0.4 * wet * kSkin);
   // rain beads on the arm (laid out in its own angle / length coordinates) and, sparser, on the rubber
   if (wet > 0.01 && (kShell + kRefl + kRub + kSkin) > 0.3) {
-    vec2 q = rs.w > 0.5 ? vec2(atan(hc.z, hc.w) * 0.046, hc.x) : vec2(dot(p, vec3(0.8, 0.0, 0.6)), dot(p, vec3(-0.42, 0.7, 0.57)));
-    float bead = 0.0, wetR = 0.0;
+    vec2 q = rs.w > 0.5 ? vec2(atan(hc.z, hc.w) * 0.032, hc.x) : vec2(dot(p, vec3(0.8, 0.0, 0.6)), dot(p, vec3(-0.42, 0.7, 0.57)));
+    // (rain stands on skin in drops a good deal bigger than the beads on a waxed cloth or on rubber)
+    float bead = 0.0, wetR = 0.0, big = 1.0 + 1.9 * kSkin;
     for (int o = 0; o < 2; o++) {
-      float cell = o == 0 ? 0.0085 : 0.0041; vec2 g = q / cell + float(o) * 13.7, id = floor(g), fr = fract(g);
+      // (on the arm a whole number of cells goes round it, and they are counted round it: the pattern meets itself where the angle wraps)
+      float cell = (o == 0 ? 0.0085 : 0.0041) * big, wrap = o == 0 ? 8.0 : 17.0; if (kSkin > 0.5) cell = 0.20106 / wrap;
+      vec2 g = q / cell + float(o) * 13.7, id = floor(g), fr = fract(g); if (kSkin > 0.5) id.x = mod(id.x, wrap);
       float r1 = aHash(vec3(id, 1.0 + float(o))), r2 = aHash(vec3(id, 5.0)), r3 = aHash(vec3(id, 9.0));
-      float rad = (o == 0 ? 0.0019 : 0.0010) * (0.55 + 0.6 * r3), on = step(r1, (o == 0 ? 0.42 : 0.5) * wet * (rs.w > 0.5 ? 1.0 - 0.72 * kSkin : 0.5));
+      float rad = (o == 0 ? 0.0019 : 0.0010) * big * (0.55 + 0.6 * r3), on = step(r1, (o == 0 ? 0.42 : 0.5) * wet * (rs.w > 0.5 ? 1.0 - 0.45 * kSkin : 0.5));
       float d = length((fr - (0.25 + 0.5 * vec2(r2, r3))) * cell) / rad;
       bead = max(bead, on * sqrt(max(0.0, 1.0 - d * d)) * rad * 0.55); wetR = max(wetR, on * (1.0 - smoothstep(0.85, 1.0, d)));
     }
     // (a bead on cloth darkens it; on skin it only catches the light)
-    h += bead * (1.0 - 0.45 * kSkin); rough = mix(rough, 0.07, wetR); col *= 1.0 - 0.18 * wetR * (1.0 - kSkin);
+    h += bead * (1.0 - 0.66 * kSkin); rough = mix(rough, 0.07, wetR); col *= 1.0 - 0.18 * wetR * (1.0 - kSkin);
+  }
+  // Rain landing on bare skin. Those beads stand where they are: this is the rain still
+  // falling. A drop arrives with a start, stands a moment, lets go and runs off along the arm
+  // towards the elbow, drawing out as it goes, and another lands somewhere else. Each cell of
+  // the arm keeps its own time; a drop that runs out of its cell is drawn by the next one too.
+  // uArmRain is how much rain reaches the arm: under a roof no more of it lands.
+  if (kSkin > 0.5 && uArmRain > 0.01) {
+    vec2 q = vec2(atan(hc.z, hc.w) * 0.032, hc.x);
+    float fall = 0.0, fallR = 0.0;
+    for (int o = 0; o < 4; o++) {
+      float layer = o < 2 ? 0.0 : 1.0, back = o - (o / 2) * 2 == 0 ? 0.0 : 1.0;
+      float wrap = layer < 0.5 ? 10.0 : 17.0, cell = 0.20106 / wrap;
+      vec2 g = q / cell + 5.3 + layer * 7.1, id = floor(g) - vec2(0.0, back), cl = g - id; id.x = mod(id.x, wrap);
+      float k0 = aHash(vec3(id, 21.0 + layer)), per = 1.5 + 2.4 * k0;
+      float ph = uArmTime / per + k0 * 9.0, cyc = mod(floor(ph), 64.0), life = fract(ph);
+      float r1 = aHash(vec3(id, 31.0 + cyc)), r2 = aHash(vec3(id + 3.7, 37.0 + cyc)), r3 = aHash(vec3(id - 1.3, 41.0 + cyc));
+      float on = step(r1, 0.34 * uArmRain);
+      float grow = smoothstep(0.0, 0.05, life) * (1.0 + 0.35 * (1.0 - smoothstep(0.05, 0.16, life)));
+      float run = smoothstep(0.5, 1.0, life), gone = 1.0 - smoothstep(0.84, 1.0, life);
+      float rad = (layer < 0.5 ? 0.0042 : 0.0026) * (0.6 + 0.6 * r3) * grow * gone;
+      vec2 at = (0.3 + 0.4 * vec2(r2, r3)) * cell; at.y += run * run * cell * 0.95;
+      vec2 dq = cl * cell - at; dq.y /= 1.0 + 1.5 * run;
+      float d = length(dq) / max(rad, 1e-5);
+      fall = max(fall, on * sqrt(max(0.0, 1.0 - d * d)) * rad * 0.17); fallR = max(fallR, on * (1.0 - smoothstep(0.8, 1.0, d)));
+    }
+    h += fall; rough = mix(rough, 0.07, fallR);
   }
   rough = clamp(rough, 0.05, 1.0);
   return col;
@@ -67342,6 +67461,8 @@ vec3 armBump(vec3 N, vec3 vp, float h) {
       (e.name = "saltline_arm"),
       (e.onBeforeCompile = (t) => {
         ((t.uniforms.uArmWet = kh),
+          (t.uniforms.uArmRain = armRain),
+          (t.uniforms.uArmTime = armRainT),
           (t.vertexShader = t.vertexShader
             .replace(
               "#include <common>",
@@ -67377,7 +67498,7 @@ vArmRest = aRest; vArmHand = aHand; vArmN = normal;`,
             .replace(
               "#include <common>",
               `#include <common>
-uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec3 vArmN;
+uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying vec4 vArmRest; varying vec4 vArmHand; varying vec3 vArmN;
 ` + MD,
             )
             .replace(
@@ -67398,9 +67519,18 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
               "#include <normal_fragment_maps>",
               `#include <normal_fragment_maps>
   normal = armBump(normal, -vViewPosition, armH);`,
+            )
+            .replace(
+              "#include <aomap_fragment>",
+              `#include <aomap_fragment>
+  // Skin is not a polished thing: under a street lamp it gives back a soft sheen, where a
+  // smooth surface of the same roughness would carry a bright streak the length of the arm.
+  // (The beads of rain on it are water, and keep all of theirs.)
+  float armSheen = mix(1.0 - 0.62 * (1.0 - min(1.0, abs(armKind - 6.0))), 1.0, 1.0 - smoothstep(0.1, 0.3, armRough));
+  reflectedLight.directSpecular *= armSheen; reflectedLight.indirectSpecular *= armSheen;`,
             )));
       }),
-      (e.customProgramCacheKey = () => "saltline-arm-3"),
+      (e.customProgramCacheKey = () => "saltline-arm-5"),
       e
     );
   }
@@ -69056,7 +69186,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         flashLight: 45,
         flashScale: 1,
         smoke: !0,
-        spread: { ...STOCK_GUNS.rifle.spread },
+        // (the table's own object: the range's number panel edits it while the game runs)
+        spread: STOCK_GUNS.rifle.spread,
       },
       views: Uy,
       view: 0,
@@ -69068,6 +69199,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       },
       motion: bh.rifle,
       reloadTime: (B) => (B ? ft.empty : ft.tac),
+      reloadPace: (B) => reloadPace(STOCK_GUNS.rifle, B, B ? ft.empty : ft.tac),
       reset() {
         ((de = 9),
           ($ = !1),
@@ -70710,7 +70842,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         flashLight: 30,
         flashScale: 0.55,
         smoke: !1,
-        spread: { ...STOCK_GUNS.pistol.spread },
+        spread: STOCK_GUNS.pistol.spread,
       },
       views: Xy,
       view: 0,
@@ -70722,6 +70854,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       },
       motion: bh.pistol,
       reloadTime: (ge) => (ge ? It.empty : It.tac),
+      reloadPace: (ge) =>
+        reloadPace(STOCK_GUNS.pistol, ge, ge ? It.empty : It.tac),
       reset() {
         ((le = 9),
           (xe = !1),
@@ -71199,9 +71333,22 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         addAmmo(B) {
           b.slot.reserve += B;
         },
-        setWetness(B) {
-          iy.value = kh.value = Math.max(0, Math.min(1, +B || 0));
+        // B: 1 out in the rain, falling to 0.3 under a roof (the loop below). The weapon keeps
+        // a film of it indoors; bare arms dry off: no drops left on them, and none new.
+        // dt, roofed: the frame's seconds and whether she is under a roof now. The rain that
+        // lands on bare arms (drops arriving and running off) keeps time by the one and stops
+        // within a second of the other; what already stands on them takes its time to dry.
+        setWetness(B, dt = 0, roofed = !1) {
+          ((iy.value = Math.max(0, Math.min(1, +B || 0))),
+            (kh.value = Math.max(0, iy.value - 0.3)),
+            (armRainT.value = (armRainT.value + dt) % 3600),
+            (armRain.value +=
+              ((roofed ? 0 : 1) - armRain.value) * Math.min(1, dt * 2)));
         },
+        /** How wet the arms are now, 0 to 0.7 (for the armoury's arms: chinatown/armory.js). */
+        armWetness: () => kh.value,
+        /** How much rain is reaching the arms now, 0 to 1. */
+        armRain: () => armRain.value,
         snap() {
           let B = n.player,
             X = (!!B.sprinting || l.sprint) && !n.input.fire && !a.reload;
@@ -71475,7 +71622,11 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         Z.copy(B.eye || X.position));
       let ye = null;
       try {
-        ye = n.combat.playerShot(Z, C, { damage: Y.damage, range: Y.range });
+        ye = n.combat.playerShot(Z, C, {
+          damage: Y.damage,
+          range: Y.range,
+          gun: STOCK_GUNS[re.id],
+        });
       } catch {}
       (ye && ye.point
         ? F.copy(ye.point)
@@ -71504,7 +71655,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           weapon: re.id,
         }),
         re.recoil(a.burst, u0(1, 0.55, a.adsE) * (B.crouching ? 0.85 : 1), B),
-        (a.bloom = Math.min(1, a.bloom + Y.spread.shot)),
+        (a.bloom = bloomAfterShot(Y.spread, a.bloom)),
         (a.flashT = a.flashDur = 0.036 + r() * 0.02));
       let Re = re.flash,
         Ue = Re.material.uniforms;
@@ -71754,7 +71905,10 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           ? ($e.t = l.reloadT)
           : $e.fresh
             ? ($e.fresh = !1)
-            : ($e.t += B * (E.reloadScale || 1)),
+            : ($e.t +=
+                B *
+                (E.reloadScale || 1) *
+                ($e.rig.reloadPace ? $e.rig.reloadPace($e.empty) : 1)),
           Y.reload($e, $e.t),
           $e.t >= $e.T &&
             l.reloadT == null &&
@@ -71801,7 +71955,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       (a.cooldown < 0 && (a.cooldown = Math.max(a.cooldown, -0.001)),
         a.t - a.lastShot > 0.24 &&
           (a.burst > 0 && (a.recPhase = r() * 6.28), (a.burst = 0)),
-        (a.bloom = Math.max(0, a.bloom - B * he.spread.decay)),
+        (a.bloom = bloomAfter(he.spread, a.bloom, B)),
         he.smoke &&
           a.t - a.lastShot > 0.11 &&
           a.t - a.lastShot < 0.11 + B * 1.5 &&
@@ -71830,14 +71984,15 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         (E.ads = a.adsE),
         (a.adsWant = Ve));
       let ze = X.speed || 0,
-        Ge = Is(ze / 6),
         _e = he.spread,
-        Ne =
-          u0(_e.hip, _e.ads, a.adsE) +
-          Ge * u0(_e.moveHip, _e.moveAds, a.adsE) +
-          a.bloom * u0(_e.bloomHip, _e.bloomAds, a.adsE) +
-          (X.onGround === !1 ? _e.air : 0) -
-          (X.crouching ? _e.crouch * (1 - a.adsE) : 0);
+        // (the cone of fire: chinatown/stockguns.js)
+        Ne = coneOf(_e, {
+          ads: a.adsE,
+          speed: ze,
+          bloom: a.bloom,
+          air: X.onGround === !1,
+          crouch: X.crouching,
+        });
       ((a.spreadS = j0(a.spreadS, Ne, 18, B)),
         (E.spread = a.spreadS),
         ye ||
@@ -78039,6 +78194,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     on: !1,
     skyGain: 1,
     sunDisk: 1,
+    post: {},
+    fx: {},
     puddles: [
       [-31, 6.4, 3.2, 2, 0.24],
       [-20, 3.2, 6.5, 0.8, 0.26],
@@ -78192,7 +78349,11 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
           c.stroke());
       }
     },
-    apply() {
+    // sun, sky and grade come from src/chinatown/look.js
+    apply(params) {
+      let look = pickLook(params),
+        sun = look.sun,
+        sky = look.sky;
       ((CT.on = !0),
         (Kn.quayX = 1e3),
         (Ha.w = 80),
@@ -78201,14 +78362,17 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         (Fi.size = 84),
         (Pw.length = 0),
         Pw.push(...CT.puddles),
-        (Z0.intensity = 3.1),
-        Z0.color.setRGB(1, 0.6, 0.36),
-        T0.zenith.setRGB(0.03, 0.05, 0.095),
-        T0.horizon.setRGB(0.9, 0.46, 0.24),
-        T0.horizonAway.setRGB(0.1, 0.14, 0.215),
-        T0.fog.setRGB(0.2, 0.235, 0.3),
-        (CT.skyGain = 0.28),
-        (CT.sunDisk = 0.3));
+        Z0.dir.set(...sunDirection(sun)).normalize(),
+        (Z0.intensity = sun.intensity),
+        Z0.color.setRGB(...sun.color),
+        T0.zenith.setRGB(...sky.zenith),
+        T0.horizon.setRGB(...sky.horizon),
+        T0.horizonAway.setRGB(...sky.horizonAway),
+        T0.fog.setRGB(...sky.fog),
+        (CT.skyGain = sky.gain),
+        (CT.sunDisk = sky.disk),
+        (CT.post = look.post),
+        (CT.fx = look.fx));
     },
   };
   async function cL() {
@@ -78218,7 +78382,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     // the firing range (src/chinatown/range.js) is the set meal, entered without the title
     n.range && ((n.autostart = "1"), delete n.mode);
     globalThis.__SALTLINE_THREE__ = ut;
-    CT.apply();
+    CT.apply(n);
     let t = {
       THREE: ut,
       params: n,
@@ -78486,7 +78650,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
               y.y < v.max.y;
           c += ((b ? 0.3 : 1) - c) * Math.min(1, m * (b ? 0.25 : 0.6));
           try {
-            t.weapon.setWetness(c);
+            t.weapon.setWetness(c, m, b);
           } catch {}
           if (!n.wfill && t.render.sunDir) {
             let g = t.camera.getWorldDirection(f),

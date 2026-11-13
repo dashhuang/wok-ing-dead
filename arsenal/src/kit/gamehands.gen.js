@@ -1891,6 +1891,8 @@ var Ay = {
   skinIn: [0.52, 0.33, 0.235],
 };
 var kh = { value: 0.7 };
+var armRain = { value: 1 };
+var armRainT = { value: 0 };
 var ys = Ay;
 var L1 = t0.map((n) => [n.len[0], n.len[0] + n.len[1], n.total]);
 var Ty = P1.web;
@@ -1927,9 +1929,9 @@ vec3 armSurface(vec4 hc, vec4 rs, float gD, out float rough, out float h, out fl
   float A = hc.x, F = hc.y, D = hc.z, S = hc.w, x = rs.x, y = rs.y, z = rs.z; vec3 col; h = 0.0;
   if (rs.w > 0.5) {
     // bare skin: paler and pinker on the inside of the arm, a breath of colour at the elbow
-    col = mix(${Ui(ys.skin)}, ${Ui(ys.skinIn)}, smoothstep(0.35, -0.75, D)); rough = 0.50; kind = 6.0;
+    col = mix(${Ui(ys.skin)}, ${Ui(ys.skinIn)}, smoothstep(0.35, -0.75, D)); rough = 0.68; kind = 6.0;
     float elbow = exp(-pow((A - 0.275) / 0.035, 2.0)) * smoothstep(-0.2, 0.7, D);
-    col *= mix(vec3(1.0), vec3(1.0, 0.92, 0.9), 0.4 * elbow); rough = mix(rough, 0.6, elbow);
+    col *= mix(vec3(1.0), vec3(1.0, 0.92, 0.9), 0.4 * elbow); rough = mix(rough, 0.74, elbow);
     col *= 0.98 + 0.04 * aNoise(rs.xyz * vec3(60.0, 60.0, 22.0));
   } else {
     float j1 = ${Sy(0)}, j2 = ${Sy(1)}, j3 = ${Sy(2)};
@@ -2005,21 +2007,50 @@ vec3 armMicro(vec3 col, vec4 hc, vec4 rs, vec3 rn, float kind, float wet, inout 
   h += fine * (kFab * 0.00005 * weave + kLea * 0.00011 * (n1 * 0.7 + n2 * 0.3 - 0.5) + kRub * 0.00003 * (n2 - 0.5) + kRib * 0.00006 * weave + kShell * 0.000035 * weave + kRefl * 0.00004 * (n2 - 0.5) + kSkin * 0.000018 * (n1 * 0.6 + n2 * 0.4 - 0.5));
   col *= 1.0 + fine * (kFab * 0.06 * weave + kLea * 0.16 * (n1 - 0.5) + kRib * 0.08 * weave + kShell * 0.04 * weave) + (big - 0.5) * (0.16 * kLea + 0.10 * kFab + 0.10 * kShell + 0.06 * kRub);
   rough += (big - 0.5) * (0.10 * kLea + 0.10 * kShell + 0.12 * kRub) + fine * (n1 - 0.5) * 0.10 * kLea;
-  // wet skin shines
-  rough = mix(rough, 0.34, 0.6 * wet * kSkin);
+  // wet skin has a sheen, not a shine: it is the beads that catch the light
+  rough = mix(rough, 0.52, 0.4 * wet * kSkin);
   // rain beads on the arm (laid out in its own angle / length coordinates) and, sparser, on the rubber
   if (wet > 0.01 && (kShell + kRefl + kRub + kSkin) > 0.3) {
-    vec2 q = rs.w > 0.5 ? vec2(atan(hc.z, hc.w) * 0.046, hc.x) : vec2(dot(p, vec3(0.8, 0.0, 0.6)), dot(p, vec3(-0.42, 0.7, 0.57)));
-    float bead = 0.0, wetR = 0.0;
+    vec2 q = rs.w > 0.5 ? vec2(atan(hc.z, hc.w) * 0.032, hc.x) : vec2(dot(p, vec3(0.8, 0.0, 0.6)), dot(p, vec3(-0.42, 0.7, 0.57)));
+    // (rain stands on skin in drops a good deal bigger than the beads on a waxed cloth or on rubber)
+    float bead = 0.0, wetR = 0.0, big = 1.0 + 1.9 * kSkin;
     for (int o = 0; o < 2; o++) {
-      float cell = o == 0 ? 0.0085 : 0.0041; vec2 g = q / cell + float(o) * 13.7, id = floor(g), fr = fract(g);
+      // (on the arm a whole number of cells goes round it, and they are counted round it: the pattern meets itself where the angle wraps)
+      float cell = (o == 0 ? 0.0085 : 0.0041) * big, wrap = o == 0 ? 8.0 : 17.0; if (kSkin > 0.5) cell = 0.20106 / wrap;
+      vec2 g = q / cell + float(o) * 13.7, id = floor(g), fr = fract(g); if (kSkin > 0.5) id.x = mod(id.x, wrap);
       float r1 = aHash(vec3(id, 1.0 + float(o))), r2 = aHash(vec3(id, 5.0)), r3 = aHash(vec3(id, 9.0));
-      float rad = (o == 0 ? 0.0019 : 0.0010) * (0.55 + 0.6 * r3), on = step(r1, (o == 0 ? 0.42 : 0.5) * wet * (rs.w > 0.5 ? 1.0 - 0.72 * kSkin : 0.5));
+      float rad = (o == 0 ? 0.0019 : 0.0010) * big * (0.55 + 0.6 * r3), on = step(r1, (o == 0 ? 0.42 : 0.5) * wet * (rs.w > 0.5 ? 1.0 - 0.45 * kSkin : 0.5));
       float d = length((fr - (0.25 + 0.5 * vec2(r2, r3))) * cell) / rad;
       bead = max(bead, on * sqrt(max(0.0, 1.0 - d * d)) * rad * 0.55); wetR = max(wetR, on * (1.0 - smoothstep(0.85, 1.0, d)));
     }
     // (a bead on cloth darkens it; on skin it only catches the light)
-    h += bead * (1.0 - 0.45 * kSkin); rough = mix(rough, 0.07, wetR); col *= 1.0 - 0.18 * wetR * (1.0 - kSkin);
+    h += bead * (1.0 - 0.66 * kSkin); rough = mix(rough, 0.07, wetR); col *= 1.0 - 0.18 * wetR * (1.0 - kSkin);
+  }
+  // Rain landing on bare skin. Those beads stand where they are: this is the rain still
+  // falling. A drop arrives with a start, stands a moment, lets go and runs off along the arm
+  // towards the elbow, drawing out as it goes, and another lands somewhere else. Each cell of
+  // the arm keeps its own time; a drop that runs out of its cell is drawn by the next one too.
+  // uArmRain is how much rain reaches the arm: under a roof no more of it lands.
+  if (kSkin > 0.5 && uArmRain > 0.01) {
+    vec2 q = vec2(atan(hc.z, hc.w) * 0.032, hc.x);
+    float fall = 0.0, fallR = 0.0;
+    for (int o = 0; o < 4; o++) {
+      float layer = o < 2 ? 0.0 : 1.0, back = o - (o / 2) * 2 == 0 ? 0.0 : 1.0;
+      float wrap = layer < 0.5 ? 10.0 : 17.0, cell = 0.20106 / wrap;
+      vec2 g = q / cell + 5.3 + layer * 7.1, id = floor(g) - vec2(0.0, back), cl = g - id; id.x = mod(id.x, wrap);
+      float k0 = aHash(vec3(id, 21.0 + layer)), per = 1.5 + 2.4 * k0;
+      float ph = uArmTime / per + k0 * 9.0, cyc = mod(floor(ph), 64.0), life = fract(ph);
+      float r1 = aHash(vec3(id, 31.0 + cyc)), r2 = aHash(vec3(id + 3.7, 37.0 + cyc)), r3 = aHash(vec3(id - 1.3, 41.0 + cyc));
+      float on = step(r1, 0.34 * uArmRain);
+      float grow = smoothstep(0.0, 0.05, life) * (1.0 + 0.35 * (1.0 - smoothstep(0.05, 0.16, life)));
+      float run = smoothstep(0.5, 1.0, life), gone = 1.0 - smoothstep(0.84, 1.0, life);
+      float rad = (layer < 0.5 ? 0.0042 : 0.0026) * (0.6 + 0.6 * r3) * grow * gone;
+      vec2 at = (0.3 + 0.4 * vec2(r2, r3)) * cell; at.y += run * run * cell * 0.95;
+      vec2 dq = cl * cell - at; dq.y /= 1.0 + 1.5 * run;
+      float d = length(dq) / max(rad, 1e-5);
+      fall = max(fall, on * sqrt(max(0.0, 1.0 - d * d)) * rad * 0.17); fallR = max(fallR, on * (1.0 - smoothstep(0.8, 1.0, d)));
+    }
+    h += fall; rough = mix(rough, 0.07, fallR);
   }
   rough = clamp(rough, 0.05, 1.0);
   return col;
@@ -2040,6 +2071,8 @@ function QE(n) {
     (e.name = "saltline_arm"),
     (e.onBeforeCompile = (t) => {
       ((t.uniforms.uArmWet = kh),
+        (t.uniforms.uArmRain = armRain),
+        (t.uniforms.uArmTime = armRainT),
         (t.vertexShader = t.vertexShader
           .replace(
             "#include <common>",
@@ -2075,7 +2108,7 @@ vArmRest = aRest; vArmHand = aHand; vArmN = normal;`,
           .replace(
             "#include <common>",
             `#include <common>
-uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec3 vArmN;
+uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying vec4 vArmRest; varying vec4 vArmHand; varying vec3 vArmN;
 ` + MD,
           )
           .replace(
@@ -2096,9 +2129,18 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
             "#include <normal_fragment_maps>",
             `#include <normal_fragment_maps>
   normal = armBump(normal, -vViewPosition, armH);`,
+          )
+          .replace(
+            "#include <aomap_fragment>",
+            `#include <aomap_fragment>
+  // Skin is not a polished thing: under a street lamp it gives back a soft sheen, where a
+  // smooth surface of the same roughness would carry a bright streak the length of the arm.
+  // (The beads of rain on it are water, and keep all of theirs.)
+  float armSheen = mix(1.0 - 0.62 * (1.0 - min(1.0, abs(armKind - 6.0))), 1.0, 1.0 - smoothstep(0.1, 0.3, armRough));
+  reflectedLight.directSpecular *= armSheen; reflectedLight.indirectSpecular *= armSheen;`,
           )));
     }),
-    (e.customProgramCacheKey = () => "saltline-arm-3"),
+    (e.customProgramCacheKey = () => "saltline-arm-5"),
     e
   );
 }
@@ -2510,6 +2552,8 @@ export {
   er as SHOULDER,
   oS as TRIGGER_PULL,
   Iy as TWIST_SHARE,
+  armRain as RAIN,
+  armRainT as RAINTIME,
   kh as WETNESS,
   sS as WRIST_LIMITS,
   aS as armGeometry,

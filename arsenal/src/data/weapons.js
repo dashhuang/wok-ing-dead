@@ -540,9 +540,9 @@ export const WEAPONS = [
   },
 ];
 
-// The game's own two guns (src/game.js builds them). Their numbers are the game's table,
-// src/chinatown/stockguns.js; the test bench fires them with a stand-in model and a plain
-// hitscan behaviour (combat/behaviours.js) so they sit the same test as the twelve above.
+// The game's own two guns (src/game.js builds them). Their numbers and the rules of how they
+// fire are src/chinatown/stockguns.js, which the game and the test bench both call; the bench
+// fires them from a stand-in model (combat/behaviours.js, the end) so they sit the same test.
 // They have no forks in a run: the branches below are an old design that was never built.
 const G = STOCK_GUNS;
 export const EXISTING = [

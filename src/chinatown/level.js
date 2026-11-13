@@ -771,13 +771,6 @@ export async function createLevel(G) {
     spawnRegions: ctx.spawnRegions || [],
     zones,
     interiorBoxes,
-    // where the renderer captures what car glass mirrors: over the middle of the crossroads,
-    // above head height and clear of the parked cars
-    streetProbe: V(
-      (PLAN.lane.x0 + PLAN.lane.x1) / 2,
-      2.2,
-      (PLAN.road.z0 + PLAN.road.z1) / 2,
-    ),
     cinematicPath,
     coverPoints: [],
     skylights: marks.skylights || [],

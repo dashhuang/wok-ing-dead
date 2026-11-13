@@ -263,6 +263,10 @@ export async function createKit(G) {
     m.userData.oneCell = true;
     // small details stay out of the wet-street reflection pass; big things (vehicles) opt in
     m.userData.noReflect = !f.reflect;
+    // lacquer, polished metal and glass show the street in their reflections (render.streetEnv)
+    m.userData.street =
+      !f.interior &&
+      (f.coat || f.rough <= 0.1 || (f.metal >= 0.75 && f.rough <= 0.35));
     flatBases.set(f.sig, m);
     return m;
   }

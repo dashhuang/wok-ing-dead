@@ -10,6 +10,8 @@
   每帧保证拿着军械库武器时把它们收起。
 - **第一次拿新武器卡一下**：预热时要数“武器图层真的画了”的帧；手上的东西室内、室外各要一套着色器（`render.envWarm`）。
   查法：逐帧比较 `renderer.info.programs` 的 `cacheKey`。
+- **雾里的灯光晕要限制范围**：按灯的照射距离给光晕，站在灯附近时每条视线都在范围内，整屏变成一片彩色的雾。现在光晕只有几米大（`streetfx.js` 的 `HALO_FOG`），
+  离灯 1 米以内不加。调 `fx.halo` 时到灯下和霓虹密集处各看一眼。
 - 无头软件渲染分辨率太低，看不出细小的火星。要用显卡渲染截图，用 Playwright 的 `chromium.launch({ channel: "chromium" })`，
   并注入 `tests/support/fake-pointer-lock.js`，不然系统光标会被锁定拉走。逐帧看特效用 `arsenal/tools/shots.mjs play`，或者 `openLab` 加 `lab.advance`。
 

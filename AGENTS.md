@@ -74,7 +74,7 @@ Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值
 - **试验场和本体是同一份规则**（对照表在 docs/architecture.md「试验场和本体共用的规则」）。本体通过 `src/chinatown/armory.js`
   导入 `arsenal/` 的武器模型、特效、战斗控制器和双手；伤害、四种状态、反应和附魔调料的规则只有一份，在 `arsenal/src/combat/status.js`；
   试验场读本体的四张纯数据表：`src/chinatown/runtune.js`、`loadout.js`（`AMMO` / `ARMS`）、`zombietune.js`，
-  以及本体两把枪（LK-9、LK-4）的 `stockguns.js`（`src/game.js` 也读它；测试台用替身模型按它开火，只为把它们放进同一场测量）。
+  以及本体两把枪（LK-9、LK-4）的 `stockguns.js`（数字和开火规则都在里面，`src/game.js` 和测试台调用同一段代码；测试台用替身模型，只为把它们放进同一场测量）。
   - **靶场在游戏里**：`/?range=1`（`src/chinatown/range.js`），是关掉时间线的套餐加一块调试面板，街道、僵尸、画面都是真的。
     调武器手感、调料、状态、僵尸数值、特效亮度都在这里做；面板状态记在地址里，开发服务器存盘刷新后回到同一个场面，
     「数值」一栏可以边玩边改共用数值表，再用「复制改动」把结果写回文件。面板是调试工具：只有中文、用系统字体、不进语言包。
@@ -90,7 +90,7 @@ Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值
     岔路说明文字里的数字是手写的，改岔路的数值时一起改。
   - `docs/weapons-roguelike.md` 由 `node arsenal/scripts/design-doc.mjs` 生成，改数据不改文档；改了武器数据或这几张表之后重新生成。
 - **套餐的数值**只改 `src/chinatown/runtune.js` 的 `RUN` 和 `loadout.js` 的 `AMMO` / `ARMS`；僵尸的数值改 `zombietune.js`；
-  LK-9、LK-4 的伤害、射速、弹匣、换弹时间、散布改 `stockguns.js`（换弹时间连着本体的换弹动画，改了要重新对动画）；
+  LK-9、LK-4 的伤害、射速、射程、穿透、弹匣、换弹时间、散布改 `stockguns.js`（换弹动画按换弹时间自动放快放慢）；
   每级伤害倍率改 `arsenal/src/data/levels.js`；状态和反应的数字改 `arsenal/src/data/status.js`；
   后坐力、镜头上抬、散布扩张、近战顿挫这些手感改 `arsenal/src/data/feel.js`（`node arsenal/scripts/feel-report.mjs` 看换算后的幅度）。用户定下的四条不要动：
   弹药必须捡、弹药分四种、武器不限数量、红包只升手上那把。
