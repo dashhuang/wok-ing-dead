@@ -8,6 +8,9 @@ import { STATUS } from "../../arsenal/src/data/status.js";
 import { fateOf } from "../../arsenal/src/combat/fate.js";
 import { LIMBS, WITH, createLimbs } from "../../arsenal/src/fx/limbs.js";
 
+import { ZOMBIE_BODY } from "./navigation.js";
+import { createCrowd } from "./crowd.js";
+
 // how a thrown body comes down and stops (the force it is thrown with is the weapons' rules')
 const FLIGHT = STATUS.launch;
 
@@ -191,6 +194,12 @@ export async function createZombies(G) {
 
   const emit = (name, data) => G.events.emit(name, data);
   const nav = () => G.physics.nav;
+  const crowd = createCrowd({
+    nav: G.physics.nav,
+    list,
+    vector: (x, y, z) => new V3(x, y, z),
+    move: (...args) => G.physics.moveCapsule(...args),
+  });
   // severed limbs lying in the street (the blood they trail and leave is the armoury's
   // effects: it listens for these two)
   const limbs = createLimbs({
@@ -445,6 +454,7 @@ export async function createZombies(G) {
         z.crawling = false;
         z.legDamage = 0;
         z.speed = 0;
+        z.moveX = z.moveZ = 0;
         z.path = null;
         z.repathT = rand(0, 0.4);
         z.senseT = rand(0, 0.2);
@@ -873,7 +883,14 @@ export async function createZombies(G) {
     const dx = target.x - z.pos.x;
     const dz = target.z - z.pos.z;
     const d = Math.hypot(dx, dz);
-    if (d < 1e-3) return d;
+    if (d < 1e-3) {
+      z.wantSpeed = 0;
+      z.moveLimit = 0;
+      return d;
+    }
+    z.moveLimit = speed > 0 ? d : 0;
+    z.moveX = dx / d;
+    z.moveZ = dz / d;
     const want = Math.atan2(dx, dz);
     let diff = want - z.yaw;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
@@ -891,31 +908,40 @@ export async function createZombies(G) {
   function follow(z, goal, dt, speed) {
     z.repathT -= dt;
     const n = nav();
-    if (z.repathT <= 0 && pathBudget <= 0) z.repathT = 0.016;
-    else if (z.repathT <= 0) {
+    if (z.repathT <= 0 && pathBudget > 0) {
       pathBudget--;
       const dist = Math.hypot(goal.x - z.pos.x, goal.z - z.pos.z);
       z.repathT = dist < 6 ? rand(0.25, 0.45) : rand(0.6, 1.1);
-      let direct = false;
-      try {
-        direct = n.clearLine(z.pos, goal);
-      } catch {}
-      if (direct) z.path = null;
-      else {
-        let p = null;
-        try {
-          p = n.findPath(z.pos, goal);
-        } catch {}
-        z.path = p && p.length ? p : null;
-        z.pathI = 0;
-      }
+      const destination = crowd.goal(z, goal);
+      z.path = n.findPath(z.pos, destination);
+      z.pathI = 0;
     }
-    if (z.path && z.pathI < z.path.length) {
-      const wp = z.path[z.pathI];
-      const d = steer(z, wp, dt, speed);
-      if (d < 0.55 && z.pathI < z.path.length - 1) z.pathI++;
-      else if (d < 0.3) z.path = null;
-    } else steer(z, goal, dt, speed);
+    // No route is not permission to run straight into the obstacle. Wait for a
+    // new target/path; the next search is budgeted like every other zombie's.
+    if (!z.path || z.pathI >= z.path.length) {
+      steer(z, goal, dt, 0);
+      z.speed = 0;
+      return;
+    }
+    let wp = z.path[z.pathI];
+    if (z.pathI + 1 < z.path.length && n.clearLine(z.pos, z.path[z.pathI + 1]))
+      wp = z.path[++z.pathI];
+    const d = Math.hypot(wp.x - z.pos.x, wp.z - z.pos.z);
+    // A nearby corner is not a reached corner: in a body-width passage even
+    // skipping the last ten centimetres can cut through the wall. Only the
+    // clearLine check above may advance an intermediate waypoint.
+    if (d < 0.12 && z.pathI === z.path.length - 1) {
+      z.pathI++;
+      z.repathT = 0;
+      z.speed = 0;
+      return;
+    }
+    steer(
+      z,
+      crowd.aim(z, wp),
+      dt,
+      Math.min(speed, Math.max(0.2, d / Math.max(dt, 0.001))),
+    );
   }
 
   function gaitSpeed(z) {
@@ -945,6 +971,7 @@ export async function createZombies(G) {
     z.cooldown -= dt;
     z.staggerT -= dt;
     z.wantSpeed = 0;
+    z.moveLimit = 0;
 
     const ctl = z.ctl;
     const held = ctl.pin > 0 || ctl.lift > 0.02;
@@ -1065,23 +1092,41 @@ export async function createZombies(G) {
     z.speed += (z.wantSpeed - z.speed) * Math.min(1, dt * accel);
     if (z.speed > 0.02) {
       const before = tmp.a.copy(z.pos);
-      z.vel.set(Math.sin(z.yaw) * z.speed, -2, Math.cos(z.yaw) * z.speed);
-      G.physics.moveCapsule(z.pos, z.vel, dt, 0.3, 1.7, true);
+      // Movement follows the checked segment; the visual yaw can ease towards it.
+      // Moving along the old yaw cuts corners and wedges bodies in narrow turns.
+      const moving = Math.min(z.speed, (z.moveLimit || 0) / dt);
+      z.vel.set((z.moveX || 0) * moving, -2, (z.moveZ || 0) * moving);
+      G.physics.moveCapsule(
+        z.pos,
+        z.vel,
+        dt,
+        ZOMBIE_BODY.radius,
+        ZOMBIE_BODY.height,
+        true,
+      );
       const moved = Math.hypot(z.pos.x - before.x, z.pos.z - before.z);
-      // wedged against a corner: force a fresh path, sidestep
+      // Refresh a blocked route; do not randomly turn back into the same wall.
       if (moved < z.speed * dt * 0.25) {
         z.stuckT += dt;
         if (z.stuckT > 0.5) {
           z.stuckT = 0;
           z.repathT = 0;
-          z.yaw += rng() < 0.5 ? 0.9 : -0.9;
+          z.path = null;
+          z.speed = 0;
         }
       } else z.stuckT = 0;
     }
 
     if (ctl.push.lengthSq() > 0.01) {
       z.vel.set(ctl.push.x, -2, ctl.push.z);
-      G.physics.moveCapsule(z.pos, z.vel, dt, 0.3, 1.7, true);
+      G.physics.moveCapsule(
+        z.pos,
+        z.vel,
+        dt,
+        ZOMBIE_BODY.radius,
+        ZOMBIE_BODY.height,
+        true,
+      );
       ctl.push.multiplyScalar(Math.exp(-6 * dt));
     } else ctl.push.set(0, 0, 0);
 
@@ -1276,35 +1321,6 @@ export async function createZombies(G) {
     if (i >= 0) list.splice(i, 1);
     i = corpses.indexOf(z);
     if (i >= 0) corpses.splice(i, 1);
-  }
-
-  function separate() {
-    for (let i = 0; i < list.length; i++) {
-      const a = list[i];
-      if (!a.alive) continue;
-      for (let j = i + 1; j < list.length; j++) {
-        const b = list[j];
-        if (!b.alive) continue;
-        const dx = b.pos.x - a.pos.x;
-        const dz = b.pos.z - a.pos.z;
-        const d2 = dx * dx + dz * dz;
-        const min = 0.62;
-        if (d2 > min * min || d2 < 1e-6) continue;
-        const d = Math.sqrt(d2);
-        const push = (min - d) * 0.5;
-        const nx = dx / d;
-        const nz = dz / d;
-        const n = nav();
-        if (n.isWalkable(a.pos.x - nx * push, a.pos.z - nz * push)) {
-          a.pos.x -= nx * push;
-          a.pos.z -= nz * push;
-        }
-        if (n.isWalkable(b.pos.x + nx * push, b.pos.z + nz * push)) {
-          b.pos.x += nx * push;
-          b.pos.z += nz * push;
-        }
-      }
-    }
   }
 
   // ---------- hit detection ----------
@@ -1534,7 +1550,10 @@ export async function createZombies(G) {
       pathBudget = PATHS_PER_FRAME;
       for (let i = list.length - 1; i >= 0; i--) list[i]._update(dt);
       limbs.update(dt);
-      separate();
+      for (const z of crowd.separate(dt)) {
+        place(z);
+        sync(z);
+      }
     },
     debug: { pool, corpses, templates, clips, hitTime, limbs, sever },
   };

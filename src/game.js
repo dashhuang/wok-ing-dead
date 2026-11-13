@@ -5,6 +5,7 @@ import { presetToBoot } from "./bootguard.js";
 import * as L10N from "./i18n/index.js";
 import { createRun } from "./chinatown/run.js";
 import { createTelemetry } from "./telemetry/index.js";
+import { createNavigation, STEP_HEIGHT } from "./chinatown/navigation.js";
 
 (() => {
   var bT = Object.defineProperty;
@@ -40337,20 +40338,10 @@ float metalnessFactor = metalness * slORM.b;
       { cam: p, target: d, update() {} }
     );
   }
-  var hg = 0.42,
-    $s = 0.5,
-    Ll = -40,
-    wk = 31,
-    ru = -32,
-    Ek = 30,
-    f0 = Math.round((wk - Ll) / $s),
-    co = Math.round((Ek - ru) / $s),
-    t1 = 0.5;
+  var hg = STEP_HEIGHT;
   // === Physics: collision boxes, raycasts and navigation ===
   function v_(n) {
     let e = [],
-      t = !0,
-      i = new Uint8Array(f0 * co),
       s = new K(),
       o = {
         boxes: e,
@@ -40375,14 +40366,14 @@ float metalnessFactor = metalness * slORM.b;
               bulletOnly: !!T.bulletOnly,
               playerOnly: !!T.playerOnly,
             };
-          return (e.push(R), (t = !0), R);
+          return (e.push(R), o.nav.invalidate(R), R);
         },
         removeBox(M) {
           let _ = e.indexOf(M);
-          _ >= 0 && (e.splice(_, 1), (t = !0));
+          _ >= 0 && (e.splice(_, 1), o.nav.invalidate(M));
         },
         build() {
-          a();
+          o.nav.build();
         },
         raycast(M, _, T = 500) {
           let w = T,
@@ -40592,218 +40583,14 @@ float metalnessFactor = metalness * slORM.b;
             z
           );
         },
-        nav: {
-          cell: $s,
-          isWalkable(M, _) {
-            r();
-            let T = l(M, _);
-            return T >= 0 && !i[T];
-          },
-          findPath(M, _) {
-            r();
-            let T = u(M.x, M.z),
-              w = u(_.x, _.z);
-            if (T < 0 || w < 0) return null;
-            if (T === w) return [new K(_.x, 0, _.z)];
-            let S = E(T, w);
-            if (!S) return null;
-            let R = [],
-              z = 0;
-            for (; z < S.length - 1;) {
-              let I = z + 1;
-              for (let L = S.length - 1; L > z + 1; L--)
-                if (f(S[z], S[L])) {
-                  I = L;
-                  break;
-                }
-              (R.push(c(S[I])), (z = I));
-            }
-            return (
-              l(_.x, _.z) === w && R.length && R[R.length - 1].set(_.x, 0, _.z),
-              R
-            );
-          },
-          randomPoint(M, _) {
-            r();
-            for (let w = 0; w < 24; w++) {
-              let S = Math.random() * 6.2832,
-                R = Math.sqrt(Math.random()) * _,
-                z = M.x + Math.cos(S) * R,
-                I = M.z + Math.sin(S) * R,
-                L = l(z, I);
-              if (L >= 0 && !i[L]) return new K(z, 0, I);
-            }
-            let T = u(M.x, M.z);
-            return T >= 0 ? c(T) : new K(M.x, 0, M.z);
-          },
-          clearLine(M, _) {
-            r();
-            let T = l(M.x, M.z),
-              w = l(_.x, _.z);
-            return T >= 0 && w >= 0 && f(T, w);
-          },
-          _grid: () => (
-            r(),
-            { blocked: i, w: f0, h: co, minX: Ll, minZ: ru, cell: $s }
-          ),
-        },
       };
-    function r() {
-      t && a();
-    }
-    function a() {
-      ((i = new Uint8Array(f0 * co)), (t = !1));
-      for (let M of e) {
-        if (M.noNav || M.bulletOnly || M.max.y < hg + 0.05 || M.min.y > 1.5)
-          continue;
-        let _ = Math.max(0, Math.floor((M.min.x - t1 - Ll) / $s)),
-          T = Math.min(f0 - 1, Math.floor((M.max.x + t1 - Ll) / $s)),
-          w = Math.max(0, Math.floor((M.min.z - t1 - ru) / $s)),
-          S = Math.min(co - 1, Math.floor((M.max.z + t1 - ru) / $s));
-        for (let R = w; R <= S; R++)
-          for (let z = _; z <= T; z++) i[R * f0 + z] = 1;
-      }
-      for (let M = 0; M < co; M++)
-        for (let _ = 0; _ < f0; _++)
-          (Ll + (_ + 0.5) * $s > Kn.quayX - t1 ||
-            _ === 0 ||
-            M === 0 ||
-            _ === f0 - 1 ||
-            M === co - 1) &&
-            (i[M * f0 + _] = 1);
-    }
-    function l(M, _) {
-      let T = Math.floor((M - Ll) / $s),
-        w = Math.floor((_ - ru) / $s);
-      return T < 0 || w < 0 || T >= f0 || w >= co ? -1 : w * f0 + T;
-    }
-    function c(M) {
-      return new K(
-        Ll + ((M % f0) + 0.5) * $s,
-        0,
-        ru + (Math.floor(M / f0) + 0.5) * $s,
-      );
-    }
-    function u(M, _) {
-      let T = Math.floor((M - Ll) / $s),
-        w = Math.floor((_ - ru) / $s);
-      if (
-        ((T = Math.max(0, Math.min(f0 - 1, T))),
-        (w = Math.max(0, Math.min(co - 1, w))),
-        !i[w * f0 + T])
-      )
-        return w * f0 + T;
-      for (let S = 1; S <= 12; S++) {
-        let R = -1,
-          z = 1e9;
-        for (let I = -S; I <= S; I++)
-          for (let L = -S; L <= S; L++) {
-            if (Math.max(Math.abs(L), Math.abs(I)) !== S) continue;
-            let U = T + L,
-              k = w + I;
-            if (!(U < 0 || k < 0 || U >= f0 || k >= co) && !i[k * f0 + U]) {
-              let C = L * L + I * I;
-              C < z && ((z = C), (R = k * f0 + U));
-            }
-          }
-        if (R >= 0) return R;
-      }
-      return -1;
-    }
-    function f(M, _) {
-      let T = M % f0,
-        w = Math.floor(M / f0),
-        S = _ % f0,
-        R = Math.floor(_ / f0),
-        z = Math.abs(S - T),
-        I = Math.abs(R - w),
-        L = T < S ? 1 : -1,
-        U = w < R ? 1 : -1,
-        k = z - I;
-      for (let C = 0; C < 600; C++) {
-        if (i[w * f0 + T]) return !1;
-        if (T === S && w === R) return !0;
-        let A = 2 * k;
-        if (A > -I && A < z) {
-          if (i[w * f0 + T + L] || i[(w + U) * f0 + T]) return !1;
-          ((k += z - I), (T += L), (w += U));
-        } else A > -I ? ((k -= I), (T += L)) : ((k += z), (w += U));
-      }
-      return !1;
-    }
-    let h = new Float32Array(f0 * co),
-      p = new Int32Array(f0 * co),
-      d = new Uint32Array(f0 * co),
-      m = new Uint32Array(f0 * co),
-      x = 0,
-      v = [],
-      y = [];
-    function b(M, _) {
-      let T = v.length;
-      for (v.push(M), y.push(_); T > 0;) {
-        let w = (T - 1) >> 1;
-        if (y[w] <= _) break;
-        ((v[T] = v[w]), (y[T] = y[w]), (T = w));
-      }
-      ((v[T] = M), (y[T] = _));
-    }
-    function g() {
-      let M = v[0],
-        _ = v.pop(),
-        T = y.pop(),
-        w = v.length;
-      if (w) {
-        let S = 0;
-        for (;;) {
-          let R = 2 * S + 1;
-          if (R >= w || (R + 1 < w && y[R + 1] < y[R] && R++, y[R] >= T)) break;
-          ((v[S] = v[R]), (y[S] = y[R]), (S = R));
-        }
-        ((v[S] = _), (y[S] = T));
-      }
-      return M;
-    }
-    function E(M, _) {
-      (x++, (v.length = 0), (y.length = 0));
-      let T = _ % f0,
-        w = Math.floor(_ / f0),
-        S = (I) => {
-          let L = Math.abs((I % f0) - T),
-            U = Math.abs(Math.floor(I / f0) - w);
-          return L + U + (1.4142 - 2) * Math.min(L, U);
-        };
-      ((h[M] = 0), (d[M] = x), (p[M] = -1), b(M, S(M)));
-      let R = 0;
-      for (; v.length;) {
-        let I = g();
-        if (I === _) break;
-        if (m[I] === x) continue;
-        if (((m[I] = x), ++R > 9e3)) return null;
-        let L = I % f0,
-          U = Math.floor(I / f0);
-        for (let k = -1; k <= 1; k++)
-          for (let C = -1; C <= 1; C++) {
-            if (!C && !k) continue;
-            let A = L + C,
-              F = U + k;
-            if (A < 0 || F < 0 || A >= f0 || F >= co) continue;
-            let H = F * f0 + A;
-            if (
-              i[H] ||
-              m[H] === x ||
-              (C && k && (i[U * f0 + A] || i[F * f0 + L]))
-            )
-              continue;
-            let N = h[I] + (C && k ? 1.4142 : 1);
-            (d[H] !== x || N < h[H]) &&
-              ((h[H] = N), (d[H] = x), (p[H] = I), b(H, N + S(H)));
-          }
-      }
-      if (d[_] !== x) return null;
-      let z = [];
-      for (let I = _; I !== -1; I = p[I]) z.push(I);
-      return (z.reverse(), z);
-    }
+    o.nav = createNavigation({
+      boxes: e,
+      bounds: o.bounds,
+      groundY: Kn.groundY,
+      quayX: Kn.quayX,
+      vector: (x, y, z) => new K(x, y, z),
+    });
     return o;
   }
   function x_(n) {
@@ -85838,8 +85625,6 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     apply() {
       ((CT.on = !0),
         (Kn.quayX = 1e3),
-        (wk = 41),
-        (f0 = Math.round((wk - Ll) / $s)),
         (Ha.w = 80),
         (Fi.x0 = -42),
         (Fi.z0 = -42),
