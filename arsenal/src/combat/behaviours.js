@@ -747,7 +747,11 @@ export const BEHAVIOURS = {
               return "stop";
             },
           });
-        shoot(m, ctx.spread(0.012), true);
+        shoot(
+          m,
+          ctx.launch(m, 90, { spread: 0.012, gravity: 4 }).normalize(),
+          true,
+        );
       } else if (ctx.b === "a") {
         // 排钉: five long nails side by side
         const right = _c.crossVectors(ctx.aim.dir, UP).normalize().clone();
@@ -757,10 +761,11 @@ export const BEHAVIOURS = {
             .spread(0.006)
             .addScaledVector(right, k * 0.035)
             .normalize();
+          const from = ctx.muzzle("m" + i);
           proj.spawn({
             kind: "spike",
-            pos: ctx.muzzle("m" + i),
-            vel: dir.multiplyScalar(95),
+            pos: from,
+            vel: ctx.launch(from, 95, { dir, gravity: 3 }),
             gravity: 3,
             life: 2.5,
             radius: 0.035,
@@ -788,7 +793,7 @@ export const BEHAVIOURS = {
         proj.spawn({
           kind: "nail",
           pos: m,
-          vel: ctx.spread(0.012).multiplyScalar(90),
+          vel: ctx.launch(m, 90, { spread: 0.012, gravity: 4 }),
           gravity: 4,
           life: 2.5,
           radius: 0.03,
@@ -1226,7 +1231,8 @@ export const BEHAVIOURS = {
         proj.spawn({
           kind: "shell",
           pos: m,
-          vel: ctx.aim.dir.clone().multiplyScalar(30 + 14 * ctx.charge),
+          // (lobbed: it heads for where the crosshair is and falls short of it, as a mortar does)
+          vel: ctx.launch(m, 30 + 14 * ctx.charge),
           gravity: 6,
           life: 2.2,
           radius: 0.12,
@@ -1267,7 +1273,7 @@ export const BEHAVIOURS = {
       const rocket = proj.spawn({
         kind: "rocket",
         pos: m,
-        vel: ctx.spread(0.02).multiplyScalar(38),
+        vel: ctx.launch(m, 38, { spread: 0.02, gravity: 1.2 }),
         gravity: 1.2,
         life: ctx.b === "a" ? 12 / 38 : 1.25,
         radius: 0.06,
@@ -1637,7 +1643,7 @@ export const BEHAVIOURS = {
         proj.spawn({
           kind: null,
           pos: m,
-          vel: ctx.aim.dir.clone().multiplyScalar(6.5),
+          vel: ctx.launch(m, 6.5),
           life: 6,
           radius: 0.35,
           onTick(p, dt) {
@@ -1720,7 +1726,7 @@ export const BEHAVIOURS = {
       });
       const common = {
         pos: m,
-        vel: ctx.spread(0.006).multiplyScalar(70),
+        vel: ctx.launch(m, 70, { spread: 0.006, gravity: 5 }),
         gravity: 5,
         life: 3,
         radius: 0.04,
@@ -1990,7 +1996,7 @@ export const BEHAVIOURS = {
               ? "talisman_b"
               : "talisman",
         pos: m,
-        vel: ctx.spread(0.01).multiplyScalar(26),
+        vel: ctx.launch(m, 26, { spread: 0.01 }),
         life: 2.2,
         radius: 0.09,
         flutter: 0.22,
