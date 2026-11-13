@@ -11,6 +11,7 @@ import { rand, srand } from "../fx/core.js";
 import { FONT_KAI } from "../kit/index.js";
 import { createStatus, clearStatus } from "./status.js";
 import { STATUS } from "../data/status.js";
+import { bloodOf } from "./fate.js";
 import { LIMBS, WITH, createLimbs } from "../fx/limbs.js";
 import { ZOMBIES } from "../../../src/chinatown/zombietune.js";
 
@@ -197,6 +198,7 @@ export async function createTargets(lab, fx, E) {
     list,
     fx,
     E,
+    rng: () => api.rng(), // (a test can load the dice: targets.rng = () => 0.5)
     hurt(z, dmg, o, direct, fate) {
       z.hp -= dmg;
       // (a hit that kills bursts instead: see kill())
@@ -204,7 +206,7 @@ export async function createTargets(lab, fx, E) {
         E.blood(
           o.point || z.chest,
           o.dir,
-          (o.head ? 1.3 : 0.9) * (0.6 + 1.4 * Math.min(1, dmg / z.maxHp)),
+          bloodOf(dmg / z.maxHp, o.head, api.rng),
         );
       // any hit knocks a walker off its stride for a moment, as in the game
       const flinch = ZOMBIES[z.type].flinch;
@@ -428,6 +430,7 @@ export async function createTargets(lab, fx, E) {
     return t;
   }
   const api = {
+    rng: Math.random,
     limbs,
     sever,
     // damage, apply, pin, scare, push, inSphere, inCone, nearest, alive, on, setInfusions …
@@ -489,9 +492,13 @@ export async function createTargets(lab, fx, E) {
         size: z.scale,
         head: !!o.head,
         thrown: !!launch,
+        amount: fate ? fate.gore : 1,
       });
       if (launch) {
-        _a.set(o.dir.x, 0, o.dir.z).normalize().multiplyScalar(launch.speed);
+        _a.set(o.dir.x, 0, o.dir.z)
+          .normalize()
+          .applyAxisAngle(UP, launch.turn || 0)
+          .multiplyScalar(launch.speed);
         z.fly = { x: _a.x, z: _a.z, up: launch.up, air: true };
       }
       if (fate) {
@@ -543,8 +550,16 @@ export async function createTargets(lab, fx, E) {
     const radius = cut.radius * 1.08;
     const mesh = limbs.stump(radius);
     root.add(mesh);
-    z.stumps.push({ limb, bone, mesh, radius, bleed: 2, t: 0, next: 0 });
-    E.blood(at, dir || UP, o.pop ? 2.2 : 1.7, { quiet: true });
+    z.stumps.push({
+      limb,
+      bone,
+      mesh,
+      radius,
+      bleed: rand(1, 2.4),
+      t: 0,
+      next: 0,
+    });
+    E.blood(at, dir || UP, bloodOf(0.6, !!o.pop, api.rng), { quiet: true });
     return true;
   }
   // the torn ends follow the body, and pump for a moment

@@ -397,7 +397,8 @@ export function createEffects(fx, stage) {
           fadePow: 0.5,
         });
       }
-      for (let i = 0; i < 3; i++) {
+      const mist = Math.max(1, Math.min(4, Math.round(2.6 * amount)));
+      for (let i = 0; i < mist; i++) {
         coneDir(dir, 0.6, _b).multiplyScalar(rand(0.6, 2.4));
         fx.puff({
           pos,
@@ -412,7 +413,7 @@ export function createEffects(fx, stage) {
         });
       }
       // back-spatter the other way
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < Math.round(3.6 * amount); i++) {
         coneDir(_c.copy(dir).negate(), 0.7, _b).multiplyScalar(rand(0.8, 3.4));
         fx.puff({
           pos,
@@ -490,7 +491,8 @@ export function createEffects(fx, stage) {
      * a fountain upwards, a few pieces that bounce, a pool under where it falls and splashes
      * along the way it was sent.
      * o: { size (the body's scale), head (it was the head), ground, quiet, thrown (the body
-     *      is flying: more of it goes along the hit) }
+     *      is flying: more of it goes along the hit), amount (1 is the whole of it; a body
+     *      that was only finished off bursts with a third of that: combat/fate.js goreOf) }
      */
     gore(pos, dir, o = {}) {
       if (!o.quiet && fx.audio)
@@ -500,15 +502,18 @@ export function createEffects(fx, stage) {
       const q = fx.detail;
       if (fx.time !== bled.t) ((bled.t = fx.time), (bled.n = 0));
       // (a blast that kills a crowd: every body bursts, the later ones with less)
-      const k = (++bled.n > 4 ? 0.5 : 1) * q;
-      for (let i = 0; i < Math.round(7 * k); i++) {
+      const a = o.amount ?? 1;
+      const k = (++bled.n > 4 ? 0.5 : 1) * q * a;
+      // (less of it is also smaller and does not go as far)
+      const big = 0.65 + 0.35 * Math.min(1.5, a);
+      for (let i = 0; i < Math.max(2, Math.round(7 * k)); i++) {
         coneDir(dir, 0.9, _b).multiplyScalar(rand(0.5, 2.6));
         _b.y += rand(0.2, 1.2);
         fx.puff({
           pos,
           vel: _b,
           life: rand(0.5, 0.9),
-          size: [0.12 * s, rand(0.7, 1.2) * s],
+          size: [0.12 * s, rand(0.7, 1.2) * s * big],
           color: [BLOOD.mist, BLOOD.dark],
           alpha: 0.75,
           type: P.SMOKE,
@@ -523,7 +528,9 @@ export function createEffects(fx, stage) {
           randDir(_b).multiplyScalar(rand(1.5, 5));
           _b.y = Math.abs(_b.y) + rand(2, 5.5);
         } else {
-          coneDir(dir, o.thrown ? 0.5 : 0.75, _b).multiplyScalar(rand(3, 10));
+          coneDir(dir, o.thrown ? 0.5 : 0.75, _b).multiplyScalar(
+            rand(3, 10) * big,
+          );
           _b.y += rand(0.5, 3);
         }
         fx.puff({
@@ -578,9 +585,13 @@ export function createEffects(fx, stage) {
           });
         }
       // on the street: splashes along the way it went, and the pool under where it lies
-      const reach = o.thrown ? 3.4 : 1.6;
+      const reach = (o.thrown ? 3.4 : 1.6) * big;
       const spots = [];
-      for (let i = 0; i < 3; i++) {
+      const marks = Math.max(
+        1,
+        Math.min(4, Math.round(2.6 * a + rand(-0.5, 0.5))),
+      );
+      for (let i = 0; i < marks; i++) {
         const d = rand(0.5, reach);
         spots.push(
           V(
@@ -595,7 +606,7 @@ export function createEffects(fx, stage) {
           fx.decal({
             kind: "splat",
             pos: at,
-            size: rand(0.45, 0.9) * s,
+            size: rand(0.45, 0.9) * s * big,
             color: BLOOD.pool,
             life: 22,
             alpha: 0.85,
