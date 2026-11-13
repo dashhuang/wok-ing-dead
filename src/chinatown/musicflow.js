@@ -22,13 +22,13 @@ export function musicPressure(G, fallback = 0) {
 }
 
 export function createMusicDirector() {
-  let mood = "calm";
+  let mood = "normal";
   let high = 0;
   let low = 0;
   let held = 0;
   return {
     reset() {
-      mood = "calm";
+      mood = "normal";
       high = low = held = 0;
     },
     update(dt, pressure, state) {
@@ -40,11 +40,11 @@ export function createMusicDirector() {
       held += dt;
       high = pressure >= 0.7 ? high + dt : 0;
       low = pressure <= 0.35 ? low + dt : 0;
-      if (mood === "calm" && high >= 1.5) {
+      if (mood === "normal" && high >= 1.5) {
         mood = "horde";
         held = low = 0;
       } else if (mood === "horde" && low >= 8 && held >= 12) {
-        mood = "calm";
+        mood = "normal";
         held = high = 0;
       }
       return mood;

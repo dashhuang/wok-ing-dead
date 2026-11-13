@@ -2,8 +2,8 @@
 // Two cues, decoded once; only the crossfade runs both sources at once.
 import { createMusicDirector, musicPressure } from "./musicflow.js";
 export const MUSIC_TRACKS = {
-  calm: "assets/audio/music/rainy-alley-calm.mp3",
-  horde: "assets/audio/music/rainy-wok-v1.mp3",
+  normal: "assets/audio/music/rainy-wok-v1.mp3",
+  horde: "assets/audio/music/horde-rock-v1.mp3",
 };
 
 export function prepareMusicLoop(buffer) {
@@ -47,7 +47,7 @@ export function createMusic({ ctx, out, running, game }) {
   let state = "title";
   let paused = false;
   let duckUntil = 0;
-  let mood = "calm";
+  let mood = "normal";
   let pressure = 0;
   let weight = 0;
   let transition = null;
@@ -197,7 +197,8 @@ export function createMusic({ ctx, out, running, game }) {
       let target = mood === "horde" ? 1 : 0;
       // Keep the available cue until the requested one finishes loading; no silent crossfade.
       if (!tracks.horde.buffer) target = 0;
-      if (tracks.calm.loadState === "failed" && tracks.horde.buffer) target = 1;
+      if (tracks.normal.loadState === "failed" && tracks.horde.buffer)
+        target = 1;
       crossfade(target, now);
       const level =
         state === "dead"

@@ -14,7 +14,7 @@
 | 界面字体（子集） | `public/assets/fonts/ui/` | Inter、Noto Serif Display、Noto Sans / Serif SC·TC·JP（Google Fonts 仓库） | SIL OFL 1.1 |
 | 场景贴图用的拉丁字体 | `public/assets/fonts/world/` | Big Shoulders Display、Barlow Condensed、IBM Plex Mono（Google Fonts，拉丁子集） | SIL OFL 1.1 |
 | 僵尸嗓音（24 段） | `public/assets/audio/zombie/` | OpenGameArt | CC0，详见 [assets-audio.md](assets-audio.md) |
-| 《镬影雨巷》探索配乐 | `public/assets/audio/music/rainy-alley-calm.mp3` | XD Mivo / Suno 生成 | 非 CC0，仅本地接入，商用授权待核实 |
+| 《尸潮开镬》尸潮摇滚配乐 | `public/assets/audio/music/horde-rock-v1.mp3` | XD Mivo / Suno 生成 | 非 CC0，仅本地候选，商用授权待核实 |
 | 《雨夜开镬》第一版配乐 | `public/assets/audio/music/rainy-wok-v1.mp3` | XD Mivo / Suno V5 生成 | 非 CC0；Dash 允许本地接入例外，商用授权待核实，见下文 |
 
 招牌、霓虹灯、亮窗、海报、血迹、牌楼彩画等图案不是下载的图片，而是加载时用 Canvas 现画的（`src/chinatown/signs.js`）；
@@ -33,15 +33,17 @@
   将商用权利与付费方案关联；本次 Mivo 回执没有提供其上游账号 / 授权凭据，不能据此认定取得商用授权。发布前需核实 Mivo 对该产物的授权范围。
 - 播放时在内存中将末尾与开头交叉淡化 2 秒，不改磁盘源文件；实际音乐衔接听感仍待试玩。
 
-## 《镬影雨巷》探索配乐（生成素材，授权待核实）
+## 《尸潮开镬》尸潮摇滚配乐（生成素材，授权待核实）
 
-- 2026-11-13 为动态配乐补做的低强度曲，XD Mivo / `audio.suno`。任务 `6af6b96931a925653342a0d3`，
-  素材 `6af6b99b4593423a7fe66d74`，Suno ID `dbe12ca1-3ea9-45a7-ad43-9fe2f53d5e0d`。
-  源 MP3 原样保存：2,907,888 bytes；服务回报 129.6 秒。
-  SHA-256：`6ee45d3acc0d4066c471c2a809627bd93bac9cc6b2794d358004d569212a3715`。
-- 描述要求：始终安静诡异，中式稀疏拨弦、持续音、遥远锣泛音和偶尔木鱼，隐约 132 BPM 半拍感，
-  无鼓组、无 breakbeat 高潮、无人声或雨声音效。实际生成内容和与战斗曲衔接仍待 Dash 试听；两首不保证严格对拍。
-- 服务返回两版，本地接入第一版，第二版只交付媒体库。不是 CC0，商用授权同上待核实；没有发布许可凭据，不推送 / 发布。
+- 2026-11-13 根据「平常还是雨夜开镬这种。而尸潮来的时候更激烈更摇滚」制作，XD Mivo / `audio.suno`。
+  任务 `6af6bbc86f6eb2da41428a68`，素材 `6af6bbf94593423a7fe66d84`，Suno ID `e1a575cf-cde4-4222-84d9-312185782ec8`。
+  源 MP3 原样保存：4,149,858 bytes；服务回报 186.72 秒。
+  SHA-256：`a9fde74429a481dcda1d49b946271f8a8efa003742bd01b159e685e12d41ec8e`。
+- 描述要求：132 BPM、电子 breakbeat 融合硬摇滚，强真鼓、失真电吉他切分 riff、低音吉他与密集十六分音符，
+  暗色小调五声音阶，少量中式锣与木鱼，起头即高强度、无长铺垫，无人声。不模仿特定歌曲或艺术家。
+  实际生成内容、与日常曲的强度差和衔接尚未试听确认，不保证严格对拍。
+- 服务返回两版，本地暂接第一版，第二版只交付媒体库。不是 CC0，商用授权同上待核实；没有发布许可凭据，不推送 / 发布。
+- 之前试做的安静曲《镬影雨巷》已被否决并移出游戏资源，不再随构建发布。
 
 ## Poly Haven 贴图与模型（CC0）
 
