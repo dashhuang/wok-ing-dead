@@ -3,7 +3,7 @@
 // (list / spawn / raycast / aliveCount / clear / alert / update / TUNE).
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { ZOMBIES, EXTRA_BODIES, EXTRA_RIGS } from "./zombietune.js";
+import { ZOMBIES, EXTRA_BODIES, EXTRA_RIGS, BODY_TEX } from "./zombietune.js";
 
 const ASSETS = "assets/zombies/";
 const CHARACTERS = {
@@ -62,22 +62,26 @@ export async function createZombies(G) {
   });
 
   // The characters ship 2048 px maps (about 300 MB of GPU memory for all four). The low
-  // preset keeps them at 1024, which is what a phone screen can resolve on a zombie anyway.
-  const texLimit = (G.quality.tex || 1024) < 1024 ? 1024 : 0;
+  // preset keeps them at 1024, which is what a phone screen can resolve on a zombie anyway;
+  // BODY_TEX has the size for every preset. Read when a body arrives, not once: the ones a
+  // run fetches come after the player may have changed the preset.
+  const texLimit = (extra) =>
+    (BODY_TEX[G.quality && G.quality.name] || BODY_TEX.high)[extra ? 1 : 0];
   // keyed by image source: the occlusion/roughness/metalness maps share one image
   const toShrink = new Map();
-  const wantShrink = (tex) => {
+  const wantShrink = (tex, limit) => {
     const img = tex && tex.image;
-    if (texLimit && img && img.width > texLimit) {
-      if (!toShrink.has(tex.source)) toShrink.set(tex.source, []);
-      toShrink.get(tex.source).push(tex);
+    if (limit && img && img.width > limit) {
+      if (!toShrink.has(tex.source))
+        toShrink.set(tex.source, { users: [], limit });
+      toShrink.get(tex.source).users.push(tex);
     }
   };
   // Resized by the browser into a new ImageBitmap (same raw, unpremultiplied, unconverted
   // pixels as the GLTF loader's); a canvas is the fallback where resize options are missing.
-  async function shrink([source, users]) {
+  async function shrink([source, { users, limit }]) {
     const img = source.data;
-    const k = texLimit / Math.max(img.width, img.height);
+    const k = limit / Math.max(img.width, img.height);
     const w = Math.round(img.width * k),
       h = Math.round(img.height * k);
     let out = null;
@@ -121,12 +125,13 @@ export async function createZombies(G) {
   function addTemplate(name, cfg, scene, extra) {
     const hips = scene.getObjectByName("Hips");
     const names = new Set();
+    const limit = texLimit(extra);
     scene.traverse((o) => {
       names.add(o.name);
       if (!o.isMesh) return;
       o.castShadow = true;
       o.receiveShadow = true;
-      for (const k of MAPS) wantShrink(o.material[k]);
+      for (const k of MAPS) wantShrink(o.material[k], limit);
     });
     const t = (templates[name] = {
       name,
@@ -1202,6 +1207,8 @@ export async function createZombies(G) {
     list,
     TUNE,
     ensure,
+    /** Whether a trial body has been downloaded and can be spawned by name. */
+    has: ready,
     /**
      * The firing range's choice of models: a list of trial bodies that stand in for the
      * usual ones wherever a spawn does not name its own (null: the usual ones). With more

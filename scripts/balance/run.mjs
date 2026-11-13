@@ -516,8 +516,12 @@ export function simulateRun(o = {}) {
   function rise(kind, opts = {}) {
     if (kind === "brute")
       return F.add({ type: "brute", ...zombieStats("brute", true), d: far() });
-    const runner = kind === "bloater" || opts.runner;
+    const runner = kind === "bloater" || kind === "pack" || opts.runner;
     const z = { type: "walker", ...zombieStats("walker", runner), d: far() };
+    if (kind === "pack") {
+      z.hp *= RUN.pack.hp;
+      z.speed *= RUN.pack.speed;
+    }
     if (kind === "bloater") {
       z.rank = "bloater";
       z.hp *= RUN.bloater.hp;
@@ -651,11 +655,17 @@ export function simulateRun(o = {}) {
           if (z.alive && z.type === "brute" && !z.rank) brutes++;
         const kind = spawnKind(st, rng(), brutes);
         const quiet = st.quiet && !R.cook && kind === "walker";
-        rise(kind, {
-          runner: kind === "walker" && rng() < st.runner,
-          dull: quiet,
-          d: quiet ? rand(20, 50) : 0,
-        });
+        if (kind === "pack") {
+          // they rise at one spot and come on together
+          const d = far();
+          for (let i = 0; i < RUN.pack.size; i++)
+            rise("pack", { d: d + i * 0.6 });
+        } else
+          rise(kind, {
+            runner: kind === "walker" && rng() < st.runner,
+            dull: quiet,
+            d: quiet ? rand(20, 50) : 0,
+          });
         R.spawnT = spawnGap(every, rng());
       }
     }

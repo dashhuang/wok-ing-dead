@@ -227,6 +227,15 @@ LK-9 和 LK-4、命中体积、夜街的曝光和特效亮度都是真的，没�
   - 换弹装满全部：手上的武器换弹完成时，`loadout.js` 的 `reloadRest` 把收着的每把也从各自的弹药池装满
     （军械库武器走 `hooks.loaded`，游戏自带的两把听 `weapon:reload` 的 `magin`）。
   - 补给箱的屏幕标记只在 `RUN.ammo.cacheMark` 米内显示，远处靠箱子上的灯。
+  - 谁演谁在 `RUN.bodies`：关底、两种精英、胀尸、快尸各指定一个 `zombietune.js` 的 `EXTRA_BODIES` 模型和体型。
+    一局开始时 `fetchBodies` 去下载（`low` 画质一个一个地下，免得五份原图同时在内存里）；角色贴图留多大按画质查
+    `zombietune.js` 的 `BODY_TEX`，手机和电脑同一张表。开机的画质是地址里的 `?q=`、其次是保存的设置（`src/bootguard.js` 的
+    `presetToBoot`）、最后才是按设备自动选，所以僵尸的对象池和贴图跟着玩家选的档位走；手机上高于 `low` 的档位算试用：
+    页面在前台时留一个 `wokingdead.boot` 标记，正常切走或关闭时擦掉，下次开机发现标记还在就说明上次被浏览器杀掉了，
+    设置退回自动档；`withBody` 在模型到位后才把 `body` 写进刷怪选项，并把原来的
+    彩色发光压到 `RUN.bodies.glow`。模型没到、该模型的骨架都在场上、或靶场指定了别的模型（`zombies.cast`）时，
+    照旧用原来的角色加发光（`spawnAt` 的 `plain`）。精英按 `RUN.elite.kinds` 轮流（`runflow.js` 的 `eliteKind`）；
+    快尸是 `spawnKind` 返回的 `pack`，一次在同一个刷怪点放 `RUN.pack.size` 只。
   - 三口灶沿用原版「切断警报器」的目标机制（`level.objectives`、按住 E、`objective:done`）：模型是 `stove.js` 的
     `buildStove`（金龙街在 `landmarks.js` 里摆，码头在 `docks.js` 里换掉原来的继电器柜），状态经 `userData.setState`
     设置。按住完成时 `game.js` 调 `RUN.onStove`：`run.js` 记下 `S.cook`，把游走的行尸全部引来，刷怪按

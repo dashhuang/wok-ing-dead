@@ -9,7 +9,7 @@ const pair = (v, t) => (Array.isArray(v) ? lerp(v[0], v[1], t) : v);
 
 /**
  * The course at second t of a run, with its sliding numbers worked out:
- * { id, quiet, alive, every, runner, brute, bloater }. place: an entry of RUN.places.
+ * { id, quiet, alive, every, runner, brute, bloater, pack }. place: an entry of RUN.places.
  */
 export function stageAt(t, place = {}) {
   const st = RUN.stages;
@@ -27,6 +27,7 @@ export function stageAt(t, place = {}) {
     runner: Math.min(0.9, plus(pair(a.runner, k), place.runner)),
     brute: plus(pair(a.brute, k), place.brute),
     bloater: plus(pair(a.bloater || 0, k), place.bloater),
+    pack: pair(a.pack || 0, k),
   };
 }
 
@@ -64,12 +65,14 @@ export function spawnPace(
 }
 
 /**
- * What rises next: "brute", "bloater" or "walker". roll: a random number in [0, 1);
+ * What rises next: "brute", "bloater", "pack" (RUN.pack.size of the fast dead at once) or
+ * "walker". roll: a random number in [0, 1);
  * brutesUp: ordinary heavies standing now.
  */
 export function spawnKind(stage, roll, brutesUp) {
   if (roll < stage.brute && brutesUp < RUN.bruteCap) return "brute";
   if (roll < stage.brute + stage.bloater) return "bloater";
+  if (roll < stage.brute + stage.bloater + (stage.pack || 0)) return "pack";
   return "walker";
 }
 
@@ -118,13 +121,24 @@ export function packWeights(kinds, need, short) {
   return kinds.map((t) => (t === need && short ? RUN.ammo.needBoost : 1));
 }
 
-/** The elite's health (in heavies' worth) and damage multipliers for the n-th one (from 0). */
+/** Which kind the n-th elite (from 0) is: an entry of RUN.elite.kinds, taken in turn. */
+export function eliteKind(n) {
+  const kinds = RUN.elite.kinds || [{ id: "elite" }];
+  return kinds[n % kinds.length];
+}
+
+/**
+ * The n-th elite (from 0): its health (in heavies' worth), damage and speed multipliers, and
+ * which kind it is (`kind`, an id of RUN.elite.kinds).
+ */
 export function eliteStats(n) {
   const E = RUN.elite;
+  const K = eliteKind(n);
   return {
-    hpMul: E.hp + E.hpGrow * n,
-    dmgMul: E.damage + (E.dmgGrow || 0) * n,
-    speedMul: E.speed || 1,
+    kind: K.id,
+    hpMul: (E.hp + E.hpGrow * n) * (K.hp || 1),
+    dmgMul: (E.damage + (E.dmgGrow || 0) * n) * (K.damage || 1),
+    speedMul: (E.speed || 1) * (K.speed || 1),
   };
 }
 

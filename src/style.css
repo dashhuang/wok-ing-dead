@@ -3436,13 +3436,32 @@ kbd {
   }
   .m-order-h,
   .m-modes small,
-  .m-links,
+  .m-links [data-act="controls"],
   .m-note {
     display: none;
   }
   .m-order {
     -webkit-mask: none;
     mask: none;
+  }
+  /* No room under the order on a phone held sideways, so the way into the settings sits
+     beside the button (the controls are a tab of the same panel). */
+  .m-title-main {
+    position: relative;
+  }
+  .m-order .btn.primary {
+    width: calc(100% - 104px);
+  }
+  .m-links {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    width: 92px;
+    height: 44px;
+    margin: 0;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
   }
   .seg.m-modes button {
     padding: 7px 10px;
@@ -3501,6 +3520,10 @@ kbd {
 /* A phone held sideways: short and wide. The branch and the spice level share one line of a
    wider ticket, so the lockup above is not squeezed off the top. */
 @media (max-height: 560px) and (min-width: 620px) {
+  /* (as wide as the ticket, so the settings link beside its button stays inside it) */
+  .m-title-main {
+    max-width: 600px;
+  }
   .m-order {
     display: grid;
     grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
