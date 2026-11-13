@@ -26,6 +26,7 @@ export default {
   "title.difficulty": "辣度",
 
   "act.deploy": "開鑊",
+  "act.home": "返回主選單",
   "act.settings": "設定",
   "act.controls": "操作",
   "act.resume": "繼續",
