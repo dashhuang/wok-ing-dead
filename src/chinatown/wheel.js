@@ -8,6 +8,8 @@
 // tapped, and a tap beside the ring closes it. run.js owns the input; this module draws
 // the ring and turns pointer movement into a choice.
 
+import { ammoIcon } from "./icons.js";
+
 const DEAD = 34; // px the pointer must travel before anything is chosen
 const REACH = 150; // px it can travel at most
 
@@ -40,7 +42,7 @@ export function createWheel({ root, L10N }) {
         const a = -Math.PI / 2 + (i / n) * Math.PI * 2;
         const x = Math.cos(a) * R;
         const y = Math.sin(a) * R;
-        const count = w.ammo ? `<em>${w.have}</em>` : "";
+        const count = w.ammo ? `<em>${ammoIcon(w.ammo)}${w.have}</em>` : "";
         return (
           `<button class="rl-wheel-w a-${w.ammo || "none"}${w.cur ? " cur" : ""}${w.ok ? "" : " dry"}" data-i="${i}" style="transform:translate(calc(${x.toFixed(1)}px - 50%),calc(${y.toFixed(1)}px - 50%))">` +
           (keys && w.n <= 9 ? `<kbd>${w.n}</kbd>` : "") +
@@ -57,9 +59,12 @@ export function createWheel({ root, L10N }) {
     const w = items[sel] || items.find((x) => x.cur);
     if (!w) return;
     midName.textContent = w.name;
-    midInfo.textContent = w.ammo
+    midInfo.innerHTML = ammoIcon(w.ammo) + (w.ammo ? `<em>${w.have}</em>` : "");
+    midInfo.className = "a-" + (w.ammo || "none");
+    midInfo.title = w.ammo
       ? `${L10N.t("run.ammo." + w.ammo)} ${w.have}`
       : L10N.t("run.wheel.free");
+    midInfo.setAttribute("aria-label", midInfo.title);
     el.classList.toggle("none", sel < 0);
   }
 
