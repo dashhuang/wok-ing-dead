@@ -183,13 +183,13 @@ kbd {
   --seal: 64px;
   flex: none;
   display: inline-grid;
-  /* reads across: 行屍 / 走鑊 */
-  grid-template-columns: 1fr 1fr;
+  /* five characters, three over two: 守護夜 / 排檔 */
+  grid-template-columns: repeat(6, 1fr);
   place-items: center;
   width: var(--seal);
   height: var(--seal);
   padding: calc(var(--seal) * 0.07);
-  font-size: calc(var(--seal) * 0.38);
+  font-size: calc(var(--seal) * 0.29);
   font-family: var(--f-logo);
   font-weight: 900;
   font-style: normal;
@@ -205,6 +205,12 @@ kbd {
 .m-seal i,
 .about-seal i {
   font-style: normal;
+  grid-column: span 2;
+}
+.boot-seal i:nth-child(n + 4),
+.m-seal i:nth-child(n + 4),
+.about-seal i:nth-child(n + 4) {
+  grid-column: span 3;
 }
 .boot-word,
 .about-word {

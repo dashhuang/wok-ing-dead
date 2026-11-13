@@ -3,7 +3,7 @@
 export default {
   "doc.title": "Wok-ing Dead — Chinatown",
   "brand.name": "Wok-ing Dead",
-  "brand.tagline": "Chinatown is cooked.",
+  "brand.tagline": "Fry. Fight. Never fold.",
   "brand.sub": "Chinatown · a night of rain",
   "lang.label": "Language",
 

@@ -76486,7 +76486,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       </header>
       <div class="m-title-main">
         <h1 class="m-word" id="m-word" aria-label="Wok-ing Dead">
-          <span class="m-seal" aria-hidden="true"><i>\u884C</i><i>\u5C4D</i><i>\u8D70</i><i>\u944A</i></span>
+          <span class="m-seal" aria-hidden="true"><i>\u5B88</i><i>\u8B77</i><i>\u591C</i><i>\u6392</i><i>\u6A94</i></span>
           <span class="m-word-lat" aria-hidden="true"><span><b>Wok</b>-ing</span><span>Dead</span></span>
         </h1>
         <p class="m-tagline" data-i18n="brand.tagline"></p>
@@ -76587,7 +76587,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         <p class="panel-note" data-i18n-html="ctl.notePadHtml"></p>
       </div>
       <div class="panel-b panel-about" data-pane="about" hidden>
-        <div class="about-mark" aria-hidden="true"><span class="about-seal"><i>\u884C</i><i>\u5C4D</i><i>\u8D70</i><i>\u944A</i></span><span class="about-word"><b>Wok</b>-ing Dead</span></div>
+        <div class="about-mark" aria-hidden="true"><span class="about-seal"><i>\u5B88</i><i>\u8B77</i><i>\u591C</i><i>\u6392</i><i>\u6A94</i></span><span class="about-word"><b>Wok</b>-ing Dead</span></div>
         <h3 data-i18n="about.title"></h3>
         <p class="panel-p" data-i18n="about.body"></p>
         <a class="btn small about-link" href="https://claude.ai/artifact/BGY1SztrAYcJQHSsnHHGmp" target="_blank" rel="noopener" data-i18n="about.link"></a>

@@ -327,7 +327,7 @@ export function createUI(lab) {
     if (lab.solo) root.querySelector(".brand span").textContent = "军械展柜";
     // (a room of the game: its name there, as the title page's door says it)
     if (lab.home) {
-      root.querySelector(".brand b").textContent = "行尸走镬";
+      root.querySelector(".brand b").textContent = "守护夜排档";
       root.querySelector(".brand span").textContent = "家伙陈列";
     }
     root.classList.toggle("fp", s.mode === "fp");

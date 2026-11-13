@@ -38,7 +38,7 @@ def strings(path):
 
 
 LOCALES = os.path.join(root, "src", "i18n", "locales")
-BRAND = "行屍走鑊"
+BRAND = "守護夜排檔"
 NAMES = "简体中文繁體日本語"
 # Latin, Latin-1 and the punctuation / symbols the interface draws with the Latin faces.
 LATIN = (

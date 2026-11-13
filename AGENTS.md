@@ -4,7 +4,7 @@
 
 ## 项目是什么
 
-《行尸走镬 Wok-ing Dead》：雨夜唐人街打僵尸的浏览器 FPS（Three.js + Vite，玩法纯前端；游玩日志由 Vercel Functions + Neon 保存，见 docs/telemetry.md）。
+《守护夜排档 Wok-ing Dead》：雨夜唐人街摆摊炒河粉、一边炒菜一边打僵尸的浏览器 FPS（Three.js + Vite，玩法纯前端；游玩日志由 Vercel Functions + Neon 保存，见 docs/telemetry.md）。
 基于从 Claude artifact 提取的「Saltline」发布包改造而来，目标是 3A 品质、摆脱原版的复制感。
 
 - 线上：https://wok.huang.co ，GitHub：`dashhuang/wok-ing-dead`（私有）。
