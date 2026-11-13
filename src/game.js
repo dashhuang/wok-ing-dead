@@ -11,6 +11,7 @@ import { createTelemetry } from "./telemetry/index.js";
 import { createNavigation, STEP_HEIGHT } from "./chinatown/navigation.js";
 import { createSpawnPicker } from "./chinatown/spawning.js";
 import { createMusic } from "./chinatown/music.js";
+import { createCategoryVolumes } from "./chinatown/audiovolume.js";
 import * as DOORS from "./chinatown/doors.js";
 
 (() => {
@@ -58887,6 +58888,8 @@ void main() {
       setIntensity: n,
       setInterior: n,
       setVolume: n,
+      setMusicVolume: n,
+      setEffectsVolume: n,
       setPaused: n,
       debug: () => ({ state: "none" }),
       names: Object.keys(Ir),
@@ -59148,10 +59151,20 @@ void main() {
     for (let ie = 0; ie < 12; ie++) xe("tail", !1);
     for (let ie = 0; ie < 8; ie++) xe("dry", !1);
     for (let ie = 0; ie < 3; ie++) xe("music", !1);
+    const savedAudio = t ? { volume: ji.master } : iL();
+    const effectsReverb = g(1);
+    effectsReverb.connect(C);
+    const categoryVolumes = createCategoryVolumes(
+      e,
+      z,
+      effectsReverb,
+      savedAudio,
+    );
+    w.gain.value = savedAudio.volume;
     let j = { x: 0, y: 1.7, z: 0 },
       O = !1,
       q = !1,
-      ue = 0.9,
+      ue = savedAudio.volume,
       de = (n.game && n.game.state) || "title",
       $ = 0,
       se = 0,
@@ -59673,7 +59686,7 @@ void main() {
           ctx: e,
           offline: !!t,
           buses: z,
-          reverb: C,
+          reverb: effectsReverb,
           master: w,
           listener: j,
           play: je,
@@ -60102,6 +60115,8 @@ void main() {
             Number.isFinite(ue) || (ue = 0.9),
             (w.gain.value = ue));
         },
+        setMusicVolume: categoryVolumes.setMusicVolume,
+        setEffectsVolume: categoryVolumes.setEffectsVolume,
         setPaused(ie) {
           q = !!ie;
           Bt.setPaused?.(q);
@@ -60129,6 +60144,7 @@ void main() {
             city: ct ? ct.debug() : null,
             music: Bt.on,
             score: Bt.debug(),
+            volumes: { volume: ue, ...categoryVolumes.debug() },
             intensity: +ge.toFixed(2),
             interior: +se.toFixed(2),
             gameState: de,
@@ -76344,6 +76360,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         <div class="row"><label for="s-sens" data-i18n="set.sens"></label><div class="slider"><input id="s-sens" type="range" min="0.2" max="3" step="0.05"><output data-o="sens"></output></div></div>
         <div class="row row-inline"><label id="l-inv" data-i18n="set.invert"></label><button class="toggle" data-act="invert" aria-labelledby="l-inv" aria-pressed="false"><i></i><span></span></button></div>
         <div class="row"><label for="s-vol" data-i18n="set.volume"></label><div class="slider"><input id="s-vol" type="range" min="0" max="100" step="1"><output data-o="vol"></output></div></div>
+        <div class="row"><label for="s-music" data-i18n="set.musicVolume"></label><div class="slider"><input id="s-music" type="range" min="0" max="100" step="1"><output data-o="music"></output></div></div>
+        <div class="row"><label for="s-effects" data-i18n="set.effectsVolume"></label><div class="slider"><input id="s-effects" type="range" min="0" max="100" step="1"><output data-o="effects"></output></div></div>
         <div class="row"><label for="s-fov" data-i18n="set.fov"></label><div class="slider"><input id="s-fov" type="range" min="60" max="95" step="1"><output data-o="fov"></output></div></div>
         <div class="row row-inline" data-row="fs"><label id="l-fs" data-i18n="set.display"></label><button class="btn small" data-act="fullscreen" aria-labelledby="l-fs fs-t"><span id="fs-t"></span></button></div>
         <p class="panel-note" data-f="qnote"></p>
@@ -76374,6 +76392,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       c = (W) => s.querySelector(`[data-f="${W}"]`),
       u = o("#s-sens"),
       f = o("#s-vol"),
+      musicSlider = o("#s-music"),
+      effectsSlider = o("#s-effects"),
       h = o("#s-fov"),
       p = "none",
       d = null;
@@ -76388,6 +76408,9 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         } catch (J) {
           console.error(J);
         }
+      if (!W || W === "musicVolume") n.audio?.setMusicVolume?.(i.musicVolume);
+      if (!W || W === "effectsVolume")
+        n.audio?.setEffectsVolume?.(i.effectsVolume);
       if (!W || W === "view")
         try {
           n.weapon && n.weapon.setView && n.weapon.setView(i.view);
@@ -76431,6 +76454,12 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         (c("modenote").textContent = L10N.t("modeNote." + i.mode)),
         (u.value = i.sens),
         (f.value = Math.round(i.volume * 100)),
+        (musicSlider.value = Math.round(i.musicVolume * 100)),
+        (effectsSlider.value = Math.round(i.effectsVolume * 100)),
+        (o('[data-o="music"]').textContent =
+          Math.round(i.musicVolume * 100) + "%"),
+        (o('[data-o="effects"]').textContent =
+          Math.round(i.effectsVolume * 100) + "%"),
         (h.value = i.fov),
         (o('[data-o="sens"]').textContent = i.sens.toFixed(2) + "\xD7"),
         (o('[data-o="vol"]').textContent = Math.round(i.volume * 100) + "%"),
@@ -76454,6 +76483,18 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     }),
       f.addEventListener("input", () => {
         ((i.volume = +f.value / 100), m("volume"), x(), cc(i));
+      }),
+      musicSlider.addEventListener("input", () => {
+        i.musicVolume = +musicSlider.value / 100;
+        m("musicVolume");
+        x();
+        cc(i);
+      }),
+      effectsSlider.addEventListener("input", () => {
+        i.effectsVolume = +effectsSlider.value / 100;
+        m("effectsVolume");
+        x();
+        cc(i);
       }),
       h.addEventListener("input", () => {
         ((i.fov = +h.value), m("fov"), x(), cc(i));
@@ -76624,7 +76665,12 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
       let J = document.activeElement;
       if (J && J.tagName === "INPUT" && J.type === "range" && s.contains(J)) {
         let G =
-          (+J.step || 1) * (J.id === "s-vol" ? 5 : J.id === "s-sens" ? 2 : 1);
+          (+J.step || 1) *
+          (["s-vol", "s-music", "s-effects"].includes(J.id)
+            ? 5
+            : J.id === "s-sens"
+              ? 2
+              : 1);
         ((J.value = String(
           Math.min(+J.max, Math.max(+J.min, +J.value + W * G)),
         )),
