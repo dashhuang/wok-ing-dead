@@ -661,6 +661,9 @@ export function createRun(G, hooks) {
     if (wokHands && S.hands === "wok") {
       wokHands.setToss(c.t / K.toss.seconds, K.toss.flips, dishTossed(c));
       wokHands.steam(dt);
+      // the stove it came off burns open meanwhile
+      tmp.set(c.pos.x, (c.pos.y || 0) + 0.9, c.pos.z);
+      wokHands.burner(tmp, dt);
     } else if (wokHands && S.hands === "pack") {
       const u = c.t / K.pack;
       wokHands.setPack(u);

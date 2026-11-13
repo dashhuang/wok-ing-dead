@@ -55,16 +55,22 @@ const bowlY = (d) =>
 const HELD = { at: new V3(0.04, -0.185, -0.69), tip: 0.28 };
 // the ear the towel is on: an angle round the rim (90 degrees is the point nearest the cook)
 const EAR = (145 * Math.PI) / 180;
-// what is in the wok: [colour, kind]
-const FOOD = [
-  [0xc8873f, "cube"], // chicken
-  [0xd49a52, "cube"],
-  [0x7d120c, "chili"], // dried chilli
-  [0x9a1a10, "chili"],
-  [0x5c9a34, "stick"], // scallion
-  [0x86b84a, "stick"],
-  [0xdcb878, "nut"], // peanut
-  [0xc22a14, "cube"], // red pepper
+// What is in the wok: fried rice, the dish the street stove shows in its own wok. Grains of
+// several shades (soy has not reached every one), and what is fried into it.
+// (all a good deal darker than they are on a plate: the street is exposed for the night, and
+// by the burner anything pale goes white)
+const RICE = [0xc9ab66, 0xb8964a, 0xd6bc7c, 0xa98438, 0xc2a058];
+const RICE_CORE = 0x9c7a34;
+const BITS = [
+  [0xd9a514, "egg"],
+  [0xe0b422, "egg"],
+  [0x8a2412, "pork"], // char siu, red at the edge
+  [0x741c0e, "pork"],
+  [0x3f8a22, "pea"],
+  [0x2f7a22, "scallion"],
+  [0x4c9a30, "scallion"],
+  [0xc8600f, "carrot"],
+  [0xd66a48, "shrimp"],
 ];
 
 export function createWokHands(armory) {
@@ -76,10 +82,12 @@ export function createWokHands(armory) {
     edge: 0xf2efe6,
     dirtColor: 0x6a5a40,
   });
+  // (not glossy: a shine on every spoonful of rice turns it into a row of buns)
   const food = kit.mats.variant("ceramic", {
     color: 0xffffff,
-    rough: 0.38,
+    rough: 0.74,
     dirt: 0.2,
+    env: 0.4,
   });
   // A wok that has been seasoned for years: near black, no rust. Dull, and hardly a metal
   // to the renderer: with any gloss the inside of the bowl, seen at the shallow angle it is
@@ -106,32 +114,86 @@ export function createWokHands(armory) {
     dirt: 0.15,
   });
 
-  // one morsel, about the size of a thumb joint
-  function morsel(kind, s = 1) {
-    if (kind === "chili") return kit.rod(0.006 * s, -0.022 * s, 0.022 * s);
-    if (kind === "stick") return kit.rod(0.0045 * s, -0.026 * s, 0.026 * s);
-    if (kind === "nut")
-      return kit.sphere(0.009 * s, { seg: 8, rings: 6, squash: [1, 0.8, 1.3] });
-    return kit.box(0.022 * s, 0.018 * s, 0.024 * s, { r: 0.004 * s });
+  // Hundreds of small things make a dish, so each is as few triangles as will pass at arm's
+  // length: a grain of rice is a stretched ball of sixteen.
+  const ball = (r, sx = 1, sy = 1, sz = 1, w = 4, h = 3) => {
+    const g = kit.adopt(new THREE.SphereGeometry(r, w, h));
+    g.scale(sx, sy, sz);
+    return g;
+  };
+  const block = (w, h, d) => kit.adopt(new THREE.BoxGeometry(w, h, d));
+  function bit(kind, s) {
+    if (kind === "egg") return block(0.024 * s, 0.009 * s, 0.018 * s);
+    if (kind === "pork") return block(0.018 * s, 0.014 * s, 0.019 * s);
+    if (kind === "carrot") return block(0.012 * s, 0.012 * s, 0.012 * s);
+    if (kind === "pea") return ball(0.0075 * s, 1, 1, 1, 5, 4);
+    if (kind === "shrimp") return ball(0.011 * s, 1.5, 0.8, 0.9, 5, 4);
+    // scallion: a short cut of the green
+    return kit.adopt(
+      new THREE.CylinderGeometry(0.0062 * s, 0.0062 * s, 0.009 * s, 6),
+    );
   }
-  // a handful of them stuck together: one mesh (the colours are in the vertices)
-  function clump(seed, n = 4, spread = 0.03, s = 1) {
+  /**
+   * A spoonful of the rice as it holds together: a core, grains all over it, and what was
+   * fried into it showing on the upper side. One mesh (the colours are in the vertices).
+   * grains, bits: how many of each; core: false for a few loose grains with nothing inside.
+   */
+  function lump(seed, s = 1, grains = 30, bits = 4, core = true) {
     let k = seed * 9301 + 49297;
     const rnd = () => ((k = (k * 233280 + 49297) % 233281), k / 233281);
+    // half-extents of the core: wide and low, so that a heap of them runs together
+    const R = [0.037 * s, 0.017 * s, 0.033 * s];
     const m = kit.M();
-    for (let i = 0; i < n; i++) {
-      const [color, kind] = FOOD[Math.floor(rnd() * FOOD.length)];
-      m.add(morsel(kind, s), food, {
-        at: [
-          (rnd() - 0.5) * spread,
-          (rnd() - 0.5) * spread * 0.5,
-          (rnd() - 0.5) * spread,
-        ],
+    // (the core is four knobs, not one ball: a spoonful of rice has no outline to speak of)
+    const knobs = [];
+    if (core)
+      for (let i = 0; i < 4; i++) {
+        const at = [
+          (rnd() - 0.5) * R[0] * 1.1,
+          (rnd() - 0.5) * R[1] * 0.7,
+          (rnd() - 0.5) * R[2] * 1.1,
+        ];
+        const r = (0.5 + rnd() * 0.2) * R[2];
+        knobs.push([at, r]);
+        m.add(ball(r, 1, 0.62, 1, 5, 4), food, { at, color: RICE_CORE });
+      }
+    // a direction over the whole ball, or (up: true) over its upper half
+    const on = (up) => {
+      const a = rnd() * TAU;
+      const y = up ? 0.25 + rnd() * 0.75 : rnd() * 2 - 1;
+      const r = Math.sqrt(Math.max(0, 1 - y * y));
+      return [Math.cos(a) * r, y, Math.sin(a) * r];
+    };
+    // a point on the outside of the lump: on one of its knobs, or (no core) anywhere in it
+    const outside = (up, far) => {
+      const d = on(up);
+      if (!core) {
+        const k = rnd() * 0.9;
+        return [d[0] * R[0] * k, d[1] * R[1] * k, d[2] * R[2] * k];
+      }
+      const [c, r] = knobs[Math.floor(rnd() * knobs.length)];
+      return [
+        c[0] + d[0] * r * far,
+        c[1] + d[1] * r * 0.62 * far,
+        c[2] + d[2] * r * far,
+      ];
+    };
+    for (let i = 0; i < grains; i++)
+      m.add(ball(0.0056 * s, 1, 1, 2.3), food, {
+        // (standing well out of it: the grains are what the eye should find, not the core)
+        at: outside(false, 0.95 + rnd() * 0.5),
+        rot: [rnd() * TAU, rnd() * TAU, 0],
+        color: RICE[Math.floor(rnd() * RICE.length)],
+      });
+    for (let i = 0; i < bits; i++) {
+      const [color, kind] = BITS[Math.floor(rnd() * BITS.length)];
+      m.add(bit(kind, s), food, {
+        at: outside(core, 1.1),
         rot: [rnd() * TAU, rnd() * TAU, rnd() * TAU],
         color,
       });
     }
-    return m.build("food");
+    return m.build("rice");
   }
   // a ladle along its own +Z: wooden grip at the origin, the bowl at the far end
   function ladle() {
@@ -268,23 +330,48 @@ export function createWokHands(armory) {
     }
     body.add(towel);
 
-    // what is being cooked: clumps that lie in the bowl and fly when it is flipped
+    // What is being cooked: a heap of spoonfuls in the middle of the bowl, and loose grains
+    // round it. All of it flies when the wok is flipped: the heap as it lies, the loose
+    // grains higher and wider.
     const bits = [];
-    for (let i = 0; i < 12; i++) {
-      const node = clump(i + 1, 6, 0.06, 1.5);
-      const a = i * 2.39996;
-      const d = 0.02 + 0.115 * Math.sqrt((i + 0.5) / 12);
+    // (the heap: one in the middle, a ring round it, a wider ring under that, three on top)
+    const HEAP = [[0, 0, 0]];
+    for (let i = 0; i < 6; i++) HEAP.push([0.047, (i * TAU) / 6, 0.004]);
+    for (let i = 0; i < 9; i++) HEAP.push([0.09, (i * TAU) / 9 + 0.3, 0]);
+    for (let i = 0; i < 3; i++) HEAP.push([0.028, (i * TAU) / 3 + 0.5, 0.024]);
+    HEAP.forEach(([d, a, up], i) => {
+      const node = lump(i + 1, 1.1 - 1.2 * d, 34, 5);
       const rest = new V3(Math.cos(a) * d, 0, Math.sin(a) * d);
-      rest.y = bowlY(d) + 0.018;
+      rest.y = bowlY(d) + 0.014 + up;
       node.rotation.order = "YXZ";
       body.add(node);
       bits.push({
         node,
         rest,
-        lag: (i % 4) * 0.022,
-        high: 0.17 + 0.2 * ((i * 0.618) % 1),
-        spin: 5 + ((i * 3.7) % 6),
-        yaw: a * 3,
+        // (the far side of the heap leaves the wok first)
+        lag: 0.03 + rest.z * 0.22 + (i % 3) * 0.008,
+        high: 0.15 + 0.13 * ((i * 0.618) % 1) + up * 2,
+        spin: 3 + ((i * 3.7) % 4),
+        yaw: a * 3 + i,
+        wide: 0.85,
+      });
+    });
+    for (let i = 0; i < 14; i++) {
+      const node = lump(60 + i, 1.5, 8, 1, false);
+      const a = i * 2.39996;
+      const d = 0.1 + 0.07 * ((i * 0.618) % 1);
+      const rest = new V3(Math.cos(a) * d, 0, Math.sin(a) * d);
+      rest.y = bowlY(d) + 0.006;
+      node.rotation.order = "YXZ";
+      body.add(node);
+      bits.push({
+        node,
+        rest,
+        lag: 0.02 + (i % 4) * 0.02,
+        high: 0.3 + 0.16 * ((i * 0.618) % 1),
+        spin: 7 + ((i * 3.7) % 6),
+        yaw: a,
+        wide: 0.55,
       });
     }
     const ld = ladle();
@@ -362,10 +449,12 @@ export function createWokHands(armory) {
             : p < 0.5
               ? -0.07 * ease(p / 0.45)
               : 0.03 * (1 - ramp(p, 0.85, 1));
+          // (in the air it draws together, and spreads again as it lands)
+          const k = air ? 1 - (1 - b.wide) * 4 * u * (1 - u) : 1;
           b.node.position.set(
-            b.rest.x * (air ? 0.8 : 1),
+            b.rest.x * k,
             b.rest.y + (air ? b.high * 4 * u * (1 - u) : 0),
-            b.rest.z + slide,
+            b.rest.z * k + slide,
           );
           b.node.rotation.set(
             air ? u * b.spin : 0,
@@ -383,10 +472,11 @@ export function createWokHands(armory) {
           [1, 0],
         ]);
         _a.set(0.25 + out * 0.05, -0.185 + out * 0.05 - (1 - up) * 0.4, -0.4);
+        // (it works the near side of the heap, and leaves the heap to be seen)
         _b.set(
-          Math.cos(st) * 0.06 * (1 - out) + out * 0.13,
-          bowlY(0.06) + 0.03 + out * 0.11,
-          Math.sin(st) * 0.045 * (1 - out) + 0.02,
+          0.1 + Math.cos(st) * 0.03 * (1 - out) + out * 0.05,
+          bowlY(0.11) + 0.035 + out * 0.11,
+          0.045 + Math.sin(st) * 0.03 * (1 - out),
         );
         body.updateMatrix();
         _b.applyMatrix4(body.matrix);
@@ -506,7 +596,7 @@ export function createWokHands(armory) {
     // what goes into it: more than it holds
     const heap = new THREE.Group();
     for (let i = 0; i < 7; i++) {
-      const c = clump(40 + i, 5, 0.05, 1.15);
+      const c = lump(40 + i, 1.25, 30, 5);
       const a = i * 2.39996;
       const d = i ? 0.024 : 0;
       c.position.set(Math.cos(a) * d, 0.016 + i * 0.013, Math.sin(a) * d);
@@ -516,8 +606,8 @@ export function createWokHands(armory) {
     heap.position.y = 0.02;
     pail.add(heap);
     // a ladleful on its way, and one that missed
-    const load = clump(77, 6, 0.04, 1.1);
-    const stray = clump(91, 2, 0.02, 1);
+    const load = lump(77, 1.3, 34, 5);
+    const stray = lump(91, 1, 5, 1, false);
     all.add(load, stray);
     const ld = ladle();
     all.add(ld);
@@ -786,6 +876,8 @@ export function createWokHands(armory) {
     body: [1.9, 0.48, 0.03],
     end: [0.6, 0.05, 0],
   };
+  // the root of a gas flame under full pressure (linear values, like the fire's)
+  const JET = { core: [0.5, 1.1, 2.6], end: [0.12, 0.2, 0.9] };
   const api = {
     wok,
     pack,
@@ -856,6 +948,61 @@ export function createWokHands(armory) {
           type: P.GLOW,
           gravity: 6,
           drag: 0.6,
+        });
+    },
+    /**
+     * Once a frame while the wok is off its stove: the open burner at `pos` (the top of it),
+     * roaring with nothing over it. A blue root, yellow flames standing a metre high, sparks.
+     */
+    burner(pos, dt) {
+      const n = Math.round(52 * dt + Math.random() - 0.5);
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * TAU;
+        const d = Math.sqrt(Math.random()) * 0.17;
+        const root = Math.random() < 0.35;
+        fx.glow({
+          pos: _b.set(
+            pos.x + Math.cos(a) * d,
+            pos.y + Math.random() * 0.06,
+            pos.z + Math.sin(a) * d,
+          ),
+          // (drawn in towards the middle as it climbs: a jet, not a bonfire)
+          vel: _a.set(
+            -Math.cos(a) * d * 2.2 + (Math.random() - 0.5) * 0.5,
+            root ? 1.6 + Math.random() * 0.8 : 2.4 + Math.random() * 1.8,
+            -Math.sin(a) * d * 2.2 + (Math.random() - 0.5) * 0.5,
+          ),
+          life: root
+            ? 0.12 + Math.random() * 0.08
+            : 0.24 + Math.random() * 0.22,
+          size: root
+            ? [0.04, 0.11 + Math.random() * 0.06]
+            : [0.05, 0.2 + Math.random() * 0.15],
+          color: root ? [JET.core, JET.end] : [fire.core, fire.end],
+          alpha: root ? 0.7 : 0.5,
+          type: P.FLAME,
+          drag: 1.5,
+          gravity: -2.2,
+          spin: (Math.random() - 0.5) * 4,
+          turb: root ? 1 : 3.5,
+          fadeIn: 0.04,
+          fadePow: 1.4,
+        });
+      }
+      if (Math.random() < dt * 14)
+        fx.glow({
+          pos: _b.set(pos.x, pos.y + 0.1, pos.z),
+          vel: _a.set(
+            (Math.random() - 0.5) * 1.6,
+            2.5 + Math.random() * 3,
+            (Math.random() - 0.5) * 1.6,
+          ),
+          life: 0.5 + Math.random() * 0.6,
+          size: [0.018, 0.005],
+          color: [[4.5, 1.6, 0.2], fire.end],
+          type: P.GLOW,
+          gravity: 3,
+          drag: 0.5,
         });
     },
     /** Once a frame while something hot is in hand: what rises off it. */
