@@ -226,7 +226,8 @@ export async function createCombat(lab) {
     /**
      * Instant ray from the eye. Draws the tracer from the muzzle to wherever it ends.
      * { dir, range, pierce, ricochet, damage: n | (z) => n, headMul, forceHead, falloff: [start, end, min],
-     *   knock, stagger, element, tracer: {...} | false, impact: {...} | false, onHit(z, hit) }
+     *   knock, launch: n | (z, metres travelled) => n, stagger, element,
+     *   tracer: {...} | false, impact: {...} | false, onHit(z, hit) }
      */
     hitscan(o) {
       const from = o.from || ctx.muzzle();
@@ -262,6 +263,10 @@ export async function createCombat(lab) {
             head,
             headMul: o.headMul,
             knock: o.knock,
+            launch:
+              typeof o.launch === "function"
+                ? o.launch(zh.z, travelled)
+                : o.launch,
             stagger: o.stagger,
             element: o.element,
           });

@@ -18,11 +18,30 @@ export const STATUS = {
   },
   // knock-back, lift and stagger a heavy takes, as a share of what a walker would
   brute: { knock: 0.35, lift: 0.5, stagger: 0.4 },
+  // A kill that carries force throws the body. The force is the knock-back the killing hit
+  // has (or its `launch`, for a hit that only throws when it kills), after a heavy's share
+  // and the body's size: a slight one goes further than a big one, between `small` times as
+  // far. Under `from` the body drops where it stands, as it always did. Above it, it leaves
+  // the ground at `speed` metres a second per unit of force along the hit and `up[0] + up[1]
+  // x force` upwards (a blast throws `blast` times higher), never faster than `max` / `maxUp`.
+  // `gravity` brings it down; `skid` is how fast it stops once it has landed.
+  launch: {
+    from: 0.9,
+    speed: 1.9,
+    up: [1.6, 0.9],
+    max: 8,
+    maxUp: 4.6,
+    blast: 1.5,
+    small: [0.6, 1.5],
+    gravity: 14,
+    skid: 5,
+  },
   // The run's elites and its boss: how much of a hold they sit through, the share of their
   // health 焚符 takes instead of the usual one, and whether a firework can frighten them.
   rank: {
-    elite: { pin: 0.5, 焚符: 0.12, scare: false },
-    boss: { pin: 0.25, 焚符: 0.04, scare: false },
+    // (thrown: whether a kill can throw the body; these two fall where they stand)
+    elite: { pin: 0.5, 焚符: 0.12, scare: false, thrown: false },
+    boss: { pin: 0.25, 焚符: 0.04, scare: false, thrown: false },
     bloater: { scare: false },
   },
 };

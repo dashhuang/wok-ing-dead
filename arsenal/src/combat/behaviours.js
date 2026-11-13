@@ -162,7 +162,8 @@ export const BEHAVIOURS = {
           ctx.hit(h.z, 10 * pellets, {
             dir: ctx.aim.dir.clone(),
             element: "fire",
-            knock: 0.5,
+            // (a cone of fire: it leans on them, harder the nearer they are)
+            knock: 0.5 + 1.1 * Math.max(0, 1 - h.dist / 5),
             point: h.z.chest,
             blood: false,
             spread: ctx.cap ? 4 : 3,
@@ -198,7 +199,7 @@ export const BEHAVIOURS = {
           range: 60,
           pierce: ctx.cap ? 99 : 3,
           damage: () => 150 * (ctx.cap ? 1 + 0.25 * n++ : 1),
-          knock: 1.6,
+          knock: 2.2,
           stagger: 0.7,
           tracer: {
             width: 0.07,
@@ -217,7 +218,14 @@ export const BEHAVIOURS = {
           smoke: 4,
           light: 40,
         });
-        const knocked = new Set();
+        // Each pellet hurts; the pattern shoves once, by how close it was fired and how
+        // much of it landed. A pellet that kills throws the body with the whole of it.
+        const K = F.shotgun.shove;
+        const shove = (d) =>
+          K.near +
+          (K.far - K.near) *
+            Math.max(0, Math.min(1, (d - K.from) / (K.to - K.from)));
+        const knocked = new Map();
         for (let i = 0; i < F.shotgun.pellets; i++) {
           ctx.hitscan({
             dir: ctx.spread(F.shotgun.spread),
@@ -226,11 +234,21 @@ export const BEHAVIOURS = {
             damage: F.shotgun.damage,
             tracer: { width: 0.014, color: C(0xffd9a0, 2.2), len: 5 },
             impact: { scale: 0.55 },
-            onHit: (z) => knocked.add(z),
+            onHit: (z, h) => {
+              const k = knocked.get(z) || { n: 0, d: h.dist };
+              k.n++;
+              knocked.set(z, k);
+            },
             knock: 0,
+            launch: (z, d) => shove(d),
           });
         }
-        for (const z of knocked) ctx.push(z, ctx.aim.dir, 1);
+        for (const [z, k] of knocked)
+          ctx.push(
+            z,
+            ctx.aim.dir,
+            shove(k.d) * Math.min(1, k.n / (F.shotgun.pellets * 0.5)),
+          );
         ctx.kick(1.25);
         ctx.shake(0.2);
       }

@@ -103,6 +103,11 @@ export const WEAPONS = [
       spread: 0.045,
       range: 34,
       falloff: [10, 30, 0.25], // full damage to 10 m, down to a quarter by 30
+      // The shove of a blast of shot: `near` inside `from` metres, down to `far` by `to`
+      // (1 = about 0.7 m back). It is for a zombie that takes at least half the pattern; one
+      // caught by a pellet or two gets that share of it. A kill throws the body with it.
+      // (`shove`, not `knock`: the balance simulator reads a weapon's `knock` as one number)
+      shove: { near: 3.2, far: 0.7, from: 2.5, to: 12 },
     },
     mag: 6,
     reserve: 36,

@@ -10,6 +10,19 @@ const _a = V(),
   _c = V(),
   _d = V();
 
+// Blood. Alpha-blended, so it is as bright as what lights it would make it: these are set
+// for the game's night street, which takes seven tenths off everything drawn here (see
+// ARMORY_TUNE.fxGain), not for the lab's lit alley.
+const BLOOD = {
+  drop: C(0xff1414, 1.25),
+  mist: C(0xff2020, 1.15),
+  dark: C(0xa01010, 0.6),
+  chunk: C(0xd01414, 0.8),
+  pool: C(0xe01010, 0.95),
+};
+// how many hits have bled this frame (a blast of shot, an explosion in a crowd)
+const bled = { t: -1, n: 0 };
+
 // palette per element: [hot core, body, dying] in linear HDR
 export const PAL = {
   none: {
@@ -352,51 +365,61 @@ export function createEffects(fx, stage) {
         fx.flash(_a.copy(p).addScaledVector(n, 0.1), pal.light, 6 * s, 0.1, 5);
     },
 
-    /** Hit on a body: blood spray along `dir` (the bullet's direction). */
-    blood(pos, dir, amount = 1) {
-      fx.audio && fx.audio.world("flesh", pos, { gain: 0.8, gap: 0.05 });
-      const n = Math.round(9 * amount);
+    /**
+     * Hit on a body: blood thrown along `dir` (the way the bullet was going), a puff of it
+     * hanging where it struck, a little coming back the other way, and what lands on the
+     * street. amount: 1 is a rifle round in the chest; a graze is less, a round that takes
+     * half its health is twice that. o: { quiet (no sound), ground (height of the street under it) }
+     */
+    blood(pos, dir, amount = 1, o = {}) {
+      if (!o.quiet && fx.audio)
+        fx.audio.world("flesh", pos, { gain: 0.8, gap: 0.05 });
+      // a pattern of shot is many hits in one frame: the first few bleed in full, the rest less
+      if (fx.time !== bled.t) ((bled.t = fx.time), (bled.n = 0));
+      if (++bled.n > 3) amount *= 0.4;
+      const ground = o.ground ?? 0;
+      const n = Math.round(14 * amount);
       for (let i = 0; i < n; i++) {
-        coneDir(dir, 0.6, _b).multiplyScalar(rand(1, 6));
-        _b.y += rand(0, 1.5);
+        coneDir(dir, 0.55, _b).multiplyScalar(rand(2, 8));
+        _b.y += rand(0.3, 2.2);
         fx.puff({
           pos,
           vel: _b,
-          life: rand(0.4, 0.9),
-          size: [rand(0.012, 0.03), 0.008],
-          color: C(0x5a0606, 0.9),
+          life: rand(0.5, 1.0),
+          size: [rand(0.014, 0.034), 0.01],
+          color: BLOOD.drop,
           alpha: 0.95,
           type: P.DROP,
           gravity: 9.8,
-          drag: 0.8,
+          drag: 0.6,
           ground: true,
-          stretch: 0,
+          stretch: 2.5,
           fadePow: 0.5,
         });
       }
-      for (let i = 0; i < 2; i++) {
-        coneDir(dir, 0.5, _b).multiplyScalar(rand(0.6, 2));
+      for (let i = 0; i < 3; i++) {
+        coneDir(dir, 0.6, _b).multiplyScalar(rand(0.6, 2.4));
         fx.puff({
           pos,
           vel: _b,
-          life: rand(0.35, 0.6),
-          size: [0.05, rand(0.22, 0.36) * Math.sqrt(amount)],
-          color: [C(0x6a0808, 0.9), C(0x2a0404, 0.6)],
-          alpha: 0.5,
+          life: rand(0.4, 0.7),
+          size: [0.06, rand(0.3, 0.5) * Math.sqrt(amount)],
+          color: [BLOOD.mist, BLOOD.dark],
+          alpha: 0.55,
           type: P.SMOKE,
           drag: 3,
           spin: srand(2),
         });
       }
       // back-spatter the other way
-      for (let i = 0; i < 3; i++) {
-        coneDir(_c.copy(dir).negate(), 0.7, _b).multiplyScalar(rand(0.8, 3));
+      for (let i = 0; i < 4; i++) {
+        coneDir(_c.copy(dir).negate(), 0.7, _b).multiplyScalar(rand(0.8, 3.4));
         fx.puff({
           pos,
           vel: _b,
           life: rand(0.3, 0.6),
-          size: rand(0.01, 0.02),
-          color: C(0x5a0606, 0.9),
+          size: rand(0.012, 0.024),
+          color: BLOOD.drop,
           alpha: 0.9,
           type: P.DROP,
           gravity: 9.8,
@@ -404,22 +427,141 @@ export function createEffects(fx, stage) {
           fadePow: 0.5,
         });
       }
-      if (amount >= 1 && Math.random() < 0.6) {
+      if (amount >= 0.8 && Math.random() < 0.75) {
+        const at = V(
+          pos.x + dir.x * rand(0.4, 1.6),
+          ground,
+          pos.z + dir.z * rand(0.4, 1.6),
+        );
         fx.after(0.25, () =>
           fx.decal({
             kind: "splat",
-            pos: V(
-              pos.x + dir.x * rand(0.3, 1.2),
-              0,
-              pos.z + dir.z * rand(0.3, 1.2),
-            ),
-            size: rand(0.25, 0.6),
-            color: C(0x3a0404, 0.8),
+            pos: at,
+            size: rand(0.3, 0.7) * Math.sqrt(amount),
+            color: BLOOD.pool,
             life: 18,
             alpha: 0.85,
           }),
         );
       }
+    },
+
+    /**
+     * A kill: the body bursts. A cloud of blood, a fan of it thrown the way of the hit and
+     * a fountain upwards, a few pieces that bounce, a pool under where it falls and splashes
+     * along the way it was sent.
+     * o: { size (the body's scale), head (it was the head), ground, quiet, thrown (the body
+     *      is flying: more of it goes along the hit) }
+     */
+    gore(pos, dir, o = {}) {
+      if (!o.quiet && fx.audio)
+        fx.audio.world("flesh", pos, { gain: 1.1, gap: 0.05 });
+      const s = o.size ?? 1;
+      const ground = o.ground ?? 0;
+      const q = fx.detail;
+      if (fx.time !== bled.t) ((bled.t = fx.time), (bled.n = 0));
+      // (a blast that kills a crowd: every body bursts, the later ones with less)
+      const k = (++bled.n > 4 ? 0.5 : 1) * q;
+      for (let i = 0; i < Math.round(7 * k); i++) {
+        coneDir(dir, 0.9, _b).multiplyScalar(rand(0.5, 2.6));
+        _b.y += rand(0.2, 1.2);
+        fx.puff({
+          pos,
+          vel: _b,
+          life: rand(0.5, 0.9),
+          size: [0.12 * s, rand(0.7, 1.2) * s],
+          color: [BLOOD.mist, BLOOD.dark],
+          alpha: 0.75,
+          type: P.SMOKE,
+          drag: 2.6,
+          spin: srand(2),
+        });
+      }
+      const drops = Math.round(46 * k);
+      for (let i = 0; i < drops; i++) {
+        if (i % 3 === 2) {
+          // the fountain
+          randDir(_b).multiplyScalar(rand(1.5, 5));
+          _b.y = Math.abs(_b.y) + rand(2, 5.5);
+        } else {
+          coneDir(dir, o.thrown ? 0.5 : 0.75, _b).multiplyScalar(rand(3, 10));
+          _b.y += rand(0.5, 3);
+        }
+        fx.puff({
+          pos,
+          vel: _b,
+          life: rand(0.6, 1.3),
+          size: [rand(0.016, 0.042) * s, 0.012],
+          color: BLOOD.drop,
+          alpha: 0.95,
+          type: P.DROP,
+          gravity: 9.8,
+          drag: 0.5,
+          ground: true,
+          stretch: 3,
+          fadePow: 0.5,
+        });
+      }
+      for (let i = 0; i < Math.round(6 * k); i++) {
+        coneDir(dir, 1.0, _b).multiplyScalar(rand(2, 6.5));
+        _b.y += rand(1, 4);
+        fx.puff({
+          pos,
+          vel: _b,
+          life: rand(1.2, 2.2),
+          size: rand(0.03, 0.06) * s,
+          color: BLOOD.chunk,
+          alpha: 1,
+          type: P.SHARD,
+          gravity: 9.8,
+          drag: 0.4,
+          ground: true,
+          spin: srand(14),
+          fadePow: 0.4,
+        });
+      }
+      if (o.head)
+        for (let i = 0; i < Math.round(10 * k); i++) {
+          _b.set(srand(1.6), rand(3, 7), srand(1.6));
+          fx.puff({
+            pos,
+            vel: _b,
+            life: rand(0.5, 1.0),
+            size: [rand(0.014, 0.03), 0.01],
+            color: BLOOD.drop,
+            alpha: 0.95,
+            type: P.DROP,
+            gravity: 9.8,
+            drag: 0.6,
+            ground: true,
+            stretch: 3,
+            fadePow: 0.5,
+          });
+        }
+      // on the street: splashes along the way it went, and the pool under where it lies
+      const reach = o.thrown ? 3.4 : 1.6;
+      const spots = [];
+      for (let i = 0; i < 3; i++) {
+        const d = rand(0.5, reach);
+        spots.push(
+          V(
+            pos.x + dir.x * d + srand(0.4),
+            ground,
+            pos.z + dir.z * d + srand(0.4),
+          ),
+        );
+      }
+      fx.after(0.3, () => {
+        for (const at of spots)
+          fx.decal({
+            kind: "splat",
+            pos: at,
+            size: rand(0.45, 0.9) * s,
+            color: BLOOD.pool,
+            life: 22,
+            alpha: 0.85,
+          });
+      });
     },
 
     /** Explosion. o: { radius, pal, smoke, shake, scorch, sparks } */

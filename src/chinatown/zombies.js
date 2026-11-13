@@ -4,6 +4,10 @@
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { ZOMBIES, EXTRA_BODIES, EXTRA_RIGS, BODY_TEX } from "./zombietune.js";
+import { STATUS } from "../../arsenal/src/data/status.js";
+
+// how a thrown body comes down and stops (the force it is thrown with is the weapons' rules')
+const FLIGHT = STATUS.launch;
 
 const ASSETS = "assets/zombies/";
 const CHARACTERS = {
@@ -243,6 +247,7 @@ export async function createZombies(G) {
 
   function createZombie(template) {
     const rig = cloneSkinned(template.scene);
+    rig.rotation.order = "YXZ"; // (so a thrown body can tip over backwards about its own feet)
     shareSkeletons(template.scene, rig);
     // pallid, slightly green skin and clothes: kept light so they read under street light
     const k = rand(0.92, 1.2);
@@ -369,6 +374,14 @@ export async function createZombies(G) {
       deadT: 0,
       sink: 0,
       knock: new V3(),
+      // a body thrown by the hit that killed it: height off the ground and how fast that is
+      // changing, how far over it is tipped and will tip, how long the flight is
+      air: 0,
+      airV: 0,
+      tilt: 0,
+      tiltTo: 0,
+      flying: false,
+      flight: 1,
       lodT: 0,
       lodAcc: 0,
       screamT: 0,
@@ -427,6 +440,8 @@ export async function createZombies(G) {
         z.deadT = 0;
         z.sink = 0;
         z.knock.set(0, 0, 0);
+        z.air = z.airV = z.tilt = 0;
+        z.flying = false;
         z.stuckT = 0;
         z.screamT = 0;
         z.los = false;
@@ -457,7 +472,8 @@ export async function createZombies(G) {
         z.anim = "";
       },
 
-      damage(amount, point, dir, part = "body") {
+      // launch: { speed, up } if the hit should throw the body should it be the one that kills
+      damage(amount, point, dir, part = "body", launch = null) {
         if (!z.alive) return false;
         const dealt = amount * (PART_DAMAGE[part] ?? 1);
         z.hp -= dealt;
@@ -477,7 +493,7 @@ export async function createZombies(G) {
           amount: dealt,
         });
         if (z.hp <= 0) {
-          kill(z, dir, part, dealt);
+          kill(z, dir, part, dealt, launch);
           return true;
         }
         if (
@@ -559,15 +575,17 @@ export async function createZombies(G) {
 
   function place(z) {
     const r = z.rig;
-    const y = z.pos.y - z.sink + (z.alive ? z.ctl.lift : 0);
+    const y = z.pos.y - z.sink + (z.alive ? z.ctl.lift : z.air);
     if (
       r.position.x !== z.pos.x ||
       r.position.y !== y ||
       r.position.z !== z.pos.z ||
-      r.rotation.y !== z.yaw
+      r.rotation.y !== z.yaw ||
+      r.rotation.x !== z.tilt
     ) {
       r.position.set(z.pos.x, y, z.pos.z);
       r.rotation.y = z.yaw;
+      r.rotation.x = z.tilt;
       r.updateMatrix();
       z.dirty = true;
     }
@@ -993,18 +1011,29 @@ export async function createZombies(G) {
     pose(z);
   }
 
-  function kill(z, dir, part, dealt) {
+  // launch: { speed, up } throws the body (a blast of shot at arm's length, an explosion);
+  // without it the body is nudged the way of the hit and drops.
+  function kill(z, dir, part, dealt, launch) {
     z.alive = false;
     z.hp = 0;
     z.attackT = -1;
     z.screamT = 0;
     z.deadT = 0;
     z.speed = 0;
+    z.air = z.airV = z.tilt = 0;
+    z.flying = false;
     let fromBehind = false;
     if (dir) {
       fromBehind = dir.x * z.fwd.x + dir.z * z.fwd.z > 0.15;
-      const push = Math.min(2.6, 0.6 + dealt / 45);
+      const push = launch ? launch.speed : Math.min(2.6, 0.6 + dealt / 45);
       z.knock.set(dir.x, 0, dir.z).normalize().multiplyScalar(push);
+      if (launch && !z.crawling) {
+        z.flying = true;
+        z.airV = launch.up;
+        z.flight = (2 * launch.up) / FLIGHT.gravity; // seconds in the air
+        // it goes over backwards as it goes (forwards if it was hit from behind)
+        z.tiltTo = (fromBehind ? 1 : -1) * Math.min(0.6, 0.12 * launch.speed);
+      }
     }
     if (z.crawling) {
       // already on the ground: just go limp where it lies
@@ -1015,7 +1044,8 @@ export async function createZombies(G) {
         z,
         fromBehind ? "death_front" : "death_back",
         0.12,
-        part === "weak" ? 1.5 : 1.25,
+        // (a thrown body is flat by the time it comes down)
+        z.flying ? Math.max(1.5, 0.9 / z.flight) : part === "weak" ? 1.5 : 1.25,
       );
     corpses.push(z);
     while (corpses.length > TUNE.maxCorpses) {
@@ -1029,15 +1059,31 @@ export async function createZombies(G) {
       type: z.type,
       part,
       rank: z.rank,
+      dir,
+      thrown: z.flying,
     });
   }
 
   function updateCorpse(z, dt) {
     z.deadT += dt;
-    if (z.knock.lengthSq() > 1e-4 && z.deadT < 0.7) {
+    if (z.flying) {
+      // through the air: it keeps what it left the ground with (walls stop it), comes down
+      // under gravity, and skids to a stop where it lands
       z.vel.set(z.knock.x, -2, z.knock.z);
       G.physics.moveCapsule(z.pos, z.vel, dt, 0.3, 1.0, true);
-      z.knock.multiplyScalar(Math.exp(-dt * 5));
+      z.airV -= FLIGHT.gravity * dt;
+      z.air += z.airV * dt;
+      z.tilt = z.tiltTo * Math.sin(Math.PI * Math.min(1, z.deadT / z.flight));
+      if (z.air <= 0 && z.airV < 0) {
+        z.air = z.tilt = 0;
+        z.flying = false;
+        z.knock.multiplyScalar(0.55);
+        emit("enemy:landed", { enemy: z, pos: z.pos, speed: -z.airV });
+      }
+    } else if (z.knock.lengthSq() > 1e-4 && z.deadT < 1.6) {
+      z.vel.set(z.knock.x, -2, z.knock.z);
+      G.physics.moveCapsule(z.pos, z.vel, dt, 0.3, 1.0, true);
+      z.knock.multiplyScalar(Math.exp(-dt * FLIGHT.skid));
     }
     if (z.deadT > TUNE.corpseTime) {
       z.sink += dt * 0.35;
