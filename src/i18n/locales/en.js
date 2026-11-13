@@ -233,7 +233,7 @@ export default {
   "radio.contact":
     "They have your scent. Head shots put them down. Do not let them close.",
   "radio.cut1":
-    "The stove is lit. Toss the wok, then set it back on the stove.",
+    "The stove is lit. The whole street can smell it — here they come.",
   "radio.cut2": "Second stove. Every doorway is spilling them out.",
   "radio.all":
     "All three silent. The truck is at the east checkpoint, engine running. Move.",
@@ -326,25 +326,14 @@ export default {
   "run.cook.fry1": "Smelling good — back in {s}s for the last toss",
   "run.cook.fry2": "Nearly there — back in {s}s to pack",
   "run.cook.late": "It's burning! Charcoal in {s}s",
-  "run.mark.fry": "{s}s",
-  "run.mark.due": "toss!",
-  "run.mark.ready": "pack!",
-  "run.mark.late": "burning",
-  "run.mark.charred": "charcoal",
-  "run.mark.back": "back here",
   "run.obj.dish": "Finish this dish",
   "run.cook.charred": "Charcoal… bag it anyway, it still counts",
   "run.toast.charred": "Charcoal — this one was for nothing",
   "run.dish.charred": "A bag of charcoal — it counts as an order, nothing more",
-  "radio.teach.fry":
-    "It fries by itself now; you can walk away. Be back in time to toss it again — late, and it burns.",
-  "radio.teach.due": "Time. Back to the stove, take the wok up and toss it.",
   "run.toast.scorched": "Burnt — this one's marked down",
   "run.dish.scorched": "Burnt along the way — marked down",
   "run.mark.wok": "WOK",
   "run.bags": "Orders {n}/{of}",
-  "radio.ready":
-    "It's done. Back to the stove and pack it — it burns if it sits.",
   "radio.lastDish":
     "That's all three. The big one has caught the smell and is on its way. Get ready.",
   "run.dish.soup": "Order up — slow broth — full health, max +{n}",
@@ -496,7 +485,7 @@ export default {
   "radio.intro@docks":
     "Warden, this is Lantern Control. The docks are lost. Your boat will not put in at the south-east quay until you have three takeaway orders. There are three stoves in the yard: each cooks one dish, to be packed when it is done. Count your rounds; lit supply crates are stocked, and the colour of the lamp is the kind of ammunition.",
   "radio.cut1@docks":
-    "The stove is lit. Toss the wok, then set it back on the stove.",
+    "The stove is lit. The whole yard can smell it — here they come.",
   "radio.cut2@docks":
     "Second stove. They're pouring out from behind every stack.",
   "radio.all@docks":

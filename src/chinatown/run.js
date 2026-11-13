@@ -627,9 +627,6 @@ export function createRun(G, hooks) {
       hooks.refreshObjective();
     }
     c.can = can && (c.phase === "due" || c.phase === "ready");
-    // the first dish of a run is talked through, a step at a time; after it the radio only
-    // says what has happened
-    const first = c.n === 0;
     for (const ev of dishStep(c, dt, { home })) {
       if (ev === "flip") flare();
       else if (ev === "down") {
@@ -637,7 +634,6 @@ export function createRun(G, hooks) {
         setStove(c.o, "cook");
         play("wok_down", { gain: 1 });
         S.spawnT = 0;
-        if (first && c.k === 0) hooks.radio(L10N.t("radio.teach.fry"), 4.2);
       } else if (ev === "packs") {
         for (let i = 0; i < K.packs[c.k]; i++) spawnPack();
       } else if (ev === "elite") {
@@ -646,11 +642,9 @@ export function createRun(G, hooks) {
       } else if (ev === "due") {
         setStove(c.o, "due");
         play("run_bell", { gain: 0.8, pitch: 1.2 });
-        if (first && c.k === 1) hooks.radio(L10N.t("radio.teach.due"), 3.4);
       } else if (ev === "ready") {
         setStove(c.o, "ready");
         play("run_bell", { gain: 1 });
-        hooks.radio(L10N.t("radio.ready"), 3.4);
       } else if (ev === "scorched") {
         hud.toast(L10N.t("run.toast.scorched"), "warn");
         play("run_bell", { gain: 0.7, pitch: 0.55 });
@@ -695,8 +689,8 @@ export function createRun(G, hooks) {
       tmp.set(c.pos.x, (c.pos.y || 0) + 1.1, c.pos.z);
       wokHands.smoke(tmp, dt, c.charred);
     }
-    // the line under the course name: what to do now, and the mark on the stove that says
-    // the same from across the street
+    // the line under the course name: what to do now. It is the only place that says it:
+    // the radio does not repeat it, and the mark on the stove only shows the way back
     const waits = c.phase === "due" || c.phase === "ready";
     const last = K.fry.length - 1;
     let key = c.phase;
@@ -718,10 +712,8 @@ export function createRun(G, hooks) {
     }
     s = Math.max(0, Math.ceil(s));
     hud.setCook({ key, s, urgent });
-    // (the mark is redrawn when what it says changes: once a second while it counts)
-    const markText = mark
-      ? L10N.t("run.mark.wok") + " " + L10N.t("run.mark." + mark, { s })
-      : "";
+    // (the mark only says where the stove is: what to do is said once, in the line)
+    const markText = mark ? L10N.t("run.mark.wok") : "";
     if (markText !== c.mark) {
       c.mark = markText;
       hooks.refreshMarkers();
