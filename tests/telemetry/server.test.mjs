@@ -36,6 +36,36 @@ const fixture = () => ({
   weaponUse: {},
   choices: [],
 });
+const device = {
+  os: "android",
+  osVersion: "14",
+  kind: "Android",
+  model: "Pixel 8",
+  browser: "chrome",
+  browserVersion: "140",
+  gpu: "Mali-G715",
+  cores: 9,
+  memory: 8,
+  screen: "412x915",
+  dpr: 2.63,
+};
+const perf = {
+  frames: 3600,
+  seconds: 72,
+  fps: 50,
+  p50: 18.5,
+  p95: 30.5,
+  p99: 48.5,
+  slow: 40,
+  hitches: 2,
+  worst: 180,
+  scale: 0.85,
+  minScale: 0.7,
+  qualityStart: "low",
+  autoDrops: 0,
+  res: "1080x2400",
+  minutes: [{ fps: 50, slow: 1.1, zombies: 12.5 }],
+};
 const response = () => ({
   code: 200,
   headers: {},
@@ -53,6 +83,16 @@ const response = () => ({
 });
 test("reject arbitrary fields, invalid counts, stale records and unbounded arrays", () => {
   assert.equal(parseSnapshot(fixture()).schema, 1);
+  assert.equal(parseSnapshot({ ...fixture(), device, perf }).perf.fps, 50);
+  for (const bad of [
+    { device: { ...device, userAgent: "Mozilla/5.0" } },
+    { device: { ...device, gpu: "x".repeat(81) } },
+    { perf: { ...perf, minutes: Array(61).fill(perf.minutes[0]) } },
+  ]) {
+    const p = parseSnapshot({ ...fixture(), device, perf, ...bad });
+    assert.equal(p.kills, 0);
+    assert.equal(bad.device ? p.device : p.perf, undefined);
+  }
   for (const extra of [
     { email: "no" },
     { kills: -1 },
@@ -125,7 +165,14 @@ test(
             origin: "https://wok-ing-dead.vercel.app",
             "content-type": "application/json",
           },
-          body: { ...p, test: false, outcome: "complete", duration: 600 },
+          body: {
+            ...p,
+            test: false,
+            outcome: "complete",
+            duration: 600,
+            device,
+            perf,
+          },
           socket: { remoteAddress: "local-test" },
         },
         res,
@@ -153,6 +200,10 @@ test(
       assert.equal(report.data.groups[0].runs, 1);
       assert.equal(report.data.groups[0].clears, 1);
       assert.equal(report.data.weapons[0].weapon, "pistol");
+      assert.equal(report.data.devices.length, 1);
+      assert.equal(report.data.devices[0].model, "Pixel 8");
+      assert.equal(Number(report.data.devices[0].fps), 50);
+      assert.equal(report.data.fpsByZombies[0].zombies, 10);
     } finally {
       await sql`DELETE FROM play_runs WHERE payload->>'release'=${p.release}`;
       if (oldToken === undefined) delete process.env.TELEMETRY_ADMIN_TOKEN;

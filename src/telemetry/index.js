@@ -1,4 +1,6 @@
 import { createTransport } from "./transport.js";
+import { readDevice } from "./device.js";
+import { createFrameStats } from "./perf.js";
 
 import { AMMO_TYPES } from "../chinatown/loadout.js";
 
@@ -48,6 +50,15 @@ export function createTelemetry(G) {
   let run = null;
   let lastTick = performance.now();
   let state = G.game.state;
+  let device = {};
+  try {
+    device = readDevice(G);
+  } catch {}
+  let frames = null;
+  let qualityStart = "unknown";
+  let autoDrops = 0;
+  const inPlay = () =>
+    run && state === "playing" && !document.hidden && !G.run?.picking;
   const current = () =>
     (G.game.run.mode === "mission" ? G.run?.loadout?.cur : null) ||
     G.weapon?.current ||
@@ -58,10 +69,36 @@ export function createTelemetry(G) {
     const now = performance.now();
     const dt = Math.min(2, Math.max(0, (now - lastTick) / 1000));
     lastTick = now;
-    if (run && state === "playing" && !document.hidden && !G.run?.picking) {
+    if (inPlay()) {
       run.activeSeconds += dt;
       use().seconds += dt;
+      let scale;
+      let zombies;
+      try {
+        scale = G.render?.stats?.().scale;
+        zombies = G.enemies?.aliveCount?.();
+      } catch {}
+      frames?.sample(dt, scale, zombies);
     }
+  };
+  // Frame pacing seen by the page: the gap between animation frames while in play.
+  let lastFrame = 0;
+  const onFrame = (t) => {
+    if (frames && inPlay()) {
+      if (lastFrame) frames.frame(t - lastFrame);
+      lastFrame = t;
+    } else lastFrame = 0;
+    requestAnimationFrame(onFrame);
+  };
+  if (typeof requestAnimationFrame === "function")
+    requestAnimationFrame(onFrame);
+  const perf = () => {
+    let res = "";
+    try {
+      const r = G.render?.stats?.().res;
+      if (r) res = `${Math.round(r[0])}x${Math.round(r[1])}`;
+    } catch {}
+    return { ...frames.summary(), qualityStart, autoDrops, res };
   };
   function capture(outcome = "active") {
     if (!run) return null;
@@ -112,6 +149,8 @@ export function createTelemetry(G) {
         ]),
       ),
       choices: run.choices.map((c) => ({ ...c })),
+      device: { ...device },
+      perf: perf(),
     };
     transport.put(snapshot);
     return snapshot;
@@ -147,6 +186,10 @@ export function createTelemetry(G) {
         ammoReceived: {},
         choices: [],
       };
+      frames = createFrameStats();
+      qualityStart = G.quality?.name || "unknown";
+      autoDrops = 0;
+      lastFrame = 0;
       lastTick = performance.now();
       flush();
     },
@@ -163,6 +206,9 @@ export function createTelemetry(G) {
     if (state === "dead") api.finish("dead");
     else if (state === "complete") api.finish("complete");
     else if (state === "title") api.finish("quit");
+  });
+  G.events.on("quality:auto", () => {
+    if (run) autoDrops++;
   });
   G.events.on("game:difficulty", (e) => {
     if (run && e.difficulty !== run.difficulty) run.difficultyChanged = true;

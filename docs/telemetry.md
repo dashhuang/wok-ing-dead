@@ -6,7 +6,7 @@
 ## 记录内容与口径
 
 每局独立 UUID；同一浏览器用本地随机 UUID 关联重试。清理浏览器数据后会成为新玩家。
-不记录姓名、邮箱、完整 User-Agent、网址、键盘原始输入或 IP。
+不记录姓名、邮箱、完整 User-Agent、网址、键盘原始输入或 IP。设备只记粗粒度信息（见下文「设备与帧数」）。
 接收端用每日变化的 IP HMAC 做每分钟限流，限流桶保留一天，不写进游玩记录。
 
 开局、死亡、通关、主动重开立即保存累计快照，其余每 30 秒保存一次。
@@ -28,6 +28,31 @@
 `ammoReceived` 统计实际装进弹药池的拾取量；开局配给、调料提升上限、卡片直接补满不算拾取。
 `killsWhileHeld` 不是归因伤害：换枪后的燃烧、延迟爆炸等也会贡献击杀；不要用它宣称某枪的精确伤害或命中率。
 第一版不采集完整战斗逐帧日志或位置热图。
+
+### 设备与帧数（`device`、`perf`）
+
+`device` 在浏览器里解析好再上传，不传原始 User-Agent（`src/telemetry/device.js`）：
+
+- 系统与版本、设备类别（iPhone / iPad / Android / Windows / Mac…）、浏览器与主版本号（微信、QQ、UC、夸克等内置浏览器单独识别）。
+- 型号：只有安卓上的 Chromium 系浏览器通过 UA Client Hints 给出（如 `Pixel 8`、`SM-S918B`），部分安卓浏览器的 UA 里也带。
+  **iPhone / iPad 拿不到型号**，用屏幕尺寸（CSS 像素）和像素比代替，例如 `393x852@3` 对应 iPhone 14 Pro / 15 / 16 一档。
+  桌面浏览器一般也没有型号，看 GPU。
+- GPU 名称（WebGL 的 renderer，去掉驱动版本和设备 ID，如 `NVIDIA GeForce RTX 3060`、`Apple M2 Pro`、`Adreno (TM) 740`）。
+  iOS Safari 只给 `Apple GPU`；Firefox 会给笼统的名称。
+- CPU 线程数、内存（只有 Chromium 给，最多报 8 GB）、屏幕尺寸、像素比。
+
+`perf` 是本局的帧时间统计（`src/telemetry/perf.js`），只在真正游玩时计：前台、未暂停、不在选小票。
+测的是相邻两帧动画回调的间隔，也就是玩家看到的帧率，和 `__stats().fps` 同一口径。
+
+- `frames`、`seconds`、`fps`（总帧数 ÷ 总时间）；`p50`/`p95`/`p99` 帧时间（毫秒，1 毫秒精度）。
+- `slow`：≥ 34 ms 的帧（低于 30 帧或 60 Hz 下掉帧）；`hitches`：≥ 100 ms 的卡顿；`worst`：最长一帧。
+  超过 1 秒的间隔当作挂起或切后台，不计入。
+- `scale` / `minScale`：动态分辨率的时间加权平均和最低值（1 = 满分辨率，最低 0.6）；`res`：最后的渲染分辨率。
+- `qualityStart`：开局画质；顶层 `quality` 是最后的画质；`autoDrops`：本局因为帧率太低自动降档的次数。
+- `minutes`：每分钟游玩一条，记平均帧率、慢帧比例、平均存活僵尸数，最多 60 条。
+
+显示器刷新率读不到：120 Hz 屏的手机在 Safari 上通常也锁 60 帧。`fps` 接近 60 或 120 都算跑满，判断卡不卡主要看 `slow` 和 `p95`。
+这两个字段是后加的，旧版本客户端的快照没有，汇总时自动跳过。
 
 靶场、调试参数、自动化浏览器、本地版本及非生产环境带 `test=true`，默认汇总排除。
 开发模式和单文件离线版不上传。生产构建可设置 `VITE_TELEMETRY_ENABLED=0` 关闭。
@@ -72,6 +97,13 @@ Neon 免费套餐有存储额度：快照多于最终记录，应观察使用量
 返回版本 × 关卡 × 模式 × 难度的玩家数、局数、通关/死亡/中断数量、通关率、平均死亡时间，
 以及携带武器的局数、等级、结局和死亡分钟分布。
 
+帧数相关的两张表：
+
+- `devices`：版本 × 设备类别 × 型号（iOS 为屏幕尺寸）× GPU × 浏览器 × 最终画质。
+  `fps` 按帧加权（玩得久的局影响大），`median_run_fps`、`median_p95_ms` 是各局的中位数；
+  另有慢帧比例、每分钟卡顿次数、平均动态分辨率、自动降档的局数。按局数排序，最多 300 行。
+- `fpsByZombies`：把每分钟的记录按存活僵尸数（每 10 只一档，60 以上合并）分组，看同屏僵尸多少对帧率的影响。
+
 通关率分母只含 `dead + complete`，同时列出未完成局，避免把中断算成失败或隐藏流失。
 武器表按“带过最终快照里的这把武器”的局数统计，不能排除玩家水平、解锁进度与存活者偏差。
 选用率可以用 `payload->'choices'` 分析候选/选择；调料和武器分支也保存在 payload 中。
@@ -85,6 +117,17 @@ FROM play_run_results,
      LATERAL jsonb_array_elements(payload->'choices') choice
 WHERE NOT (payload->>'test')::boolean
 GROUP BY 1, 2, 3;
+```
+
+最卡的设备（至少 3 局）：
+
+```sql
+SELECT payload->'device'->>'kind' AS kind, payload->'device'->>'model' AS model,
+       payload->'device'->>'gpu' AS gpu, count(*) AS runs,
+       round(percentile_cont(0.5) WITHIN GROUP (ORDER BY (payload->'perf'->>'fps')::numeric)::numeric, 1) AS fps
+FROM play_run_results
+WHERE NOT (payload->>'test')::boolean AND (payload->'perf'->>'frames')::int > 0
+GROUP BY 1, 2, 3 HAVING count(*) >= 3 ORDER BY fps LIMIT 20;
 ```
 
 ## 验证
