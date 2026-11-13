@@ -23,7 +23,7 @@ const store = (v) => {
 export function presetToBoot(settings, save, handheld) {
   const q = settings.quality;
   if (!q || q === "auto") return "";
-  if (!handheld || q === "low") return q;
+  if (!handheld || q === "low" || q === "fast") return q;
   let died = false;
   try {
     died = !!localStorage.getItem(KEY);

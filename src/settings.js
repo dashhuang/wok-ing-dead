@@ -21,7 +21,7 @@ export function createSettingsStore(defaultFov) {
     // their own, opened by clearing this one; until then they are shown locked, and a save
     // that had one selected falls back to mild.
     openDifficulties = ["standard"],
-    qualityOptions = ["low", "medium", "high", "ultra"];
+    qualityOptions = ["fast", "low", "medium", "high", "ultra"];
   function load() {
     const settings = { ...defaults };
     try {

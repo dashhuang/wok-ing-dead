@@ -35010,6 +35010,26 @@ void main() {
         motionBlur: !1,
         rain: 0.4,
       },
+      // "Smooth" (settings key fast): the phone preset with the costliest effects traded for
+      // frame rate, for players who choose it (docs/decisions.md). It is the low preset in
+      // everything else, and so keeps low's name: every "low" path applies to it too.
+      fast: {
+        name: "low",
+        key: "fast",
+        scale: 0.55,
+        msaa: 0,
+        shadow: 1024,
+        tex: 512,
+        volSteps: 0,
+        liteFog: !0,
+        ao: !1,
+        planar: 0,
+        bloom: !0,
+        bloomLevels: 3,
+        streak: !1,
+        motionBlur: !1,
+        rain: 0.4,
+      },
       medium: {
         name: "medium",
         scale: 0.85,
@@ -36089,6 +36109,7 @@ void main(){
     $9 = `${ao}
 uniform sampler2D tColor, tDepth, tDepthHalf, tAO, tVol;
 uniform vec2 uHalfRes; uniform float uNear, uFar, uAoOn, uVolOn, uAoStrength;
+uniform float uLiteFog, uFogK; uniform vec3 uFogCol;
 ${sv}
 void main(){
   vec3 col = max(texture2D(tColor, vUv).rgb, vec3(0.0));
@@ -36099,6 +36120,7 @@ void main(){
     vec2 hp = vUv * uHalfRes - 0.5; vec2 f = fract(hp); vec2 base = (floor(hp) + 0.5) / uHalfRes; vec2 tx = 1.0 / uHalfRes;
     float ao = 0.0; vec4 vol = vec4(0.0); float ws = 0.0;
     float zc = min(z, 300.0);
+    if (uAoOn > 0.5 || uVolOn > 0.5) {
     for (int k = 0; k < 4; k++) {
       vec2 o = vec2(float(k & 1), float(k >> 1));
       vec2 uv = base + o * tx;
@@ -36109,6 +36131,7 @@ void main(){
       ao += texture2D(tAO, uv).r * w; vol += texture2D(tVol, uv) * w; ws += w;
     }
     ao /= ws; vol /= ws;
+    }
     if (uAoOn > 0.5 && d < 0.99999) {
       // occlusion belongs to ambient light: fade it out on brightly lit pixels so sunlit surfaces never get dirty halos
       float lit = smoothstep(0.16, 0.85, luma(col) * slExposure());
@@ -36116,6 +36139,8 @@ void main(){
       col *= mix(vec3(a), vec3(1.0), vec3(0.0, 0.03, 0.07));      // faintly cool occlusion
     }
     if (uVolOn > 0.5) col = col * vol.a + vol.rgb;
+    // the smooth preset: no ray-marched air, just the same thickness of it by distance
+    else if (uLiteFog > 0.5) { float t = exp(-uFogK * z); col = col * t + uFogCol * (1.0 - t); }
   }
   gl_FragColor = vec4(col, 1.0);
 }`,
@@ -36576,6 +36601,9 @@ ${ge}`,
         uFar: { value: 900 },
         uAoOn: { value: 1 },
         uVolOn: { value: 1 },
+        uLiteFog: { value: 0 },
+        uFogK: { value: 0 },
+        uFogCol: { value: new K() },
         uAoStrength: { value: x.aoStrength },
         ...T,
       }),
@@ -36818,7 +36846,20 @@ ${ge}`,
           (Oe.uFar.value = ge.far),
           (Oe.uAoOn.value = ze ? 1 : 0),
           (Oe.uVolOn.value = Ge ? 1 : 0),
-          l(U, y.scene));
+          (Oe.uLiteFog.value = !Ge && he.liteFog ? 1 : 0));
+        if (!Ge && he.liteFog) {
+          // the air the volumetric pass would have added near the ground: ambient fog colour
+          // with a share of the sun, thickness volSigma at eye height (shape(1.7 m) ~ 0.8)
+          let Ke = ce.intensity * x.volSunScale * 0.25,
+            Bt = x.volAmbient * (1 + Y * 1.5);
+          ((Oe.uFogK.value = x.volSigma * 0.8),
+            Oe.uFogCol.value.set(
+              T0.fog.r * Bt + ce.color.r * Ke,
+              T0.fog.g * Bt + ce.color.g * Ke,
+              T0.fog.b * Bt + ce.color.b * Ke,
+            ));
+        }
+        l(U, y.scene);
       }
       let _e = y.scene.texture;
       if (
@@ -36834,11 +36875,14 @@ ${ge}`,
           l(k, y.motion),
           (_e = y.motion.texture));
       }
+      // (the smooth preset stops the pyramid early and leaves out the horizontal streak)
+      let bl = Math.max(3, Math.min(b, he.bloomLevels || b)),
+        streakOn = he.streak !== !1;
       if ((J.copy(W), (ee = !0), he.bloom)) {
         let Oe = _e,
           mt = _.w,
           $e = _.h;
-        for (let Gt = 0; Gt < b; Gt++)
+        for (let Gt = 0; Gt < bl; Gt++)
           ((C.uniforms.tSrc.value = Oe),
             C.uniforms.uTexel.value.set(1 / mt, 1 / $e),
             (C.uniforms.uFirst.value = Gt === 0 ? 1 : 0),
@@ -36846,15 +36890,16 @@ ${ge}`,
             (Oe = y.down[Gt].texture),
             (mt = y.down[Gt].width),
             ($e = y.down[Gt].height));
-        let Ke = y.down[b - 1];
-        for (let Gt = b - 2; Gt >= 0; Gt--)
+        let Ke = y.down[bl - 1];
+        for (let Gt = bl - 2; Gt >= 0; Gt--)
           ((A.uniforms.tLow.value = Ke.texture),
             (A.uniforms.tHigh.value = y.down[Gt].texture),
             A.uniforms.uTexel.value.set(1 / Ke.width, 1 / Ke.height),
             l(A, y.up[Gt]),
             (Ke = y.up[Gt]));
         let Bt = 1 / y.streakA.width;
-        ((F.uniforms.tSrc.value = y.down[2].texture),
+        streakOn &&
+          ((F.uniforms.tSrc.value = y.down[2].texture),
           F.uniforms.uDir.value.set(Bt * 1.5, 0),
           (F.uniforms.uThreshold.value = x.streakThreshold),
           l(F, y.streakA),
@@ -36879,7 +36924,7 @@ ${ge}`,
           mt = y.adapt[g],
           $e = y.adapt[1 - g];
         ((Oe.tPrev.value = mt.texture),
-          (Oe.tLum.value = he.bloom ? y.down[b - 1].texture : _e),
+          (Oe.tLum.value = he.bloom ? y.down[bl - 1].texture : _e),
           (Oe.tDepth.value = Re),
           Oe.uSunUv.value.set(Ze, qe),
           (Oe.uSunOn.value = je),
@@ -36905,7 +36950,7 @@ ${ge}`,
           (Oe.uTime.value = X),
           (Oe.uBloom.value = he.bloom ? x.bloom : 0),
           (Oe.uDirt.value = he.bloom ? x.dirt : 0),
-          (Oe.uStreak.value = he.bloom ? x.streak : 0),
+          (Oe.uStreak.value = he.bloom && streakOn ? x.streak : 0),
           (Oe.uFlare.value = x.flare),
           (Oe.uAgxMix.value = x.agxMix),
           (Oe.uCA.value = x.ca),
@@ -76639,7 +76684,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
             i.quality !== "auto" &&
             !n.params.shot &&
             !n.params.q &&
-            i.quality !== (n.quality && n.quality.name)))
+            i.quality !== (n.quality && (n.quality.key || n.quality.name))))
       ) {
         let J = jr[i.quality];
         if (J)
@@ -76653,7 +76698,10 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       }
     }
     function x() {
-      let W = i.quality === "auto" ? n.quality && n.quality.name : i.quality;
+      let W =
+        i.quality === "auto"
+          ? n.quality && (n.quality.key || n.quality.name)
+          : i.quality;
       for (let G of r(".seg button[data-q]"))
         G.setAttribute("aria-pressed", String(G.dataset.q === W));
       for (let G of r(".seg button[data-d]"))

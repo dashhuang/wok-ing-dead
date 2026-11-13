@@ -48,6 +48,7 @@ export default {
   "view.1": "近め",
   "view.2": "標準",
   "view.3": "コンパクト",
+  "quality.fast": "軽快",
   "quality.low": "低",
   "quality.medium": "中",
   "quality.high": "高",

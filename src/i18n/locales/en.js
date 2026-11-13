@@ -52,6 +52,7 @@ export default {
   "view.1": "Close",
   "view.2": "Three-quarter",
   "view.3": "Compact",
+  "quality.fast": "Smooth",
   "quality.low": "Low",
   "quality.medium": "Medium",
   "quality.high": "High",
