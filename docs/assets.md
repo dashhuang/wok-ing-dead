@@ -14,7 +14,7 @@
 | 界面字体（子集） | `public/assets/fonts/ui/` | Inter、Noto Serif Display、Noto Sans / Serif SC·TC·JP（Google Fonts 仓库） | SIL OFL 1.1 |
 | 场景贴图用的拉丁字体 | `public/assets/fonts/world/` | Big Shoulders Display、Barlow Condensed、IBM Plex Mono（Google Fonts，拉丁子集） | SIL OFL 1.1 |
 | 僵尸嗓音（24 段） | `public/assets/audio/zombie/` | OpenGameArt | CC0，详见 [assets-audio.md](assets-audio.md) |
-| 《尸潮开镬》尸潮摇滚配乐 | `public/assets/audio/music/horde-rock-v1.mp3` | XD Mivo / Suno 生成 | 非 CC0，仅本地候选，商用授权待核实 |
+| 《尸潮开镬》尸潮摇滚配乐 | `public/assets/audio/music/horde-rock-v1.mp3` | XD Mivo / Suno 生成 | 非 CC0，已选定曲目，商用授权待核实 |
 | 《雨夜开镬》第一版配乐 | `public/assets/audio/music/rainy-wok-v1.mp3` | XD Mivo / Suno V5 生成 | 非 CC0；Dash 允许本地接入例外，商用授权待核实，见下文 |
 
 招牌、霓虹灯、亮窗、海报、血迹、牌楼彩画等图案不是下载的图片，而是加载时用 Canvas 现画的（`src/chinatown/signs.js`）；
@@ -41,8 +41,8 @@
   SHA-256：`a9fde74429a481dcda1d49b946271f8a8efa003742bd01b159e685e12d41ec8e`。
 - 描述要求：132 BPM、电子 breakbeat 融合硬摇滚，强真鼓、失真电吉他切分 riff、低音吉他与密集十六分音符，
   暗色小调五声音阶，少量中式锣与木鱼，起头即高强度、无长铺垫，无人声。不模仿特定歌曲或艺术家。
-  实际生成内容、与日常曲的强度差和衔接尚未试听确认，不保证严格对拍。
-- 服务返回两版，本地暂接第一版，第二版只交付媒体库。不是 CC0，商用授权同上待核实；没有发布许可凭据，不推送 / 发布。
+  Dash 已试听选定第一版；游戏中与日常曲的衔接和混音仍待试玩，不保证严格对拍。
+- 服务返回两版，Dash 确认第一版，本地已接入；第二版只交付媒体库。不是 CC0，商用授权同上待核实；没有发布许可凭据，不推送 / 发布。
 - 之前试做的安静曲《镬影雨巷》已被否决并移出游戏资源，不再随构建发布。
 
 ## Poly Haven 贴图与模型（CC0）
