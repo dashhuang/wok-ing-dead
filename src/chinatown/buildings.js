@@ -1145,15 +1145,18 @@ export function createBuilder(kit, signs, ctx) {
           cast: false,
         });
       }
-      fbox(f, M.steel, dc - 0.56, 0, -0.22, dc - 0.5, 2.2, 0.02, {
+      // The steel reveal wraps 1 cm inside the masonry opening. Coincident
+      // jamb/header faces otherwise fight with the wall at oblique angles.
+      // Stop the jambs below the header so their front faces do not overlap.
+      fbox(f, M.steel, dc - 0.56, 0, -0.22, dc - 0.49, 2.14, 0.02, {
         cast: false,
         skip: "bi",
       });
-      fbox(f, M.steel, dc + 0.5, 0, -0.22, dc + 0.56, 2.2, 0.02, {
+      fbox(f, M.steel, dc + 0.49, 0, -0.22, dc + 0.56, 2.14, 0.02, {
         cast: false,
         skip: "bi",
       });
-      fbox(f, M.steel, dc - 0.56, 2.15, -0.22, dc + 0.56, 2.21, 0.02, {
+      fbox(f, M.steel, dc - 0.56, 2.14, -0.22, dc + 0.56, 2.21, 0.02, {
         cast: false,
         skip: "i",
       });
