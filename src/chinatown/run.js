@@ -1049,13 +1049,7 @@ export function createRun(G, hooks) {
         const got = loadout.add(p.kind, p.amount);
         pickups.removePack(p);
         if (got > 0) {
-          hud.toast(
-            L10N.t("run.toast.ammo", {
-              n: Math.round(got),
-              a: L10N.t("run.ammo." + p.kind),
-            }),
-            "a-" + p.kind,
-          );
+          hud.ammoToast(p.kind, got);
           play("run_ammo", { gain: 0.9 });
         }
       } else if (d < reach + A.pull) {
@@ -1132,13 +1126,7 @@ export function createRun(G, hooks) {
         c.timer = A.cacheEvery;
         if (lamp) lamp.stocked = false;
         lamps = true;
-        hud.toast(
-          L10N.t("run.toast.cache", {
-            n: Math.round(got),
-            a: L10N.t("run.ammo." + c.kind),
-          }),
-          "a-" + c.kind,
-        );
+        hud.ammoToast(c.kind, got, "cache");
         play("run_ammo", { gain: 1, pitch: 0.86 });
         play("gear_rustle", { gain: 0.9 });
       }
@@ -1152,10 +1140,7 @@ export function createRun(G, hooks) {
     if (!type || S.lowHintT > 0) return;
     if (loadout.have(type) < loadout.cap(type) * 0.12) {
       S.lowHintT = 25;
-      hud.toast(
-        L10N.t("run.toast.low", { a: L10N.t("run.ammo." + type) }),
-        "warn",
-      );
+      hud.ammoToast(type, loadout.have(type), "low");
     }
   }
 
@@ -1567,7 +1552,8 @@ export function createRun(G, hooks) {
         if (c.known && c.near)
           out.push({
             id: "cache" + i,
-            short: L10N.t("run.ammo." + c.kind + ".s"),
+            short: L10N.t("run.ammo." + c.kind),
+            icon: "ammo-" + c.kind,
             pos: c.site.pos,
             kind: "cache a-" + c.kind + (c.stocked ? "" : " empty"),
           });

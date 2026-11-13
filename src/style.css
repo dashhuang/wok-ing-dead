@@ -117,6 +117,37 @@ kbd {
   background: rgba(7, 8, 10, 0.4);
 }
 
+/* One set of ink-line symbols at every size; the parent owns its accessible name. */
+.ui-icon {
+  display: inline-block;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+  pointer-events: none;
+}
+.h-cm .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+.h-wm .ui-icon {
+  width: 22px;
+  height: 22px;
+}
+.rl-ammo-kind {
+  display: none;
+  align-self: center;
+  color: var(--ammo, var(--paper));
+}
+.in-run .rl-ammo-kind {
+  display: inline-flex;
+}
+.rl-ammo-kind .ui-icon {
+  width: 28px;
+  height: 28px;
+  filter: drop-shadow(1px 2px 0 var(--ink));
+}
+
 /* =====================================================================  boot  */
 #boot {
   position: absolute;
@@ -1353,11 +1384,18 @@ kbd {
 }
 .rl-pool {
   position: relative;
-  min-width: 34px;
-  padding-bottom: 5px;
+  min-width: 40px;
+  padding: 5px 5px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 3px 7px 3px 3px;
+  background: var(--glass-solid);
+  box-shadow: 2px 2px 0 var(--ink);
   text-align: center;
-  font: 600 10px/1 var(--f-ui);
+  font: 700 12px/1 var(--f-ui);
   color: var(--paper-mute);
+}
+.rl-pool.cur {
+  border-color: var(--ammo);
 }
 .rl-pool b {
   display: block;
@@ -1398,7 +1436,7 @@ kbd {
 .rl-toasts {
   position: absolute;
   right: var(--gr);
-  bottom: calc(252px + var(--sab));
+  bottom: calc(276px + var(--sab));
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -1431,6 +1469,23 @@ kbd {
     opacity: 0;
     transform: translateY(6px);
   }
+}
+
+/* Ammunition pickups use the same silhouette as the pool and the supply marker. */
+.rl-toast.ammo-toast {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 9px;
+  border: 2px solid var(--ink);
+  border-radius: 3px 7px 3px 3px;
+  background: var(--glass-solid);
+  box-shadow: 3px 3px 0 var(--ink);
+  font: 700 16px/1 var(--f-ui);
+  font-variant-numeric: tabular-nums;
+}
+.rl-toast.ammo-toast.warn {
+  color: var(--cinnabar-hot);
 }
 
 /* order tickets: three receipts in the middle of the screen, clicked (the mouse is let go)
@@ -1635,10 +1690,8 @@ kbd {
   opacity: 0;
   transition: opacity 0.25s;
 }
-/* the radio subtitle and the toasts would sit on top of the tickets and the wheel */
-.rl:has(.rl-cards.on) ~ .comms,
+/* Toasts yield to tickets and the wheel; comms.js also holds the radio's clock. */
 .rl:has(.rl-cards.on) .rl-toasts,
-.rl.wheel ~ .comms,
 .rl.wheel .rl-toasts {
   opacity: 0;
 }
@@ -1719,9 +1772,16 @@ kbd {
   color: var(--brass);
 }
 .rl-wheel-w em {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-style: normal;
   font-size: 11px;
   color: var(--ammo, var(--paper-dim));
+}
+.rl-wheel-w em .ui-icon {
+  width: 18px;
+  height: 18px;
 }
 .rl-wheel-w.cur {
   color: var(--paper);
@@ -1758,8 +1818,14 @@ kbd {
   color: var(--paper);
 }
 .rl-wheel-mid span {
-  font: 600 12px/1.2 var(--f-ui);
-  color: var(--paper-dim);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 700 16px/1.2 var(--f-ui);
+  color: var(--ammo, var(--paper-dim));
+}
+.rl-wheel-mid em {
+  font-style: normal;
 }
 .rl-wheel.none .rl-wheel-mid {
   opacity: 0.55;
@@ -1825,6 +1891,9 @@ kbd {
   display: none;
 }
 .rl-wg-n {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   min-width: 18px;
   margin-right: 4px;
   font: 700 11px/1 var(--f-num, var(--f-ui));
@@ -1832,6 +1901,10 @@ kbd {
   text-align: right;
   color: var(--ammo, var(--paper-dim));
   text-shadow: var(--shadow);
+}
+.rl-wg-n .ui-icon {
+  width: 18px;
+  height: 18px;
 }
 .rl-wg-n.dry {
   color: var(--cinnabar-hot);
@@ -1899,47 +1972,96 @@ kbd {
 .comms {
   position: absolute;
   left: 50%;
-  bottom: calc(15% + var(--sab));
+  bottom: calc(max(132px, 18%) + var(--sab));
   transform: translateX(-50%);
-  width: min(640px, calc(100vw - var(--gl) - var(--gr)));
-  text-align: center;
-  opacity: 0;
-  transition: opacity 0.3s;
-  text-shadow: var(--shadow);
+  width: min(620px, calc(100vw - var(--gl) - var(--gr) - 8px));
+  padding: 15px 22px 17px;
+  border: 3px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow:
+    6px 6px 0 var(--ink),
+    0 6px 24px rgba(0, 0, 0, 0.35);
+  text-align: left;
+  text-shadow: none;
+  pointer-events: none;
 }
-.comms.on {
-  opacity: 1;
+.comms[hidden] {
+  display: none;
+}
+/* Print dots live in the margin, never beneath the reading text. */
+.comms::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 9px;
+  width: 65px;
+  height: 20px;
+  background: radial-gradient(var(--ink) 0.8px, transparent 1px) 0 0 / 4px 4px;
+  opacity: 0.12;
+}
+.comms::after {
+  content: "";
+  position: absolute;
+  left: 34px;
+  bottom: -12px;
+  width: 19px;
+  height: 19px;
+  background: var(--paper);
+  border-right: 3px solid var(--ink);
+  border-bottom: 3px solid var(--ink);
+  transform: skewY(35deg);
+}
+.comms-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 .comms-who {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
-  font: 700 10px/1 var(--f-ui);
-  letter-spacing: var(--trk-l);
+  padding: 5px 9px;
+  background: var(--cinnabar-deep);
+  color: var(--paper);
+  font: 700 11px/1.2 var(--f-ui);
+  letter-spacing: var(--trk-s);
   text-transform: var(--caps);
-  color: var(--jade);
+  transform: rotate(-2deg);
 }
 .comms-who::before {
   content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 0 0 8px currentColor;
-  animation: onair 1.2s ease-in-out infinite;
+  width: 12px;
+  height: 10px;
+  background: repeating-linear-gradient(
+    90deg,
+    currentColor 0 2px,
+    transparent 2px 4px
+  );
+  clip-path: polygon(
+    0 40%,
+    33% 40%,
+    33% 0,
+    66% 0,
+    66% 20%,
+    100% 20%,
+    100% 100%,
+    0 100%
+  );
 }
-@keyframes onair {
-  50% {
-    opacity: 0.35;
-  }
+.comms-page {
+  font: 700 11px/1 var(--f-ui);
+  letter-spacing: 0.12em;
 }
 .comms-t {
   display: block;
-  font: 500 19px/1.45 var(--f-ui);
-  letter-spacing: 0.005em;
-  color: var(--paper);
-  text-wrap: balance;
+  font: 600 20px/1.5 var(--f-ui);
+  letter-spacing: 0.01em;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
 }
 
 /* =====================================================================  touch controls  */
@@ -1986,34 +2108,44 @@ kbd {
 }
 .t-btn {
   position: absolute;
+  display: grid;
+  place-items: center;
   pointer-events: auto;
   touch-action: none;
   margin: 0;
   padding: 0;
   border-radius: 50%;
-  border: 1.5px solid rgba(241, 235, 224, 0.5);
-  background: rgba(7, 8, 10, 0.4);
+  border: 1.5px solid var(--paper-dim);
+  background: rgba(7, 8, 10, 0.5);
   color: var(--paper);
-  font: 700 11px/1.1 var(--f-ui);
-  letter-spacing: 0.04em;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   -webkit-appearance: none;
   appearance: none;
 }
-.t-btn span {
-  pointer-events: none;
+.t-btn .ui-icon {
+  width: 28px;
+  height: 28px;
 }
 .t-btn.active {
-  background: rgba(111, 224, 193, 0.24);
+  background: var(--jade);
+  color: var(--ink);
   border-color: var(--jade);
-  color: var(--jade);
 }
 .t-fire {
   width: 86px;
   height: 86px;
   right: calc(20px + var(--sar));
   bottom: calc(62px + var(--sab));
-  font-size: 14px;
-  border-color: rgba(226, 65, 44, 0.85);
+  border: 2px solid var(--cinnabar);
+}
+.t-fire .ui-icon {
+  width: 36px;
+  height: 36px;
+}
+.t-fire.active {
+  background: var(--cinnabar-deep);
+  border-color: var(--cinnabar);
+  color: var(--paper);
 }
 .t-ads {
   width: 60px;
@@ -2049,15 +2181,18 @@ kbd {
   color: var(--jade);
 }
 .t-interact.on {
-  display: block;
+  display: grid;
 }
 .t-pause {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   right: calc(12px + var(--sar));
   top: calc(12px + var(--sat));
-  border-radius: 3px;
-  letter-spacing: 0.2em;
+  border-radius: 10px;
+}
+.t-pause .ui-icon {
+  width: 24px;
+  height: 24px;
 }
 /* touch layout: keep the thumbs' corners clear */
 .is-touch .h-ammo {
@@ -2084,11 +2219,32 @@ kbd {
   top: calc(154px + var(--sat));
 }
 .is-touch .comms {
-  bottom: auto;
-  top: calc(27% + var(--sat));
-  /* stay clear of the right-thumb buttons */
-  width: min(560px, calc(100vw - 2 * (200px + var(--sar))));
-  min-width: 260px;
+  bottom: calc(max(264px, 29%) + var(--sab));
+  width: min(480px, calc(100vw - var(--gl) - var(--gr) - 8px));
+}
+/* Short portrait screens have no room between the reticle and the thumb controls. */
+@media (orientation: portrait) and (max-height: 700px) {
+  .is-touch .comms {
+    bottom: calc(50% + 24px + var(--sab));
+    padding: 10px 14px 12px;
+  }
+  .is-touch .comms-head {
+    margin-bottom: 6px;
+  }
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  .is-touch .comms {
+    top: calc(58px + var(--sat));
+    bottom: auto;
+    width: min(480px, calc(100vw - 280px - var(--sal) - var(--sar)));
+    padding: 10px 14px 12px;
+  }
+  .is-touch .comms-head {
+    margin-bottom: 6px;
+  }
+  .is-touch .comms-t {
+    font-size: 16px;
+  }
 }
 .is-touch .h-compass {
   width: min(300px, calc(100vw - var(--gl) - var(--gr) - 120px));
@@ -3364,7 +3520,8 @@ kbd {
     left: 22px;
   }
   .comms {
-    bottom: calc(31% + var(--sab));
+    bottom: calc(29% + var(--sab));
+    padding: 12px 16px 14px;
   }
   .comms-t {
     font-size: 16px;
@@ -3567,8 +3724,7 @@ kbd {
     animation: none;
     opacity: 1;
   }
-  .h-cue.urgent,
-  .comms-who::before {
+  .h-cue.urgent {
     animation: none;
   }
 }
