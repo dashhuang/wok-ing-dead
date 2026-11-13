@@ -127,6 +127,11 @@ export async function createArmory(G) {
     get steady() {
       return G.player.crouching ? 0.85 : 1;
     },
+    // how much the effects may spend (arsenal/src/fx/core.js): half as many sparks on the
+    // low preset, which is what a phone runs
+    get detail() {
+      return G.quality && G.quality.name === "low" ? 0.5 : 1;
+    },
     get recoilKeep() {
       return G.input && G.input.touch ? 0.4 : 1;
     },
