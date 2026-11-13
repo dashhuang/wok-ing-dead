@@ -435,24 +435,4 @@ export default {
   "run.spice.rice": "糯米",
   "run.spice.rice.d": "爆頭 {c}% 貼符，三張定身",
   "run.listSep": "、",
-  // ---- branches (stages); "@docks" lines replace the plain ones on the docks
-  "title.stage": "分店",
-  "stage.street": "金龍街",
-  "stage.docks": "鹹水碼頭",
-  "stage.docks.open": "鹹水碼頭分店",
-  "stage.locked": "先在金龍街出完一次套餐，碼頭分店才開張。",
-  "stage.loading": "正在搬灶……",
-  "title.premise@docks":
-    "死人是跟著船上岸的，碼頭已經歸牠們了，接你的船九分鐘後才到。菜單照舊，地方更開闊：牠們老遠就看得見你，會跑的也更多。撐到招牌菜上桌，放倒牠，去東南角泊位上船。",
-  "radio.intro@docks":
-    "守夜人，這裡是燈籠臺。碼頭已經失守，接你的船九分鐘後到東南角泊位。撐到那時候——彈藥省著用，亮燈的補給箱裡有貨，燈是什麼顏色就是哪種彈藥。",
-  "radio.cut1@docks":
-    "灶燒起來了。整個貨場都聞得到——它們來了。守在灶邊，別讓菜涼了。",
-  "radio.cut2@docks": "第二口灶。每排貨櫃後面都在往外湧。",
-  "radio.all@docks": "三座全啞了。船在東南角泊位，引擎沒熄火。快走。",
-  "radio.done@docks": "守夜人已登船。碼頭封鎖完畢。幹得好。",
-  "radio.boss@docks": "船到了，可那個大傢伙也跟來了。放倒牠，才上得了船。",
-  "radio.bossDown@docks": "牠倒了。船在東南角泊位，快走。",
-  "run.obj.survive@docks": "撐到船來",
-  "run.obj.locked@docks": "船還沒到——先撐住",
 };

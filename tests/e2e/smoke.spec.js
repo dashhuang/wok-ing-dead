@@ -3,7 +3,6 @@
 // retry. Shortcuts like ?autostart skip the title page and once hid a fully blocked Deploy
 // button, so this test must keep going through the menus.
 // Each test loads the whole street (about a minute), so checks share a page where they can.
-// The second stage (the docks) is not covered yet: it is not in use.
 import { test, expect } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { parseSnapshot } from "../../server/telemetry/schema.js";
@@ -27,12 +26,12 @@ test.beforeEach(async ({ page }) => {
 const state = (page) => page.evaluate(() => window.__G?.game?.state);
 
 /**
- * Lists the visible menu buttons on screen (and the branch buttons of the title page) and
+ * Lists the visible menu buttons on screen and
  * whether a click at each one's centre would land on it (nothing drawn on top).
  */
 const probeButtons = (page) =>
   page.evaluate(() =>
-    [...document.querySelectorAll("[data-act], .seg button[data-p]")]
+    [...document.querySelectorAll("[data-act]")]
       .filter(
         (b) =>
           b.checkVisibility({
@@ -47,7 +46,7 @@ const probeButtons = (page) =>
         const inView = x >= 0 && y >= 0 && x <= innerWidth && y <= innerHeight;
         const hit = inView && document.elementFromPoint(x, y);
         return {
-          act: b.dataset.act || `branch:${b.dataset.p}`,
+          act: b.dataset.act,
           hit: hit
             ? `${hit.tagName.toLowerCase()}.${hit.className}`
             : "nothing",
@@ -158,8 +157,13 @@ test("a player can start, arm, level up, pause, die and retry with real input", 
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(e.message));
 
-  await page.goto("/?lang=zh-CN&q=low");
+  await page.goto("/?lang=zh-CN&q=low&lvl=harbor");
+  // Old map links also enter the street; there is no branch selector.
+  await expect(page.locator("[data-p]")).toHaveCount(0);
   await waitForTitle(page);
+  expect(await page.evaluate(() => window.__G.level.playerStart.pos.x)).toBe(
+    -33.5,
+  );
   await expectButtonsReachable(page);
 
   // The title page at phone sizes, on the same page load.
@@ -252,6 +256,21 @@ test("a player can start, arm, level up, pause, die and retry with real input", 
     expect(await page.evaluate(() => window.__G.player.ads)).toBe(0);
     await page.mouse.up({ button: "right" });
   }
+
+  // Finishing the street no longer advertises a second map. Replay still uses real input.
+  await page.evaluate(() => {
+    const G = window.__G;
+    G.run.state.extractOpen = true;
+    G.player.pos.copy(G.level.extraction.pos);
+  });
+  await expect.poll(() => state(page)).toBe("complete");
+  await waitForScreen(page, "complete");
+  expect(
+    await page.evaluate(() => window.__G.run.summary().unlocked),
+  ).not.toContain("Saltline Docks branch");
+  await clickAct(page, "redeploy");
+  await expect.poll(() => state(page)).toBe("playing");
+  await chooseFirstWeapon(page, 1);
 
   const runtime = await page.evaluate(() => ({
     fatal: window.__fatal,

@@ -450,29 +450,4 @@ export default {
   "run.spice.rice": "Sticky Rice",
   "run.spice.rice.d": "Head hits seal ({c}%); three seals pin",
   "run.listSep": ", ",
-  // ---- branches (stages); "@docks" lines replace the plain ones on the docks
-  "title.stage": "Branch",
-  "stage.street": "Golden Dragon St.",
-  "stage.docks": "Saltline Docks",
-  "stage.docks.open": "Saltline Docks branch",
-  "stage.locked":
-    "Serve one full set meal on Golden Dragon St. and the docks branch opens.",
-  "stage.loading": "Moving the kitchen…",
-  "title.premise@docks":
-    "The dead came in off the boats and the docks are theirs. Your boat is nine minutes out. Same menu, more open ground: they see you from further and more of them run. Last until the House Special is served, put it down, then get to the mooring at the south-east quay.",
-  "radio.intro@docks":
-    "Warden, this is Lantern Control. The docks are lost. Your boat reaches the south-east quay in nine minutes. Stay alive until then — count your rounds; lit supply crates are stocked, and the colour of the lamp is the kind of ammunition.",
-  "radio.cut1@docks":
-    "The stove is lit. The whole yard can smell it — here they come. Stay by it, don't let the dish go cold.",
-  "radio.cut2@docks":
-    "Second stove. They're pouring out from behind every stack.",
-  "radio.all@docks":
-    "All three silent. The boat is at the south-east quay, engine running. Move.",
-  "radio.done@docks": "Warden is aboard. The docks are sealed. Good work.",
-  "radio.boss@docks":
-    "The boat is here — and so is the big one that followed it. Put it down and the mooring is yours.",
-  "radio.bossDown@docks":
-    "It is down. The boat is at the south-east quay. Move.",
-  "run.obj.survive@docks": "Hold out until the boat arrives",
-  "run.obj.locked@docks": "The boat is not here yet — hold on",
 };
