@@ -64,8 +64,9 @@ export const ZOMBIES = {
   poolLarge: { romero: 13, girl: 12, cop: 12, soldier: 6 },
 };
 
-// Bodies on trial: they are not in the run yet, only on the firing range (/?range=1, "模型"),
-// and nothing of theirs is downloaded until one is asked for.
+// Bodies beyond the usual four. Five of them are cast in the run (runtune.js RUN.bodies); the
+// clown and the pumpkin giant are only on the firing range (/?range=1, "模型"). Nothing of
+// theirs is downloaded until one is needed.
 //   type: the rules it takes when it is brought on as itself (any of them can be given either)
 //   hit: how much wider than the bodies above its hit shapes are (head, body, arm, leg; 1 where
 //        not given), measured on the models

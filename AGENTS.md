@@ -28,6 +28,18 @@ npm run arsenal        # 武器试验场 http://127.0.0.1:5311/（独立于本�
 npm run arsenal:test   # 浏览器里跑试验场的测试（暂停使用：只在用户要求时跑；端口 5312）
 ```
 
+## 项目知识写进仓库
+
+**跟这个游戏有关的信息一律写进本仓库，不写进 AI 助手的个人记忆**（Dash 2026-11-13 的要求）。仓库是唯一的事实来源，换一个会话、
+换一个助手都从这里读：
+
+- [docs/decisions.md](docs/decisions.md)：Dash 拍板的方向与偏好（美术、界面、玩法、武器、流程），带日期和原话。**改相关内容前必读**，想推翻先问。
+- [docs/status.md](docs/status.md)：各功能做到哪一步、哪些没人上手验证、已知瑕疵、等 Dash 决定的事。
+- [docs/pitfalls.md](docs/pitfalls.md)：踩过的坑和解法。
+- 机制和代码怎么接看 [docs/architecture.md](docs/architecture.md)，数值看 [docs/balance.md](docs/balance.md)，素材和许可看 [docs/assets.md](docs/assets.md)。
+
+Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值得记的坑，就在同一次改动里更新对应文档；过时的条目直接改掉或删掉。
+
 ## 代码地图
 
 先读 [docs/architecture.md](docs/architecture.md)（两部分怎么接、初始化顺序、性能约定、原版系统入口表）。
@@ -92,6 +104,9 @@ npm run arsenal:test   # 浏览器里跑试验场的测试（暂停使用：只�
    pre-push 钩子和 CI 都跑 `npm run check`（CI 再跑构建），不过就推不上去；不要用 `--no-verify` 绕过。
    浏览器测试不在 CI 里，本机也暂时不跑（见下文「验证」）。
 4. 合并用 Squash and merge；合并后用 `npx vercel@latest ls wok-ing-dead` 确认生产部署成功。
+   **自己发的 PR，检查没问题就自己合并**，不用再问：条件是 CI 全绿、没有未解决的评审线程、可以干净合并、head 没变。
+   检查失败或有需要 Dash 拍板的产品问题时不要合并；别人发的 PR 仍要 Dash 授权。合并前看有没有别的 PR 叠在它上面（见 docs/pitfalls.md）。
+5. 修瞄准偏移、特效、手感、数值微调这类小问题，**不新增长期保留的自动测试**，也不在文档里登记测试（已有的不删）。
 
 ## 验证（交付前必须做）
 

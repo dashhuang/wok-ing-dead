@@ -122,6 +122,9 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
   `node arsenal/scripts/sounds.mjs [名字的一部分]` 把每个声音量成一行数字（衰减时间、密度、重心、各频段的能量占比）。
   没人能听的时候靠它调：本体步枪的密度（crest）约 3 dB，频段占比约 15/45/33/7/1；
   低于 120 Hz 的占比过高的声音在手机喇叭上等于没有。
+- 看手：Dash 会在展柜里转着看手和手臂。托枪的手要斜托（手指与枪管成 50–55°、拇指顺枪管）；改握法后用 `tools/fit-grip.mjs` 重算、
+  跑 `tools/arms.mjs`，从后方、左侧、上方都看过再交付。本体的检视页：`?show=hands&hview=back|palm|arm|fp`、
+  `?show=weapon&wpose=hip|hands|reload&wt=<秒>&wgun=pistol`。给 Dash 看手时直接附截图，或者附 `npm run arsenal:single` 的单文件展柜（可以发到手机上看）。
 - 逐帧步进（抓枪口焰这类几十毫秒的瞬间）：`__lab.manual = true` 之后用 `__lab.advance(秒)` 推进时间并渲染一帧。
 - 开发服务器关掉了热重载，改完文件刷新页面即可；新增武器文件后需要重启服务器。
 - 特效亮度的经验：加色混合的粒子叠在一起很快就过曝成白色，ACES 色调映射还会把带蓝分量的亮色洗白。火焰的颜色用线性值直接给（见 `effects.js` 的 `PAL`），
