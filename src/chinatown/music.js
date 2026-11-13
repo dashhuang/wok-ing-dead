@@ -202,10 +202,10 @@ export function createMusic({ ctx, out, running, game }) {
       crossfade(target, now);
       const level =
         state === "dead"
-          ? 0.035
+          ? 0.12
           : state === "playing"
-            ? 0.18 + weight * 0.06
-            : 0.08;
+            ? 0.6 + weight * 0.12
+            : 0.3;
       mix.gain.setTargetAtTime(level * (now < duckUntil ? 0.5 : 1), now, 0.4);
     },
     debug() {
@@ -215,6 +215,7 @@ export function createMusic({ ctx, out, running, game }) {
         paused,
         mood,
         pressure,
+        mixGain: mix.gain.value,
         weight,
         transition: transition && { ...transition },
         tracks: Object.fromEntries(
@@ -227,6 +228,7 @@ export function createMusic({ ctx, out, running, game }) {
               position: +position(track, ctx.currentTime).toFixed(2),
               duration: track.buffer?.duration || 0,
               playing: !!track.voice,
+              gain: track.voice?.gain.gain.value || 0,
             },
           ]),
         ),
