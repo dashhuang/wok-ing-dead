@@ -259,7 +259,13 @@ export function createStage(canvas, kit, opts = {}) {
     },
     look: { yaw: 0, pitch: 0 },
     eye: new THREE.Vector3(0, 1.62, 0),
-    kick: { pitch: 0, yaw: 0, roll: 0 }, // camera recoil and shake, written by the combat module
+    // camera recoil and shake, written by the combat module (fov: a fraction punched outwards)
+    kick: { pitch: 0, yaw: 0, roll: 0, fov: 0 },
+    // the share of a kick that is not given back: it turns the aim itself
+    nudgeLook(dp, dy) {
+      stage.look.pitch = Math.max(-0.7, Math.min(0.7, stage.look.pitch + dp));
+      stage.look.yaw = Math.max(-1.25, Math.min(1.25, stage.look.yaw + dy));
+    },
     zoom: 1,
     zoomNow: 1,
     fov: { show: 32, fp: 68 },
@@ -374,7 +380,7 @@ export function createStage(canvas, kit, opts = {}) {
         );
         // zoom (scopes) eases towards its target
         stage.zoomNow += (stage.zoom - stage.zoomNow) * Math.min(1, dt * 12);
-        const fov = stage.fov.fp / stage.zoomNow;
+        const fov = (stage.fov.fp / stage.zoomNow) * (1 + (k.fov || 0));
         if (Math.abs(camera.fov - fov) > 0.01) {
           camera.fov = fov;
           camera.updateProjectionMatrix();
