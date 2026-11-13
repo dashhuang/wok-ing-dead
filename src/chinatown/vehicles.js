@@ -1,8 +1,9 @@
 // Vehicles. A body is a side silhouette swept across the width with every edge rounded,
 // a glasshouse that leans in above the belt line and wheel arches cut into the flanks; lamps,
-// wheels, mirrors, plates and shut lines are added on top. The glass is a dark mirror of the
-// street: there is no cabin behind it. Everything is baked into the static batches, so a
-// street full of cars costs a handful of draw calls.
+// wheels, mirrors, plates and shut lines are added on top. The glass is tinted: it mirrors the
+// street and lets a dim cabin show through, with a second layer of tint on the far windows so
+// that one does not look straight through a car. Everything is baked into the static batches,
+// so a street full of cars costs a handful of draw calls.
 import * as THREE from "three";
 
 const LATIN =
@@ -24,7 +25,7 @@ class Buf {
   }
   tri(a, b, c) {
     // Rounded stations and sampled patches can turn back on themselves. Use the
-    // authored surface normals to keep each triangle facing out,
+    // authored surface normals to keep each triangle facing out (in for the liner),
     // including the second half of a warped quad. Collapsed rows have no surface.
     const A = a * 3,
       B = b * 3,
@@ -201,7 +202,7 @@ const POW = 2.6;
 
 // spec: outline [[x, y, r?]…] from the rear bottom over the top to the front bottom (x forward),
 // width, sill, belt, tumble, shoulder, edge [low, high, ends], bow, taper, tuck, arches [{x, r}],
-// wheelR, windows [[x0, x1]…], screens [{end, y0, y1}], roof (second colour).
+// wheelR, windows [[x0, x1]…], screens [{end, y0, y1}], cabin [x0, x1], roof (second colour).
 // Returns geometry buffers per colour key plus helpers to hang parts on the skin.
 function loft(spec) {
   const W = spec.width / 2;
@@ -396,6 +397,7 @@ function loft(spec) {
       for (let k = 0; k <= 14; k++)
         want.push(a.x + a.r * Math.cos((Math.PI * k) / 14) * 0.999);
     for (const w of spec.windows || []) want.push(w[0], w[1]);
+    if (spec.cabin) want.push(spec.cabin[0], spec.cabin[1]);
     const add = [];
     for (const X of want)
       for (let i = iT; i < iN; i++) {
@@ -539,6 +541,7 @@ function loft(spec) {
     roof: new Buf(),
     glass: new Buf(),
     trim: new Buf(),
+    liner: new Buf(),
   };
   const inRange = (x, list) => (list || []).some((w) => x > w[0] && x < w[1]);
   const classify = (i, h) => {
@@ -560,7 +563,14 @@ function loft(spec) {
     if (spec.roof && h >= R_WINT && ny > 0.9 && y > belt + 0.2) return "roof";
     return "paint";
   };
-  for (let i = 0; i < S - 1; i++)
+  // the cabin is closed all round: its shell from the inside, a floor, and a wall at each end
+  const cabin = spec.cabin;
+  const inner = (q) => bufs.liner.vert(q.p, [-q.n[0], -q.n[1], -q.n[2]]);
+  for (let i = 0; i < S - 1; i++) {
+    const inCabin =
+      cabin &&
+      Math.min(st[i].Cx, st[i + 1].Cx) >= cabin[0] - 1e-3 &&
+      Math.max(st[i].Cx, st[i + 1].Cx) <= cabin[1] + 1e-3;
     for (let j = 0; j < F - 1; j++) {
       const h = j < H - 1 ? j : F - 2 - j;
       const A = st[i].rows[j],
@@ -575,14 +585,24 @@ function loft(spec) {
         Bq.p[2] - D.p[2],
       );
       if (d1 < 1e-4 || d2 < 1e-4) continue;
-      const buf = bufs[classify(i, h)];
+      const key = classify(i, h);
+      const buf = bufs[key];
       const ia = buf.vert(A.p, A.n),
         ib = buf.vert(Bq.p, Bq.n),
         ic = buf.vert(C.p, C.n),
         id = buf.vert(D.p, D.n);
       buf.tri(ia, ib, ic);
       buf.tri(ia, ic, id);
+      if (inCabin && key !== "glass" && h >= 2) {
+        const la = inner(A),
+          lb = inner(Bq),
+          lc = inner(C),
+          ld = inner(D);
+        bufs.liner.tri(la, lb, lc);
+        bufs.liner.tri(la, lc, ld);
+      }
     }
+  }
 
   // ---- the flank at nose and tail: a patch outlined by the line where the rounding starts,
   // the last strip, and a straight lower edge from the foot of that strip to the chin
@@ -612,6 +632,14 @@ function loft(spec) {
         ),
       );
       for (const [a, b, c] of tris) bufs.paint.tri(at[a], at[b], at[c]);
+      if (!cabin || fr[join].Cx < cabin[0] || fr[join].Cx > cabin[1]) continue;
+      const li = ring.map((q) =>
+        bufs.liner.vert(
+          [q.p[0], q.p[1], s * q.p[2]],
+          [-q.n[0], -q.n[1], -s * q.n[2]],
+        ),
+      );
+      for (const [a, b, c] of tris) bufs.liner.tri(li[a], li[b], li[c]);
     }
   };
   {
@@ -660,6 +688,13 @@ function loft(spec) {
     [xf, sill + 0.01, wf],
     [xr, sill + 0.01, wf],
   );
+  if (cabin)
+    bufs.liner.quad(
+      [cabin[0], sill + 0.1, wf],
+      [cabin[1], sill + 0.1, wf],
+      [cabin[1], sill + 0.1, -wf],
+      [cabin[0], sill + 0.1, -wf],
+    );
 
   // ---- sampling the skin, for parts that have to follow it
   const mix = (ra, rb, t) => ({
@@ -684,6 +719,21 @@ function loft(spec) {
     }
     return null;
   };
+  // a wall across the body at each end of the cabin, so that the view through the glass stops
+  // at the cabin instead of running on into the boot, the engine bay or a van's load space
+  if (cabin)
+    for (const [x, face] of [
+      [cabin[0], 1],
+      [cabin[1], -1],
+    ]) {
+      const sec = sectionAtX(x);
+      if (!sec) continue;
+      const L = bufs.liner;
+      const n = [face, 0, 0];
+      const c = L.vert([x, sill, 0], n);
+      const rim = sec.map((q) => L.vert(q.p, n));
+      for (let j = 0; j < rim.length - 1; j++) L.tri(c, rim[j], rim[j + 1]);
+    }
   // the section at height y on the nose (end = 1) or tail (end = -1)
   const sectionAtY = (end, y) => {
     let best = null,
@@ -910,6 +960,8 @@ const MODELS = {
       { end: 1, y0: 1.06, y1: 1.42 },
       { end: -1, y0: 1.07, y1: 1.4 },
     ],
+    cabin: [-1.44, 0.94],
+    seats: { front: 0.08, rear: -0.82, half: 0.37 },
     bumperTop: 0.6,
     seams: [-0.96, -0.29, 0.88],
     handles: [-0.42, 0.74],
@@ -951,6 +1003,8 @@ const MODELS = {
       { end: 1, y0: 1.06, y1: 1.44 },
       { end: -1, y0: 1.08, y1: 1.38, lean: 0.5 },
     ],
+    cabin: [-1.84, 0.92],
+    seats: { front: 0.06, rear: -0.86, half: 0.36 },
     bumperTop: 0.61,
     seams: [-0.91, -0.18, 0.86],
     handles: [-0.32, 0.72],
@@ -987,6 +1041,8 @@ const MODELS = {
     ],
     windows: [[0.64, 1.84]],
     screens: [{ end: 1, y0: 1.19, y1: 1.86 }],
+    cabin: [0.42, 1.94],
+    seats: { front: 1.02, half: 0.4 },
     bumperTop: 0.63,
     seams: [0.56, -0.56, -1.76],
     handles: [0.66, 0.44],
@@ -1036,6 +1092,8 @@ const MODELS = {
       { end: 1, y0: 1.4, y1: 2.44 },
       { end: -1, y0: 1.36, y1: 2.26, lean: 0.8 },
     ],
+    cabin: [-3.3, 3.12],
+    seats: { front: 2.3, half: 0.52, rows: [-2.7, -1.9, -1.1, -0.3, 0.5] },
     bumperTop: 0.71,
     seams: [1.66, 2.06],
     handles: [],
@@ -1072,6 +1130,8 @@ const MODELS = {
     sill: 0.42,
     windows: [[-0.4, 0.84]],
     screens: [{ end: 1, y0: 1.42, y1: 2.0 }],
+    cabin: [-0.8, 0.94],
+    seats: { front: 0.0, half: 0.4 },
     bumperTop: 0.73,
     seams: [-0.46, 0.88],
     handles: [-0.34],
@@ -1124,6 +1184,8 @@ const MODELS = {
     sill: 0.78,
     windows: [[-0.6, 0.22]],
     screens: [{ end: 1, y0: 1.92, y1: 2.56, lean: 0.3 }],
+    cabin: [-0.94, 0.4],
+    seats: { front: -0.3, half: 0.5, y: 1.3 },
     bumperTop: 1.0,
     seams: [-0.66, 0.3],
     handles: [-0.56],
@@ -1205,7 +1267,10 @@ export function createVehicles(ctx) {
       reflect: true,
       key: "carmatt",
     });
+  const cloth = (c) =>
+    kit.flat(c, { rough: 0.9, metal: 0, wet: "dry", key: "carseat" });
   const trim = matt(0x0c0c0d);
+  const liner = cloth(0x17181a);
   const chrome = kit.flat(0xc4c8cc, {
     rough: 0.2,
     metal: 0.95,
@@ -1232,21 +1297,57 @@ export function createVehicles(ctx) {
     wet: "glazed",
     key: "lens",
   });
-  // Glass: a dark mirror, nothing is modelled behind it. What it shows is the street, from a
-  // reflection the renderer captures at level.streetProbe once the level is built and hands to
-  // every material flagged userData.streetEnv; before that, and if it fails, the sky.
+  // Glass. What it mirrors is the street, from a reflection the renderer captures at
+  // level.streetProbe once the level is built and hands to every material flagged
+  // userData.streetEnv; before that, and if it fails, the sky.
+  // Tinted glass with a cabin behind it. A metal has no colour of its own, only reflection, and
+  // the blending adds that reflection at full strength over whatever shows through, dimmed by
+  // the tint (opacity). Ordinary transparency would fade the reflection with the glass.
   const glass = new THREE.MeshStandardMaterial({
     color: 0x66737c,
     roughness: 0.05,
     metalness: 1,
+    transparent: true,
+    opacity: 0.6,
+    depthWrite: false,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
   });
   glass.name = "ct_carglass";
-  G.mats.adopt(glass, { wet: [0, 0.6, 0.6, 0.9], macro: [0, 0, 1, 0.1] });
+  G.mats.adopt(glass, { wet: [0, 1, 0, 0] });
   glass.userData.oneCell = true;
+  glass.userData.noReflect = true;
   glass.userData.streetEnv = true;
+  // The same panes seen from inside, as tint only: the windows on the far side of a cabin are
+  // darkened a second time, so the street beyond a car barely shows through it. Drawn before
+  // the glass (userData.renderOrder), or it would dim the reflections on the near windows.
+  const tint = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.7,
+    depthWrite: false,
+    side: THREE.BackSide,
+  });
+  tint.name = "ct_cartint";
+  tint.userData.oneCell = true;
+  tint.userData.noReflect = true;
+  tint.userData.renderOrder = -1;
+  // Glass with nothing behind it (a bus, the rear doors of a van, the cars of the backdrop):
+  // an opaque dark mirror.
+  const mirror = new THREE.MeshStandardMaterial({
+    color: 0x66737c,
+    roughness: 0.05,
+    metalness: 1,
+  });
+  mirror.name = "ct_carglass";
+  G.mats.adopt(mirror, { wet: [0, 0.6, 0.6, 0.9], macro: [0, 0, 1, 0.1] });
+  mirror.userData.oneCell = true;
+  mirror.userData.streetEnv = true;
   const tyre = kit.game("tire");
   const glowHead = kit.glow(0xfff0d4, 3.2);
   const glowTail = kit.glow(0xff1a0a, 3.2);
+  const glowCabin = kit.glow(0xffd9a0, 1.2);
   const hazard = kit.glow(0xff8a10, 5); // every hazard lamp shares this and blinks together
   const dishDark = matt(0x18191b);
   const dishSteel = kit.flat(0x7d8185, {
@@ -1451,6 +1552,7 @@ export function createVehicles(ctx) {
     const d = {
       trim: new Buf(),
       chrome: new Buf(),
+      seat: new Buf(),
       head: new Buf(), // lamp groups switch material with the state of the vehicle
       indF: new Buf(),
       tail: new Buf(),
@@ -1705,7 +1807,81 @@ export function createVehicles(ctx) {
             pts[1][k].p.map((v, q) => v + [0.012, 0.01, 0][q]),
           );
       }
-    sh = { b, d, m };
+    // the cabin: seats, dashboard, wheel
+    let steering = null;
+    if (m.seats && m.cabin) {
+      const q = m.seats,
+        fy = q.y ?? b.sill + 0.16;
+      const seat = (x, z, w) => {
+        d.seat.box(x - 0.24, fy, z - w, x + 0.26, fy + 0.13, z + w);
+        d.seat.box(
+          x - 0.34,
+          fy + 0.1,
+          z - w + 0.01,
+          x - 0.22,
+          fy + 0.66,
+          z + w - 0.01,
+        );
+        d.seat.box(
+          x - 0.335,
+          fy + 0.69,
+          z - 0.11,
+          x - 0.25,
+          fy + 0.87,
+          z + 0.11,
+        );
+      };
+      seat(q.front, q.half, 0.23);
+      seat(q.front, -q.half, 0.23);
+      if (q.rear !== undefined) {
+        d.seat.box(
+          q.rear - 0.26,
+          fy,
+          -q.half - 0.25,
+          q.rear + 0.24,
+          fy + 0.13,
+          q.half + 0.25,
+        );
+        d.seat.box(
+          q.rear - 0.38,
+          fy + 0.1,
+          -q.half - 0.25,
+          q.rear - 0.26,
+          fy + 0.62,
+          q.half + 0.25,
+        );
+        for (const z of [q.half, -q.half])
+          d.seat.box(
+            q.rear - 0.375,
+            fy + 0.65,
+            z - 0.11,
+            q.rear - 0.29,
+            fy + 0.8,
+            z + 0.11,
+          );
+      }
+      for (const rx of q.rows || [])
+        for (const z of [q.half + 0.16, q.half - 0.3, -q.half - 0.1])
+          seat(rx, z, 0.2);
+      const cowl = m.cabin[1];
+      d.seat.box(
+        cowl - 0.46,
+        fy + 0.3,
+        -W + 0.12,
+        cowl - 0.04,
+        fy + 0.62,
+        W - 0.12,
+      );
+      const tg = new THREE.TorusGeometry(0.18, 0.017, 6, 18);
+      steering = {
+        geo: tg,
+        m: new THREE.Matrix4()
+          .makeTranslation(cowl - 0.56, fy + 0.58, q.half)
+          .multiply(new THREE.Matrix4().makeRotationZ(-0.42))
+          .multiply(new THREE.Matrix4().makeRotationY(Math.PI / 2)),
+      };
+    }
+    sh = { b, d, steering, m };
     shells.set(name, sh);
     return sh;
   }
@@ -1734,15 +1910,22 @@ export function createVehicles(ctx) {
     return g;
   };
 
-  // Adds one swept body with all its fittings. colours: { paint, roof }.
+  // Adds one swept body with all its fittings. colours: { paint, roof, seat }.
   function body(M, name, colours, o = {}) {
-    const { b, d, m } = shell(name);
+    const { b, d, steering, m } = shell(name);
     put(M, colours.paint, b.bufs.paint);
     put(M, colours.roof || colours.paint, b.bufs.roof);
     put(M, trim, b.bufs.trim);
     put(M, trim, d.trim);
     put(M, m.plain ? trim : chrome, d.chrome);
-    put(M, glass, b.bufs.glass);
+    if (o.far) put(M, mirror, b.bufs.glass);
+    else {
+      put(M, tint, b.bufs.glass);
+      put(M, glass, b.bufs.glass);
+      put(M, liner, b.bufs.liner);
+      put(M, colours.seat || cloth(0x2b2d31), d.seat);
+      if (steering) kit.add(trim, steering.geo, M.clone().multiply(steering.m));
+    }
     put(M, o.lights ? glowHead : lensClear, d.head);
     put(M, o.hazard ? hazard : lensAmber, d.indF);
     put(M, o.lights || o.brake ? glowTail : lensRed, d.tail);
@@ -1751,6 +1934,13 @@ export function createVehicles(ctx) {
       kit.add(plateMat, onAtlas(d.plateF, pick(plates.front)), M);
     if (!d.plateR.empty)
       kit.add(plateMat, onAtlas(d.plateR, pick(plates.rear)), M);
+    if (o.cabin && !o.far) {
+      const x = (m.cabin[0] + m.cabin[1]) / 2,
+        y = b.topY(x) - 0.13;
+      const lamp = new Buf();
+      lamp.box(x - 0.1, y, -0.07, x + 0.1, y + 0.02, 0.07);
+      kit.add(glowCabin, lamp.geometry(), M);
+    }
     return b;
   }
   // a lit or painted panel with a piece of the lettering atlas, standing at (x, y, z) in body space
@@ -1794,8 +1984,8 @@ export function createVehicles(ctx) {
 
   // Stands a vehicle at (x, z): the point is its middle, yaw as for props (0 = nose toward +z).
   // kind: taxi | saloon | hatch | van | minibus | lorry | army | bus.
-  // o: color, lights, brake, hazard, steer, flat (wheel index), far (no lights of its own, for
-  // the backdrop), collide, dead (signs unlit).
+  // o: color, lights, brake, hazard, cabin (dome light), steer, flat (wheel index), far (cheap
+  // version for the backdrop: no cabin, no lights of its own), collide, dead (signs unlit).
   function place(kind, x, z, yaw, o = {}) {
     const y = o.y ?? groundAt(x, z);
     const M = kit.xform(x, y, z, o.pitch || 0, yaw - Math.PI / 2, o.roll || 0);
@@ -1824,6 +2014,7 @@ export function createVehicles(ctx) {
           range: 7,
           hazard: true,
         });
+      if (o.cabin) emit(0, 1.25, { color: 0xffd9a0, power: 0.6, range: 4.5 });
     };
     const wheels = (m, tw, shift = 0) => {
       const W = m.width / 2;
@@ -1937,7 +2128,7 @@ export function createVehicles(ctx) {
       }
       b.endPatch(rc, -1, 1.02, 1.06, 0.03, 0.2, 0.014, { nz: 1, ny: 1 });
       kit.add(trim, rd.geometry(), M);
-      kit.add(glass, rg.geometry(), M);
+      kit.add(mirror, rg.geometry(), M);
       kit.add(chrome, rc.geometry(), M);
       wheels(m, 0.2);
       size = [4.7, m.width, 1.95];
@@ -1945,7 +2136,12 @@ export function createVehicles(ctx) {
     } else if (kind === "minibus") {
       const m = MODELS.minibus;
       const livery = paint(o.color ?? 0x1c6a3c);
-      const b = body(M, "minibus", { paint: paint(0xe6dcc0), roof: livery }, o);
+      const b = body(
+        M,
+        "minibus",
+        { paint: paint(0xe6dcc0), roof: livery, seat: cloth(0x3a3026) },
+        o,
+      );
       // route box on the roof, lit from inside
       const sx = 2.62,
         sy = b.topY(sx) + 0.005;
@@ -2038,7 +2234,7 @@ export function createVehicles(ctx) {
       body(
         M.clone().multiply(kit.xform(2.1, 0, 0)),
         "armycab",
-        { paint: olive },
+        { paint: olive, seat: cloth(0x2a2e22) },
         o,
       );
       const ch = new Buf();
@@ -2103,7 +2299,7 @@ export function createVehicles(ctx) {
       b.endPatch(r, -1, 0.5, 1.2, -W + 0.06, W - 0.06, 0.003);
       b.endPatch(k, -1, 2.74, 3.6, -W + 0.2, W - 0.2, 0.003);
       b.endPatch(g, -1, 2.8, 3.54, -W + 0.26, W - 0.26, 0.006);
-      kit.add(glass, g.geometry(), M);
+      kit.add(mirror, g.geometry(), M);
       kit.add(red, r.geometry(), M);
       kit.add(trim, k.geometry(), M);
       kit.add(o.lights ? glowHead : lensClear, hd.geometry(), M);

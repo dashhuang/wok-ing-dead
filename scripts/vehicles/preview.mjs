@@ -7,7 +7,7 @@
 //
 // kind: taxi | saloon | hatch | van | minibus | lorry | army | bus
 // views: comma-separated, default f34,r34,side,front,rear,eye (also top, eyeside, eyerear)
-// options: color=8a9096  load=tilt  rack=1 livery=1 lights=1 hazard=1 dead=1 far=1
+// options: color=8a9096  load=tilt  rack=1 livery=1 lights=1 hazard=1 cabin=1 dead=1 far=1
 //          w=760 h=470 (size of one view)  zebra=1 (stripes in the reflections, to show kinks)
 //          eye=x,y,z target=x,y,z fov=50 with the view "custom" (x forward, y up, metres)
 import path from "node:path";
@@ -88,6 +88,9 @@ const kit = {
           metal: mat.metalness,
           alpha: mat.transparent ? mat.opacity : 1,
           double: mat.side === THREE.DoubleSide,
+          inside: mat.side === THREE.BackSide, // seen from behind only
+          unlit: !!mat.isMeshBasicMaterial,
+          over: mat.blending === THREE.CustomBlending, // reflection added over a tint
           key: mat.name,
         }
       : mat;
@@ -126,7 +129,7 @@ const G = {
 const ctx = { kit, G, emitters: [], updaters: [] };
 const cars = createVehicles(ctx);
 const po = {};
-for (const k of ["far", "lights", "hazard", "rack", "livery", "dead"])
+for (const k of ["far", "lights", "hazard", "cabin", "rack", "livery", "dead"])
   if (opt[k]) po[k] = true;
 if (opt.color) po.color = parseInt(opt.color, 16);
 if (opt.load) po.load = opt.load;
@@ -169,6 +172,7 @@ const LIGHT = norm([0.35, 0.8, 0.5]);
 function shade(m, N, V) {
   const base = rgb(m.hex);
   if (m.emissive) return base.map((c) => Math.min(1, c * 1.6 + 0.1));
+  if (m.unlit) return base;
   const nl = Math.max(0, dot(N, LIGHT));
   const amb = 0.3 + 0.2 * N[1];
   const metal = m.metal ?? 0,
@@ -223,7 +227,7 @@ function render(W, H, eye, target, fov) {
       (s[2][0] - s[0][0]) * (s[1][1] - s[0][1]);
     if (Math.abs(area) < 1e-9) return;
     const back = area > 0; // y runs down, so counter-clockwise comes out negative
-    if (back && !t.m.double) return;
+    if (t.m.inside ? !back : back && !t.m.double) return;
     const x0 = Math.max(0, Math.floor(Math.min(s[0][0], s[1][0], s[2][0]))),
       x1 = Math.min(w - 1, Math.ceil(Math.max(s[0][0], s[1][0], s[2][0]))),
       y0 = Math.max(0, Math.floor(Math.min(s[0][1], s[1][1], s[2][1]))),
@@ -264,7 +268,8 @@ function render(W, H, eye, target, fov) {
         if (blend) {
           const a = t.m.alpha;
           for (let k = 0; k < 3; k++)
-            col[i * 3 + k] = col[i * 3 + k] * (1 - a) + c[k] * a;
+            col[i * 3 + k] =
+              col[i * 3 + k] * (1 - a) + c[k] * (t.m.over ? 1 : a);
         } else {
           depth[i] = z;
           col[i * 3] = c[0];

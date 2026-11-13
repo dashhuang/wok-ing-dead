@@ -332,6 +332,7 @@ export function dressStreets(ctx, PLAN, marks) {
   cars.place("taxi", -5.6, 6.7, 0.62, {
     lights: true,
     hazard: true,
+    cabin: true,
     steer: 0.5,
   });
   car(14.4, 9.0, HALF, 0x9aa6b0);
