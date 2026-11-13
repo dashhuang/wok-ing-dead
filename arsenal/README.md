@@ -106,7 +106,7 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
 | `scripts/check-data.mjs` | 核对卡片上的基础数值和实际开火的数值、武器在本体的弹药表里是否齐全 |
 | `scripts/single.mjs` | 生成单文件展柜 |
 | `scripts/extract-hands.mjs` | 从本体的打包文件里抽出手部模块（解析后按引用关系取出需要的声明），本体代码不改 |
-| `scripts/balance.json` | 尸潮测试的结果，设计文档里的数值表读它（由 `tools/balance.mjs --write` 更新） |
+| `scripts/balance.json` | 实测的结果（清群和单体两场，连同考法和标准线），设计文档的数值表和本体的平衡报告都读它（由 `tools/balance.mjs --write` 更新） |
 | `tests/`、`playwright.config.js` | 试验场的 Playwright 测试，见下面「测试与工具」 |
 | `tools/` | 测量和出图脚本，见下面「测试与工具」 |
 
@@ -147,7 +147,7 @@ node arsenal/scripts/extract-hands.mjs   # 本体的手（src/game.js）改了�
 
 | 脚本 | 用途 |
 | --- | --- |
-| `tools/balance.mjs` | 尸潮下的数值：机器人用每种形态各打一段时间，输出每分钟击杀、伤害和受伤。`--write` 更新 `scripts/balance.json`，再重新生成设计文档 |
+| `tools/balance.mjs` | 尸潮下的数值：机器人用每种形态考「清群」（街道距离的尸群，够不着就迎上去）和「单体」（一只精英）两场，输出每分钟击杀、伤害、受伤、耗弹和对精英的每秒伤害。`--write` 更新 `scripts/balance.json`，再 `npm run balance` 并重新生成设计文档。标准和目标带见 `docs/balance.md`「武器的统一标准」 |
 | `tools/leak.mjs` | 泄漏和帧耗：每种形态反复打三轮，比较显存里的几何体和贴图、场景对象数、JS 堆，以及每帧逻辑耗时 |
 | `tools/arms.mjs` | 手腕弯了多少度、超出活动范围多少（弧度）：持握时，以及开火、特殊动作、换弹过程中最糟的一刻 |
 | `tools/shots.mjs` | 出图：`show` 是展柜多角度拼图（可以停在换弹的某一刻、镜头对准某只手），`play` 是第一人称逐帧序列 |

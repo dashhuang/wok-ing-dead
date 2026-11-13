@@ -9,6 +9,22 @@ import { PROFILES } from "./run.mjs";
 import { stageAt } from "../../src/chinatown/runflow.js";
 import ZH from "../../src/i18n/locales/zh-CN.js";
 
+// What a weapon form may score against the standard line (data.mjs, LINE; 2 is a level-one
+// gun). Each is the target with a tenth of slack either side, which is what the lab's test
+// moves by from one measurement to the next.
+//   gun1    the guns that take ammunition, as picked up
+//   fork3   either form at level three (one and a half times the line)
+//   fork5   either form at level five (twice the line and a little)
+//   forks   how far apart a weapon's two forms may be at level five, as a share
+//   pool    of the street's dead, what a full pool of ammunition fells at level one
+export const WEAPON_BANDS = {
+  gun1: [1.75, 2.45],
+  fork3: [2.6, 3.7],
+  fork5: [3.5, 4.9],
+  forks: 0.25,
+  pool: [45, 70],
+};
+
 const pct = (v) => (v * 100).toFixed(0) + "%";
 const mmss = (s) =>
   `${Math.floor(Math.round(s) / 60)}:${String(Math.round(s) % 60).padStart(2, "0")}`;
@@ -53,6 +69,81 @@ export function guards({ TL, W, WR, sims, calRows }) {
     pct(sims.expertFocus.bossReached),
     "≥ 50%",
   );
+
+  // ---------- the weapons against the standard line (docs/balance.md, 武器的统一标准)
+  {
+    const B = WEAPON_BANDS;
+    const wname = (id) => ZH["weapon." + id];
+    const M = WR.filter((r) => r.measured);
+    const span = (list) => {
+      const v = list.map((x) => x.v);
+      const lo = list[v.indexOf(Math.min(...v))];
+      const hi = list[v.indexOf(Math.max(...v))];
+      return { lo, hi };
+    };
+    const within = (list, [a, b]) => list.every((x) => x.v >= a && x.v <= b);
+    const show = ({ lo, hi }, d = 2) =>
+      `${lo.v.toFixed(d)}（${lo.n}）到 ${hi.v.toFixed(d)}（${hi.n}）`;
+    const forkName = (id, k) => `${wname(id)}·${k[0] === "a" ? "甲" : "乙"}`;
+
+    const guns = M.filter((r) => r.ammo).map((r) => ({
+      n: wname(r.id),
+      v: r.score.base.total,
+    }));
+    add(
+      true,
+      "1 级：用弹药的枪总分都在标准线上下",
+      within(guns, B.gun1),
+      show(span(guns)),
+      B.gun1.join("–"),
+    );
+    for (const [lv, band] of [
+      [3, B.fork3],
+      [5, B.fork5],
+    ]) {
+      const forks = M.flatMap((r) =>
+        ["a" + lv, "b" + lv].map((k) => ({
+          n: forkName(r.id, k),
+          v: r.score[k].total,
+        })),
+      );
+      add(
+        true,
+        `${lv} 级：每条岔路的总分都在目标带里`,
+        within(forks, band),
+        show(span(forks)),
+        band.join("–"),
+      );
+    }
+    {
+      const gaps = M.map((r) => {
+        const a = r.score.a5.total,
+          b = r.score.b5.total;
+        return { n: wname(r.id), v: Math.abs(a - b) / Math.max(a, b) };
+      });
+      const worst = span(gaps).hi;
+      add(
+        true,
+        "两条岔路都值得选：同一把武器 5 级两条岔路的总分相差不超过四分之一",
+        worst.v <= B.forks,
+        `最远的是${worst.n} ${pct(worst.v)}`,
+        "≤ " + pct(B.forks),
+      );
+    }
+    {
+      const pools = M.filter((r) => r.pool != null).map((r) => ({
+        n: wname(r.id),
+        v: r.pool,
+      }));
+      add(
+        true,
+        "一池弹药值同样多：1 级时每把枪一池弹药打倒的数量相近",
+        within(pools, B.pool),
+        show(span(pools), 0) + " 只",
+        B.pool.join("–") + " 只",
+      );
+    }
+  }
 
   // ---------- the plan (docs/balance.md): not reached yet
   const lv = sims.expertFocus.levelAt.filter((s) => s != null);
@@ -130,7 +221,7 @@ export function guards({ TL, W, WR, sims, calRows }) {
   {
     const top = WR.filter((r) => r.measured).sort((a, b) => b.grow - a.grow)[0];
     add(
-      false,
+      true,
       "武器成长不失控：5 级最强的岔路不超过 1 级的 4 倍",
       top.grow <= 4,
       `${ZH["weapon." + top.id]} ×${top.grow.toFixed(1)}`,

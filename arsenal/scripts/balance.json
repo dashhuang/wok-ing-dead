@@ -1,546 +1,676 @@
 {
-  "seconds": 60,
-  "date": "2026-11-12",
+  "seconds": 120,
+  "date": "2026-11-13",
+  "scene": {
+    "from": 16,
+    "span": 14,
+    "runners": 0.5,
+    "walk": 3.8,
+    "head": 0.6,
+    "solo": 30,
+    "elite": 3
+  },
+  "line": { "crowd": 69, "single": 138 },
   "rows": [
     {
       "id": "shotgun",
       "b": "base",
       "lv": 1,
-      "kills": 36,
-      "dps": 82,
-      "hurt": 102,
-      "crowd": 0.26
+      "kills": 63,
+      "dps": 128,
+      "hurt": 214,
+      "crowd": 0.65,
+      "spent": 54,
+      "solo": 158
     },
     {
       "id": "shotgun",
       "b": "a",
       "lv": 3,
-      "kills": 44,
-      "dps": 106,
-      "hurt": 142,
-      "crowd": 0.26
+      "kills": 96,
+      "dps": 318,
+      "hurt": 57,
+      "crowd": 0.25,
+      "spent": 54,
+      "solo": 211
     },
     {
       "id": "shotgun",
       "b": "b",
       "lv": 3,
-      "kills": 74,
-      "dps": 313,
-      "hurt": 0,
-      "crowd": 0.01
+      "kills": 86,
+      "dps": 457,
+      "hurt": 176,
+      "crowd": 0.36,
+      "spent": 54,
+      "solo": 248
     },
     {
       "id": "shotgun",
       "b": "a",
       "lv": 5,
-      "kills": 37,
-      "dps": 108,
-      "hurt": 78,
-      "crowd": 0.16
+      "kills": 119,
+      "dps": 473,
+      "hurt": 6,
+      "crowd": 0.08,
+      "spent": 50,
+      "solo": 353
     },
     {
       "id": "shotgun",
       "b": "b",
       "lv": 5,
-      "kills": 72,
-      "dps": 463,
-      "hurt": 0,
-      "crowd": 0.01
+      "kills": 88,
+      "dps": 589,
+      "hurt": 48,
+      "crowd": 0.24,
+      "spent": 54,
+      "solo": 340
     },
     {
       "id": "smg",
       "b": "base",
       "lv": 1,
-      "kills": 56,
-      "dps": 122,
-      "hurt": 0,
-      "crowd": 0
+      "kills": 68,
+      "dps": 129,
+      "hurt": 318,
+      "crowd": 0.74,
+      "spent": 564,
+      "solo": 138
     },
     {
       "id": "smg",
       "b": "a",
       "lv": 3,
-      "kills": 95,
-      "dps": 199,
-      "hurt": 0,
-      "crowd": 0
-    },
-    {
-      "id": "smg",
-      "b": "b",
-      "lv": 3,
-      "kills": 73,
+      "kills": 70,
       "dps": 155,
-      "hurt": 0,
-      "crowd": 0
+      "hurt": 125,
+      "crowd": 0.39,
+      "spent": 760,
+      "solo": 284
+    },
+    {
+      "id": "smg",
+      "b": "b",
+      "lv": 3,
+      "kills": 82,
+      "dps": 182,
+      "hurt": 6,
+      "crowd": 0.23,
+      "spent": 564,
+      "solo": 257
     },
     {
       "id": "smg",
       "b": "a",
       "lv": 5,
-      "kills": 109,
-      "dps": 231,
-      "hurt": 0,
-      "crowd": 0
+      "kills": 81,
+      "dps": 171,
+      "hurt": 108,
+      "crowd": 0.26,
+      "spent": 661,
+      "solo": 454
     },
     {
       "id": "smg",
       "b": "b",
       "lv": 5,
-      "kills": 93,
-      "dps": 191,
+      "kills": 90,
+      "dps": 204,
       "hurt": 0,
-      "crowd": 0
+      "crowd": 0.12,
+      "spent": 561,
+      "solo": 362
     },
     {
       "id": "revolver",
       "b": "base",
       "lv": 1,
       "kills": 58,
-      "dps": 307,
-      "hurt": 0,
-      "crowd": 0
+      "dps": 206,
+      "hurt": 590,
+      "crowd": 0.88,
+      "spent": 78,
+      "solo": 205
     },
     {
       "id": "revolver",
       "b": "a",
       "lv": 3,
-      "kills": 79,
-      "dps": 453,
-      "hurt": 12,
-      "crowd": 0.06
+      "kills": 65,
+      "dps": 368,
+      "hurt": 547,
+      "crowd": 0.86,
+      "spent": 79,
+      "solo": 277
     },
     {
       "id": "revolver",
       "b": "b",
       "lv": 3,
-      "kills": 79,
-      "dps": 417,
-      "hurt": 0,
-      "crowd": 0
+      "kills": 82,
+      "dps": 339,
+      "hurt": 38,
+      "crowd": 0.25,
+      "spent": 78,
+      "solo": 314
     },
     {
       "id": "revolver",
       "b": "a",
       "lv": 5,
-      "kills": 127,
-      "dps": 999,
-      "hurt": 0,
-      "crowd": 0
+      "kills": 95,
+      "dps": 610,
+      "hurt": 165,
+      "crowd": 0.44,
+      "spent": 27,
+      "solo": 379
     },
     {
       "id": "revolver",
       "b": "b",
       "lv": 5,
-      "kills": 77,
-      "dps": 566,
-      "hurt": 0,
-      "crowd": 0
+      "kills": 89,
+      "dps": 449,
+      "hurt": 32,
+      "crowd": 0.15,
+      "spent": 78,
+      "solo": 392
     },
     {
       "id": "lever",
-      "b": "base",
-      "lv": 1,
-      "kills": 47,
-      "dps": 277,
-      "hurt": 0,
-      "crowd": 0.06
-    },
-    {
-      "id": "lever",
-      "b": "a",
-      "lv": 3,
-      "kills": 71,
-      "dps": 561,
-      "hurt": 0,
-      "crowd": 0
-    },
-    {
-      "id": "lever",
-      "b": "b",
-      "lv": 3,
-      "kills": 71,
-      "dps": 422,
-      "hurt": 0,
-      "crowd": 0
-    },
-    {
-      "id": "lever",
-      "b": "a",
-      "lv": 5,
-      "kills": 85,
-      "dps": 1374,
-      "hurt": 0,
-      "crowd": 0
-    },
-    {
-      "id": "lever",
-      "b": "b",
-      "lv": 5,
-      "kills": 143,
-      "dps": 759,
-      "hurt": 0,
-      "crowd": 0
-    },
-    {
-      "id": "nailgun",
       "b": "base",
       "lv": 1,
       "kills": 59,
-      "dps": 124,
-      "hurt": 0,
-      "crowd": 0
+      "dps": 256,
+      "hurt": 650,
+      "crowd": 0.94,
+      "spent": 45,
+      "solo": 197
     },
     {
-      "id": "nailgun",
+      "id": "lever",
       "b": "a",
       "lv": 3,
-      "kills": 80,
-      "dps": 142,
-      "hurt": 0,
-      "crowd": 0
+      "kills": 77,
+      "dps": 421,
+      "hurt": 263,
+      "crowd": 0.67,
+      "spent": 45,
+      "solo": 296
     },
     {
-      "id": "nailgun",
+      "id": "lever",
       "b": "b",
       "lv": 3,
-      "kills": 100,
-      "dps": 197,
-      "hurt": 0,
-      "crowd": 0
+      "kills": 89,
+      "dps": 410,
+      "hurt": 99,
+      "crowd": 0.26,
+      "spent": 45,
+      "solo": 266
     },
     {
-      "id": "nailgun",
+      "id": "lever",
       "b": "a",
       "lv": 5,
-      "kills": 105,
-      "dps": 263,
-      "hurt": 0,
-      "crowd": 0
+      "kills": 82,
+      "dps": 652,
+      "hurt": 81,
+      "crowd": 0.51,
+      "spent": 45,
+      "solo": 488
+    },
+    {
+      "id": "lever",
+      "b": "b",
+      "lv": 5,
+      "kills": 125,
+      "dps": 686,
+      "hurt": 6,
+      "crowd": 0.07,
+      "spent": 43,
+      "solo": 364
     },
     {
       "id": "nailgun",
-      "b": "b",
-      "lv": 5,
-      "kills": 129,
-      "dps": 272,
-      "hurt": 0,
-      "crowd": 0
-    },
-    {
-      "id": "flamer",
       "b": "base",
       "lv": 1,
-      "kills": 38,
-      "dps": 84,
-      "hurt": 104,
-      "crowd": 0.25
+      "kills": 69,
+      "dps": 138,
+      "hurt": 232,
+      "crowd": 0.62,
+      "spent": 371,
+      "solo": 141
     },
     {
-      "id": "flamer",
-      "b": "a",
-      "lv": 3,
-      "kills": 45,
-      "dps": 105,
-      "hurt": 0,
-      "crowd": 0.01
-    },
-    {
-      "id": "flamer",
-      "b": "b",
-      "lv": 3,
-      "kills": 45,
-      "dps": 97,
-      "hurt": 26,
-      "crowd": 0.09
-    },
-    {
-      "id": "flamer",
-      "b": "a",
-      "lv": 5,
-      "kills": 47,
-      "dps": 115,
-      "hurt": 0,
-      "crowd": 0.01
-    },
-    {
-      "id": "flamer",
-      "b": "b",
-      "lv": 5,
-      "kills": 45,
-      "dps": 98,
-      "hurt": 52,
-      "crowd": 0.08
-    },
-    {
-      "id": "firework",
-      "b": "base",
-      "lv": 1,
-      "kills": 58,
-      "dps": 121,
-      "hurt": 12,
-      "crowd": 0.04
-    },
-    {
-      "id": "firework",
+      "id": "nailgun",
       "b": "a",
       "lv": 3,
       "kills": 108,
-      "dps": 211,
+      "dps": 174,
       "hurt": 0,
-      "crowd": 0
+      "crowd": 0,
+      "spent": 620,
+      "solo": 248
     },
     {
-      "id": "firework",
+      "id": "nailgun",
       "b": "b",
       "lv": 3,
-      "kills": 37,
-      "dps": 207,
+      "kills": 99,
+      "dps": 193,
       "hurt": 0,
-      "crowd": 0
+      "crowd": 0.02,
+      "spent": 245,
+      "solo": 267
     },
     {
-      "id": "firework",
-      "b": "a",
-      "lv": 5,
-      "kills": 128,
-      "dps": 249,
-      "hurt": 0,
-      "crowd": 0
-    },
-    {
-      "id": "firework",
-      "b": "b",
-      "lv": 5,
-      "kills": 106,
-      "dps": 680,
-      "hurt": 0,
-      "crowd": 0
-    },
-    {
-      "id": "arc",
-      "b": "base",
-      "lv": 1,
-      "kills": 44,
-      "dps": 93,
-      "hurt": 52,
-      "crowd": 0.14
-    },
-    {
-      "id": "arc",
-      "b": "a",
-      "lv": 3,
-      "kills": 55,
-      "dps": 109,
-      "hurt": 0,
-      "crowd": 0.02
-    },
-    {
-      "id": "arc",
-      "b": "b",
-      "lv": 3,
-      "kills": 68,
-      "dps": 129,
-      "hurt": 52,
-      "crowd": 0.09
-    },
-    {
-      "id": "arc",
-      "b": "a",
-      "lv": 5,
-      "kills": 74,
-      "dps": 155,
-      "hurt": 0,
-      "crowd": 0
-    },
-    {
-      "id": "arc",
-      "b": "b",
-      "lv": 5,
-      "kills": 85,
-      "dps": 162,
-      "hurt": 0,
-      "crowd": 0.01
-    },
-    {
-      "id": "crossbow",
-      "b": "base",
-      "lv": 1,
-      "kills": 43,
-      "dps": 127,
-      "hurt": 26,
-      "crowd": 0.15
-    },
-    {
-      "id": "crossbow",
-      "b": "a",
-      "lv": 3,
-      "kills": 100,
-      "dps": 205,
-      "hurt": 0,
-      "crowd": 0
-    },
-    {
-      "id": "crossbow",
-      "b": "b",
-      "lv": 3,
-      "kills": 71,
-      "dps": 147,
-      "hurt": 0,
-      "crowd": 0
-    },
-    {
-      "id": "crossbow",
-      "b": "a",
-      "lv": 5,
-      "kills": 130,
-      "dps": 280,
-      "hurt": 0,
-      "crowd": 0
-    },
-    {
-      "id": "crossbow",
-      "b": "b",
-      "lv": 5,
-      "kills": 77,
-      "dps": 176,
-      "hurt": 0,
-      "crowd": 0
-    },
-    {
-      "id": "talisman",
-      "b": "base",
-      "lv": 1,
-      "kills": 35,
-      "dps": 91,
-      "hurt": 0,
-      "crowd": 0.22
-    },
-    {
-      "id": "talisman",
-      "b": "a",
-      "lv": 3,
-      "kills": 67,
-      "dps": 224,
-      "hurt": 0,
-      "crowd": 0
-    },
-    {
-      "id": "talisman",
-      "b": "b",
-      "lv": 3,
-      "kills": 120,
-      "dps": 259,
-      "hurt": 0,
-      "crowd": 0
-    },
-    {
-      "id": "talisman",
+      "id": "nailgun",
       "b": "a",
       "lv": 5,
       "kills": 115,
-      "dps": 487,
+      "dps": 252,
       "hurt": 0,
-      "crowd": 0
+      "crowd": 0,
+      "spent": 620,
+      "solo": 416
+    },
+    {
+      "id": "nailgun",
+      "b": "b",
+      "lv": 5,
+      "kills": 127,
+      "dps": 268,
+      "hurt": 0,
+      "crowd": 0,
+      "spent": 244,
+      "solo": 352
+    },
+    {
+      "id": "flamer",
+      "b": "base",
+      "lv": 1,
+      "kills": 91,
+      "dps": 161,
+      "hurt": 103,
+      "crowd": 0.34,
+      "spent": 657,
+      "solo": 130
+    },
+    {
+      "id": "flamer",
+      "b": "a",
+      "lv": 3,
+      "kills": 117,
+      "dps": 226,
+      "hurt": 0,
+      "crowd": 0.06,
+      "spent": 564,
+      "solo": 259
+    },
+    {
+      "id": "flamer",
+      "b": "b",
+      "lv": 3,
+      "kills": 107,
+      "dps": 185,
+      "hurt": 169,
+      "crowd": 0.26,
+      "spent": 582,
+      "solo": 199
+    },
+    {
+      "id": "flamer",
+      "b": "a",
+      "lv": 5,
+      "kills": 122,
+      "dps": 242,
+      "hurt": 0,
+      "crowd": 0.04,
+      "spent": 502,
+      "solo": 348
+    },
+    {
+      "id": "flamer",
+      "b": "b",
+      "lv": 5,
+      "kills": 122,
+      "dps": 219,
+      "hurt": 52,
+      "crowd": 0.13,
+      "spent": 462,
+      "solo": 290
+    },
+    {
+      "id": "firework",
+      "b": "base",
+      "lv": 1,
+      "kills": 78,
+      "dps": 164,
+      "hurt": 387,
+      "crowd": 0.41,
+      "spent": 59,
+      "solo": 143
+    },
+    {
+      "id": "firework",
+      "b": "a",
+      "lv": 3,
+      "kills": 131,
+      "dps": 259,
+      "hurt": 7,
+      "crowd": 0.02,
+      "spent": 108,
+      "solo": 218
+    },
+    {
+      "id": "firework",
+      "b": "b",
+      "lv": 3,
+      "kills": 94,
+      "dps": 633,
+      "hurt": 27,
+      "crowd": 0,
+      "spent": 29,
+      "solo": 272
+    },
+    {
+      "id": "firework",
+      "b": "a",
+      "lv": 5,
+      "kills": 162,
+      "dps": 312,
+      "hurt": 0,
+      "crowd": 0,
+      "spent": 105,
+      "solo": 284
+    },
+    {
+      "id": "firework",
+      "b": "b",
+      "lv": 5,
+      "kills": 135,
+      "dps": 1224,
+      "hurt": 100,
+      "crowd": 0,
+      "spent": 29,
+      "solo": 376
+    },
+    {
+      "id": "arc",
+      "b": "base",
+      "lv": 1,
+      "kills": 88,
+      "dps": 159,
+      "hurt": 156,
+      "crowd": 0.36,
+      "spent": 498,
+      "solo": 78
+    },
+    {
+      "id": "arc",
+      "b": "a",
+      "lv": 3,
+      "kills": 142,
+      "dps": 239,
+      "hurt": 0,
+      "crowd": 0.03,
+      "spent": 434,
+      "solo": 104
+    },
+    {
+      "id": "arc",
+      "b": "b",
+      "lv": 3,
+      "kills": 129,
+      "dps": 238,
+      "hurt": 13,
+      "crowd": 0.07,
+      "spent": 463,
+      "solo": 124
+    },
+    {
+      "id": "arc",
+      "b": "a",
+      "lv": 5,
+      "kills": 176,
+      "dps": 319,
+      "hurt": 0,
+      "crowd": 0,
+      "spent": 205,
+      "solo": 211
+    },
+    {
+      "id": "arc",
+      "b": "b",
+      "lv": 5,
+      "kills": 143,
+      "dps": 278,
+      "hurt": 0,
+      "crowd": 0.03,
+      "spent": 419,
+      "solo": 218
+    },
+    {
+      "id": "crossbow",
+      "b": "base",
+      "lv": 1,
+      "kills": 62,
+      "dps": 147,
+      "hurt": 593,
+      "crowd": 0.8,
+      "spent": 163,
+      "solo": 199
+    },
+    {
+      "id": "crossbow",
+      "b": "a",
+      "lv": 3,
+      "kills": 97,
+      "dps": 218,
+      "hurt": 0,
+      "crowd": 0.06,
+      "spent": 163,
+      "solo": 240
+    },
+    {
+      "id": "crossbow",
+      "b": "b",
+      "lv": 3,
+      "kills": 75,
+      "dps": 232,
+      "hurt": 69,
+      "crowd": 0.43,
+      "spent": 163,
+      "solo": 300
+    },
+    {
+      "id": "crossbow",
+      "b": "a",
+      "lv": 5,
+      "kills": 92,
+      "dps": 217,
+      "hurt": 0,
+      "crowd": 0.02,
+      "spent": 163,
+      "solo": 334
+    },
+    {
+      "id": "crossbow",
+      "b": "b",
+      "lv": 5,
+      "kills": 89,
+      "dps": 261,
+      "hurt": 0,
+      "crowd": 0.02,
+      "spent": 163,
+      "solo": 411
+    },
+    {
+      "id": "talisman",
+      "b": "base",
+      "lv": 1,
+      "kills": 56,
+      "dps": 104,
+      "hurt": 1090,
+      "crowd": 0.87,
+      "spent": 133,
+      "solo": 110
+    },
+    {
+      "id": "talisman",
+      "b": "a",
+      "lv": 3,
+      "kills": 101,
+      "dps": 259,
+      "hurt": 0,
+      "crowd": 0.01,
+      "spent": 133,
+      "solo": 211
+    },
+    {
+      "id": "talisman",
+      "b": "b",
+      "lv": 3,
+      "kills": 113,
+      "dps": 256,
+      "hurt": 0,
+      "crowd": 0,
+      "spent": 133,
+      "solo": 233
+    },
+    {
+      "id": "talisman",
+      "b": "a",
+      "lv": 5,
+      "kills": 133,
+      "dps": 419,
+      "hurt": 0,
+      "crowd": 0.01,
+      "spent": 133,
+      "solo": 308
     },
     {
       "id": "talisman",
       "b": "b",
       "lv": 5,
-      "kills": 141,
-      "dps": 298,
+      "kills": 131,
+      "dps": 334,
       "hurt": 0,
-      "crowd": 0
+      "crowd": 0,
+      "spent": 133,
+      "solo": 283
     },
     {
       "id": "coinsword",
       "b": "base",
       "lv": 1,
-      "kills": 33,
-      "dps": 86,
-      "hurt": 208,
-      "crowd": 0.48
+      "kills": 90,
+      "dps": 186,
+      "hurt": 403,
+      "crowd": 0.86,
+      "spent": 0,
+      "solo": 146
     },
     {
       "id": "coinsword",
       "b": "a",
       "lv": 3,
-      "kills": 67,
-      "dps": 138,
+      "kills": 108,
+      "dps": 228,
       "hurt": 0,
-      "crowd": 0.13
+      "crowd": 0.28,
+      "spent": 0,
+      "solo": 157
     },
     {
       "id": "coinsword",
       "b": "b",
       "lv": 3,
-      "kills": 44,
-      "dps": 153,
-      "hurt": 52,
-      "crowd": 0.22
+      "kills": 95,
+      "dps": 295,
+      "hurt": 227,
+      "crowd": 0.82,
+      "spent": 0,
+      "solo": 229
     },
     {
       "id": "coinsword",
       "b": "a",
       "lv": 5,
-      "kills": 61,
-      "dps": 149,
+      "kills": 128,
+      "dps": 236,
       "hurt": 0,
-      "crowd": 0
+      "crowd": 0.02,
+      "spent": 0,
+      "solo": 315
     },
     {
       "id": "coinsword",
       "b": "b",
       "lv": 5,
-      "kills": 43,
-      "dps": 181,
-      "hurt": 0,
-      "crowd": 0.1
+      "kills": 98,
+      "dps": 369,
+      "hurt": 181,
+      "crowd": 0.82,
+      "spent": 0,
+      "solo": 314
     },
     {
       "id": "guandao",
       "b": "base",
       "lv": 1,
-      "kills": 33,
-      "dps": 115,
-      "hurt": 0,
-      "crowd": 0.48
+      "kills": 87,
+      "dps": 277,
+      "hurt": 195,
+      "crowd": 0.85,
+      "spent": 0,
+      "solo": 171
     },
     {
       "id": "guandao",
       "b": "a",
       "lv": 3,
-      "kills": 32,
-      "dps": 176,
-      "hurt": 0,
-      "crowd": 0.33
+      "kills": 94,
+      "dps": 400,
+      "hurt": 38,
+      "crowd": 0.74,
+      "spent": 0,
+      "solo": 284
     },
     {
       "id": "guandao",
       "b": "b",
       "lv": 3,
-      "kills": 47,
-      "dps": 212,
-      "hurt": 0,
-      "crowd": 0.11
+      "kills": 118,
+      "dps": 348,
+      "hurt": 65,
+      "crowd": 0.51,
+      "spent": 0,
+      "solo": 222
     },
     {
       "id": "guandao",
       "b": "a",
       "lv": 5,
-      "kills": 30,
-      "dps": 199,
-      "hurt": 0,
-      "crowd": 0.18
+      "kills": 98,
+      "dps": 553,
+      "hurt": 100,
+      "crowd": 0.68,
+      "spent": 0,
+      "solo": 378
     },
     {
       "id": "guandao",
       "b": "b",
       "lv": 5,
-      "kills": 50,
-      "dps": 444,
-      "hurt": 0,
-      "crowd": 0.05
+      "kills": 128,
+      "dps": 639,
+      "hurt": 26,
+      "crowd": 0.42,
+      "spent": 0,
+      "solo": 308
     }
   ]
 }
