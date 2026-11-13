@@ -59700,6 +59700,9 @@ void main() {
       };
       for (let ae of ["pointerdown", "keydown", "touchend", "mousedown"])
         window.addEventListener(ae, ie, { capture: !0, passive: !0 });
+      // Start the title score as soon as autoplay is allowed. Never await
+      // resume(): on first visits it can remain pending until a user gesture.
+      if (!document.hidden) ve();
       document.addEventListener("visibilitychange", () => {
         try {
           document.hidden ? e.suspend() : O && e.resume();
