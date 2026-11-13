@@ -199,6 +199,15 @@ AudioContext 挂起（切后台）时音乐元素一起暂停，回来后从原�
   - 界面不用 `backdrop-filter`（`<html data-quality>` 控制）。
 
   `render.setQuality()` 切档时，会让带这些宏的材质重新编译。
+- **手机上合批街景**（`phonebatch.js`，手持设备的 `low` 档，`game.js` 在 `render.onLevelReady` 之前调 `batchStatic`）：Safari 的每个 WebGL 调用都要跨进程，
+  街景约 430 次绘制占满主线程。不透明的街景网格（kit 的静态组、`ct-gameprops`、`ct-shopfit`，以及标了 `userData.batch` 的网格，如灶台的固定铁件）
+  合成约 40 次绘制：用湿路面着色器（`G.mats.adopt`）的标准材质按着色器分组，贴图逐张画进同尺寸的贴图数组（保持原分辨率），
+  每种材质的常量写进一张浮点表、每帧和材质同步（会闪的灯照样闪）；发光的基础材质按共用的那张贴图合并。透明、透贴、清漆、蒙皮、实例化的不动。
+  新做的静态网格只要在这些组里、用 `adopt` 过的不透明材质，就会自动并进来；会显示隐藏或移动的东西不要放进这些组，也不要标 `userData.batch`。
+  `?batch=0` 在手机上关掉它做对比。
+- **「流畅」画质档**（设置里的键名 `fast`，预设对象沿用 `low` 并且 `name` 也是 `low`，所以所有手机档的判断都对它生效；靠 `key` 区分）：
+  渲染比例 0.55、不做体积雾（合成那一遍改用按距离的简易雾 `uLiteFog`）、泛光 3 级且不拉丝（`bloomLevels`、`streak`）、阴影图 1024。
+  由玩家自己选，自动降档不会降到它；游玩日志的 `quality` 记 `key`。
 - **手机的内存上限**（iPhone 把网页进程和它的显存算在一起，iPhone Air 约 2 GB，超了整页被杀）：手持设备上 `texmem.js` 在贴图上传后
   释放原图（`game.js` 里 three.js 上传 2D 贴图处调 `afterUpload`）。解码图片总是释放；画布只在标了 `markStatic` 后释放
   （建筑贴图、招牌图集最后一次 `finish`、僵尸贴图缩小、武器库 `kit.canvas`）。武器库画布在 `low` 档是半分辨率（`createKit({ canvasScale })`）。
