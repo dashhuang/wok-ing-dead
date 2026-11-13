@@ -67243,6 +67243,8 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
     SHOULDER: () => er,
     TRIGGER_PULL: () => oS,
     TWIST_SHARE: () => Iy,
+    RAIN: () => armRain,
+    RAINTIME: () => armRainT,
     WETNESS: () => kh,
     WRIST_LIMITS: () => sS,
     armGeometry: () => aS,
@@ -67277,6 +67279,10 @@ vObjP = position; vONrm = normal; vWNrm = normalize(mat3(modelMatrix) * normal);
       skinIn: [0.52, 0.33, 0.235],
     },
     kh = { value: 0.7 },
+    // rain landing on bare arms: how much of it reaches them (1 out in the open, 0 under a
+    // roof) and the clock its drops keep (seconds)
+    armRain = { value: 1 },
+    armRainT = { value: 0 },
     ys = Ay,
     L1 = t0.map((n) => [n.len[0], n.len[0] + n.len[1], n.total]),
     Ty = P1.web,
@@ -67399,14 +67405,42 @@ vec3 armMicro(vec3 col, vec4 hc, vec4 rs, vec3 rn, float kind, float wet, inout 
     // (rain stands on skin in drops a good deal bigger than the beads on a waxed cloth or on rubber)
     float bead = 0.0, wetR = 0.0, big = 1.0 + 1.9 * kSkin;
     for (int o = 0; o < 2; o++) {
-      float cell = (o == 0 ? 0.0085 : 0.0041) * big; vec2 g = q / cell + float(o) * 13.7, id = floor(g), fr = fract(g);
+      // (on the arm a whole number of cells goes round it, and they are counted round it: the pattern meets itself where the angle wraps)
+      float cell = (o == 0 ? 0.0085 : 0.0041) * big, wrap = o == 0 ? 8.0 : 17.0; if (kSkin > 0.5) cell = 0.20106 / wrap;
+      vec2 g = q / cell + float(o) * 13.7, id = floor(g), fr = fract(g); if (kSkin > 0.5) id.x = mod(id.x, wrap);
       float r1 = aHash(vec3(id, 1.0 + float(o))), r2 = aHash(vec3(id, 5.0)), r3 = aHash(vec3(id, 9.0));
-      float rad = (o == 0 ? 0.0019 : 0.0010) * big * (0.55 + 0.6 * r3), on = step(r1, (o == 0 ? 0.42 : 0.5) * wet * (rs.w > 0.5 ? 1.0 - 0.3 * kSkin : 0.5));
+      float rad = (o == 0 ? 0.0019 : 0.0010) * big * (0.55 + 0.6 * r3), on = step(r1, (o == 0 ? 0.42 : 0.5) * wet * (rs.w > 0.5 ? 1.0 - 0.45 * kSkin : 0.5));
       float d = length((fr - (0.25 + 0.5 * vec2(r2, r3))) * cell) / rad;
       bead = max(bead, on * sqrt(max(0.0, 1.0 - d * d)) * rad * 0.55); wetR = max(wetR, on * (1.0 - smoothstep(0.85, 1.0, d)));
     }
     // (a bead on cloth darkens it; on skin it only catches the light)
     h += bead * (1.0 - 0.66 * kSkin); rough = mix(rough, 0.07, wetR); col *= 1.0 - 0.18 * wetR * (1.0 - kSkin);
+  }
+  // Rain landing on bare skin. Those beads stand where they are: this is the rain still
+  // falling. A drop arrives with a start, stands a moment, lets go and runs off along the arm
+  // towards the elbow, drawing out as it goes, and another lands somewhere else. Each cell of
+  // the arm keeps its own time; a drop that runs out of its cell is drawn by the next one too.
+  // uArmRain is how much rain reaches the arm: under a roof no more of it lands.
+  if (kSkin > 0.5 && uArmRain > 0.01) {
+    vec2 q = vec2(atan(hc.z, hc.w) * 0.032, hc.x);
+    float fall = 0.0, fallR = 0.0;
+    for (int o = 0; o < 4; o++) {
+      float layer = o < 2 ? 0.0 : 1.0, back = o - (o / 2) * 2 == 0 ? 0.0 : 1.0;
+      float wrap = layer < 0.5 ? 10.0 : 17.0, cell = 0.20106 / wrap;
+      vec2 g = q / cell + 5.3 + layer * 7.1, id = floor(g) - vec2(0.0, back), cl = g - id; id.x = mod(id.x, wrap);
+      float k0 = aHash(vec3(id, 21.0 + layer)), per = 1.5 + 2.4 * k0;
+      float ph = uArmTime / per + k0 * 9.0, cyc = mod(floor(ph), 64.0), life = fract(ph);
+      float r1 = aHash(vec3(id, 31.0 + cyc)), r2 = aHash(vec3(id + 3.7, 37.0 + cyc)), r3 = aHash(vec3(id - 1.3, 41.0 + cyc));
+      float on = step(r1, 0.34 * uArmRain);
+      float grow = smoothstep(0.0, 0.05, life) * (1.0 + 0.35 * (1.0 - smoothstep(0.05, 0.16, life)));
+      float run = smoothstep(0.5, 1.0, life), gone = 1.0 - smoothstep(0.84, 1.0, life);
+      float rad = (layer < 0.5 ? 0.0042 : 0.0026) * (0.6 + 0.6 * r3) * grow * gone;
+      vec2 at = (0.3 + 0.4 * vec2(r2, r3)) * cell; at.y += run * run * cell * 0.95;
+      vec2 dq = cl * cell - at; dq.y /= 1.0 + 1.5 * run;
+      float d = length(dq) / max(rad, 1e-5);
+      fall = max(fall, on * sqrt(max(0.0, 1.0 - d * d)) * rad * 0.17); fallR = max(fallR, on * (1.0 - smoothstep(0.8, 1.0, d)));
+    }
+    h += fall; rough = mix(rough, 0.07, fallR);
   }
   rough = clamp(rough, 0.05, 1.0);
   return col;
@@ -67427,6 +67461,8 @@ vec3 armBump(vec3 N, vec3 vp, float h) {
       (e.name = "saltline_arm"),
       (e.onBeforeCompile = (t) => {
         ((t.uniforms.uArmWet = kh),
+          (t.uniforms.uArmRain = armRain),
+          (t.uniforms.uArmTime = armRainT),
           (t.vertexShader = t.vertexShader
             .replace(
               "#include <common>",
@@ -67462,7 +67498,7 @@ vArmRest = aRest; vArmHand = aHand; vArmN = normal;`,
             .replace(
               "#include <common>",
               `#include <common>
-uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec3 vArmN;
+uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying vec4 vArmRest; varying vec4 vArmHand; varying vec3 vArmN;
 ` + MD,
             )
             .replace(
@@ -67494,7 +67530,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
   reflectedLight.directSpecular *= armSheen; reflectedLight.indirectSpecular *= armSheen;`,
             )));
       }),
-      (e.customProgramCacheKey = () => "saltline-arm-4"),
+      (e.customProgramCacheKey = () => "saltline-arm-5"),
       e
     );
   }
@@ -71299,12 +71335,20 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         },
         // B: 1 out in the rain, falling to 0.3 under a roof (the loop below). The weapon keeps
         // a film of it indoors; bare arms dry off: no drops left on them, and none new.
-        setWetness(B) {
+        // dt, roofed: the frame's seconds and whether she is under a roof now. The rain that
+        // lands on bare arms (drops arriving and running off) keeps time by the one and stops
+        // within a second of the other; what already stands on them takes its time to dry.
+        setWetness(B, dt = 0, roofed = !1) {
           ((iy.value = Math.max(0, Math.min(1, +B || 0))),
-            (kh.value = Math.max(0, iy.value - 0.3)));
+            (kh.value = Math.max(0, iy.value - 0.3)),
+            (armRainT.value = (armRainT.value + dt) % 3600),
+            (armRain.value +=
+              ((roofed ? 0 : 1) - armRain.value) * Math.min(1, dt * 2)));
         },
         /** How wet the arms are now, 0 to 0.7 (for the armoury's arms: chinatown/armory.js). */
         armWetness: () => kh.value,
+        /** How much rain is reaching the arms now, 0 to 1. */
+        armRain: () => armRain.value,
         snap() {
           let B = n.player,
             X = (!!B.sprinting || l.sprint) && !n.input.fire && !a.reload;
@@ -78606,7 +78650,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
               y.y < v.max.y;
           c += ((b ? 0.3 : 1) - c) * Math.min(1, m * (b ? 0.25 : 0.6));
           try {
-            t.weapon.setWetness(c);
+            t.weapon.setWetness(c, m, b);
           } catch {}
           if (!n.wfill && t.render.sunDir) {
             let g = t.camera.getWorldDirection(f),

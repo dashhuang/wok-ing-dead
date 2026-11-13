@@ -213,6 +213,8 @@ export async function createArmory(G) {
   // a few seconds), so that the armoury's arms dry off indoors as the game's own do.
   const armWet = () =>
     G.weapon && G.weapon.armWetness ? G.weapon.armWetness() : undefined;
+  const armRain = () =>
+    G.weapon && G.weapon.armRain ? G.weapon.armRain() : undefined;
 
   // ---------------------------------------------------------------- blood
   // Every hit on the dead bleeds and every kill bursts, whichever weapon did it: the game's
@@ -726,6 +728,7 @@ export async function createArmory(G) {
           visible: P.alive,
           gain: ARMORY_TUNE.handGain,
           wet: armWet(),
+          rain: armRain(),
           eased: BOTH,
         });
         setLayer(arms.group, VIEW_LAYER);
@@ -753,6 +756,7 @@ export async function createArmory(G) {
         away: hs.away,
         gain: ARMORY_TUNE.handGain,
         wet: armWet(),
+        rain: armRain(),
       });
       setLayer(arms.group, VIEW_LAYER);
       // ---- camera: recoil and shake on top of where the player is looking, and scopes
