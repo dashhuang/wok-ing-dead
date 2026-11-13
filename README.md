@@ -113,7 +113,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 | `src/chinatown/pickups.js` | 弹药包、红包、武器箱和补给箱指示灯的模型 |
 | `src/chinatown/supplies.js` | 补给箱的位置：金龙街十二处（烘进街景），咸水码头十二处 |
 | `src/chinatown/docks.js` | 第二关在原版港口地图之上补的东西：补给箱，以及让僵尸走得进撤离区的导航修正 |
-| `src/chinatown/audio.js` | 僵尸语音、城市环境声、警报器 |
+| `src/chinatown/audio.js` | 僵尸语音、城市环境声、警报器、命中确认与套餐里的拾取和小票声；把试验场的武器声音并进游戏的声音表 |
 | `src/engine/three.js` | 把内嵌的 Three.js 以 `three` 的名字导出，供官方加载器使用 |
 | `src/settings.js` | 设置存储 |
 | `src/bootguard.js` | 开机时用保存的画质；手机上因画质过高被浏览器杀掉页面后，下次自动退回自动档 |
@@ -163,3 +163,7 @@ npm run build:single  # 生成单文件 dist-single/wok-ing-dead.html（约 35 M
 - 原作者的署名与原版链接放在「设置 → 关于」里；未给原游戏另行指定开源许可证。
 - 新增或修改界面文案：只改 `src/i18n/locales/` 里的语言包（英文是基准，缺的键回退到英文），然后重新生成界面字体子集，
   见 [素材来源与许可](docs/assets.md#界面字体)。
+
+## 游玩统计
+
+线上版本使用匿名编号记录每局结局、武器与成长、弹药和过程快照，用于调整数值。日志接口与部署、查询方式见 [游玩日志与数值统计](docs/telemetry.md)。

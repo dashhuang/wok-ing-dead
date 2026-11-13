@@ -46,8 +46,11 @@ export async function createArmory(G) {
 
   const kit = kitMod.createKit();
   const arms = handsMod.createArms(kit);
+  // (the weapons' sounds go out through the game's own sound system: its volume, its buses)
   const audio =
-    G.params && G.params.noaudio ? null : audioMod.createAudio(() => G.camera);
+    G.params && G.params.noaudio
+      ? null
+      : audioMod.createAudio(() => G.camera, { host: () => G.audio });
   if (audio)
     for (const ev of ["pointerdown", "keydown", "touchend"])
       window.addEventListener(ev, () => audio.unlock(), { capture: true });
@@ -116,7 +119,22 @@ export async function createArmory(G) {
     viewPose: pose,
     look: { yaw: 0, pitch: 0 },
     eye: G.player.eye,
-    kick: { pitch: 0, yaw: 0, roll: 0 },
+    kick: { pitch: 0, yaw: 0, roll: 0, fov: 0 },
+    // what the recoil reads of the player (arsenal/src/combat/recoil.js): crouching steadies
+    // the weapon like it does the game's own guns, and the share of a kick that is not given
+    // back turns the player's aim. A thumb cannot hold a burst down the way a mouse can, so on
+    // a touch screen less of it stays.
+    get steady() {
+      return G.player.crouching ? 0.85 : 1;
+    },
+    get recoilKeep() {
+      return G.input && G.input.touch ? 0.4 : 1;
+    },
+    nudgeLook(dp, dy) {
+      const P = G.player;
+      P.pitch = Math.max(-1.5, Math.min(1.5, P.pitch + dp));
+      P.yaw += dy;
+    },
     zoom: 1,
     zoomNow: 1,
     fov: { fp: LAB_FOV },
@@ -499,7 +517,7 @@ export async function createArmory(G) {
       lab.model = null;
       view.visible = false;
       stage.zoom = stage.zoomNow = 1;
-      stage.kick.pitch = stage.kick.yaw = stage.kick.roll = 0;
+      stage.kick.pitch = stage.kick.yaw = stage.kick.roll = stage.kick.fov = 0;
       zoomed = false;
       if (!silent) hooks.changed && hooks.changed(null);
     },
@@ -537,6 +555,7 @@ export async function createArmory(G) {
      * dt: real seconds. input: the game's input, or null when the player cannot act.
      */
     frame(dt, input) {
+      const spentBefore = combat.meter.spent;
       time += dt;
       const P = G.player;
       if (cur) {
@@ -556,6 +575,9 @@ export async function createArmory(G) {
         motion(dt, P);
       }
       combat.update(dt, time);
+      const spent = combat.meter.spent - spentBefore;
+      if (cur && spent > 0)
+        G.events.emit("telemetry:spent", { weapon: cur.id, amount: spent });
       fx.update(dt, time);
       if (!cur) return;
       const model = cur.model;
@@ -594,12 +616,22 @@ export async function createArmory(G) {
           Math.PI;
         G.camera.updateProjectionMatrix();
       } else if (zoomed) zoomed = false;
+      // the big ones punch the picture outwards for a moment (the game puts the field of
+      // view back itself on the next frame)
+      if (kk.fov > 0.0005) {
+        G.camera.fov *= 1 + kk.fov;
+        G.camera.updateProjectionMatrix();
+      }
       // anything a weapon built this frame (a sword wave, a new ribbon) gets the same treatment
       adoptTree(root);
     },
     /** 0..1 how far a scope is in (slows the look and the walk like the game's own sights). */
     get ads() {
       return Math.max(0, Math.min(1, (stage.zoomNow - 1) / 1.2));
+    },
+    /** The spread the crosshair should show for the weapon in hand (rad). */
+    get spread() {
+      return combat.spread;
     },
     debug: { kit, models, view, root, gain, warmLog, noFire: false },
   };

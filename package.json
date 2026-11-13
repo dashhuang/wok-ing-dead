@@ -28,12 +28,18 @@
     "format": "prettier --write .",
     "test:e2e": "playwright test",
     "verify": "npm run check && npm run build && npm run test:e2e",
-    "prepare": "git config core.hooksPath .githooks || true"
+    "prepare": "git config core.hooksPath .githooks || true",
+    "test:telemetry": "node --test tests/telemetry/*.test.mjs",
+    "telemetry:migrate": "node scripts/telemetry/migrate.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",
     "prettier": "^3.9.10",
     "three": "^0.180.0",
     "vite": "^8.3.8"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
+    "zod": "^4.6.7"
   }
 }

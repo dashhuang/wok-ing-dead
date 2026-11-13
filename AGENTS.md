@@ -4,7 +4,7 @@
 
 ## 项目是什么
 
-《行尸走镬 Wok-ing Dead》：雨夜唐人街打僵尸的浏览器 FPS（Three.js + Vite，纯前端，没有后端）。
+《行尸走镬 Wok-ing Dead》：雨夜唐人街打僵尸的浏览器 FPS（Three.js + Vite，玩法纯前端；游玩日志由 Vercel Functions + Neon 保存，见 docs/telemetry.md）。
 基于从 Claude artifact 提取的「Saltline」发布包改造而来，目标是 3A 品质、摆脱原版的复制感。
 
 - 线上：https://wok-ing-dead.vercel.app ，GitHub：`dashhuang/wok-ing-dead`（私有）。
@@ -35,6 +35,7 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
 | --- | --- |
 | `src/game.js` | 反压缩后的原版发布包（含内嵌 Three.js r180）。变量名是压缩名（`ov`、`hT`、`pT`…），靠 architecture.md 的入口表和搜索字符串定位 |
 | `src/chinatown/` | 唐人街关卡的全部新模块：布局、建筑、店铺、街市、车辆、招牌、灯光、僵尸、音效；套餐（肉鸽关卡）的规则 `run.js`、纯规则 `runflow.js` 和数值 `runtune.js`、武器与弹药 `loadout.js`、武器轮盘 `wheel.js`、僵尸数值 `zombietune.js`、接入试验场武器的 `armory.js` / `armtargets.js`、第二关的补充 `docks.js` |
+| `src/telemetry/`、`api/`、`server/telemetry/` | 游玩日志客户端、Vercel 接口与校验/存储；数据库迁移和查询脚本在 `scripts/telemetry/`，日志测试用 `npm run test:telemetry` |
 | `src/i18n/` | 语言选择和四份语言包（`locales/`，英文是基准） |
 | `src/style.css` | 全部界面样式，设计变量在开头 |
 | `public/assets/` | 贴图、GLB、僵尸、字体、音效（来源和许可见 docs/assets.md） |
@@ -72,7 +73,8 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
     岔路说明文字里的数字是手写的，改岔路的数值时一起改。
   - `docs/weapons-roguelike.md` 由 `node arsenal/scripts/design-doc.mjs` 生成，改数据不改文档；改了武器数据或这几张表之后重新生成。
 - **套餐的数值**只改 `src/chinatown/runtune.js` 的 `RUN` 和 `loadout.js` 的 `AMMO` / `ARMS`；僵尸的数值改 `zombietune.js`；
-  每级伤害倍率改 `arsenal/src/data/levels.js`；状态和反应的数字改 `arsenal/src/data/status.js`。用户定下的四条不要动：
+  每级伤害倍率改 `arsenal/src/data/levels.js`；状态和反应的数字改 `arsenal/src/data/status.js`；
+  后坐力、镜头上抬、散布扩张、近战顿挫这些手感改 `arsenal/src/data/feel.js`（`node arsenal/scripts/feel-report.mjs` 看换算后的幅度）。用户定下的四条不要动：
   弹药必须捡、弹药分四种、武器不限数量、红包只升手上那把。
 - **调数值看 [docs/balance.md](docs/balance.md)**：现在只调微辣（中辣和变态辣在菜单上锁着，`src/settings.js` 的 `openDifficulties`）。
   改了上面任何一张数值表或 `runflow.js` 的规则，运行 `npm run balance` 并把 `docs/balance-report.md` 一起提交，

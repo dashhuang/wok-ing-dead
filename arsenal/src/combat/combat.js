@@ -17,6 +17,7 @@ import { createTargets } from "./targets.js";
 import { createProjectiles } from "./projectiles.js";
 import { BEHAVIOURS } from "./behaviours.js";
 import { LEVELS } from "../data/weapons.js";
+import { createRecoil } from "./recoil.js";
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const _a = V(),
@@ -89,12 +90,9 @@ export async function createCombat(lab) {
   const zones = [];
   const lights = [null, null];
   const lightUsed = [false, false];
+  // what a shot does to the weapon and the camera (data/feel.js)
+  const recoil = createRecoil(stage);
   const view = {
-    kz: 0,
-    kr: 0,
-    ky: 0,
-    vz: 0,
-    vr: 0,
     sx: 0,
     sy: 0,
     lastYaw: 0,
@@ -103,7 +101,10 @@ export async function createCombat(lab) {
     poseK: 0,
     poseNow: 0,
   };
-  const cam = { pitch: 0, yaw: 0 };
+  // the camera leaning into a blade's swing: [pitch, yaw, roll]
+  const lean = [0, 0, 0];
+  let struck = 0; // zombies hurt since this was last zeroed (a swing counts what it cut)
+  let shownSpread = 0.012;
   // spent: rounds (or units of fuel) fired since the last reset, less any handed back
   const meter = {
     window: [],
@@ -124,6 +125,7 @@ export async function createCombat(lab) {
 
   targets.on("damage", (ev) => {
     if (ev.dmg > 0) {
+      struck++;
       meter.window.push({ t: time, d: ev.dmg });
       meter.total += ev.dmg;
     }
@@ -188,8 +190,12 @@ export async function createCombat(lab) {
       if (!o) return aim.origin.clone().addScaledVector(aim.dir, 0.6);
       return o.getWorldPosition(V());
     },
+    // (the aim opens up under sustained fire: data/feel.js `bloom`)
     spread(angle) {
-      return angle > 0 ? coneDir(aim.dir, angle, V()) : aim.dir.clone();
+      W.aimBase = angle;
+      const bl = recoil.feel.bloom;
+      const a = angle + (bl ? W.bloom * bl.add : 0);
+      return a > 0 ? coneDir(aim.dir, a, V()) : aim.dir.clone();
     },
     /** Direction from a muzzle towards the point the crosshair is on (so streams converge on the aim point). */
     aimFrom(pos, range) {
@@ -304,12 +310,14 @@ export async function createCombat(lab) {
     push(z, dir, knock) {
       targets.push(z, dir, knock);
     },
+    /**
+     * The weapon kicks: a is its strength, on the scale the weapon's numbers in data/feel.js
+     * are written for (`ref`). From the trigger it knows which shot of the burst it is.
+     */
     kick(a) {
-      view.vz += a * 0.9;
-      view.vr += a * 1.4;
-      view.ky += srand(a * 0.25);
-      cam.pitch += a * 0.012;
-      cam.yaw += srand(a * 0.004);
+      recoil.shot(a, W.inShot ? W.burst : 0);
+      const bl = recoil.feel.bloom;
+      if (bl && W.inShot) W.bloom = Math.min(1, W.bloom + bl.shot);
     },
     shake(a) {
       fx.shake(a);
@@ -382,6 +390,7 @@ export async function createCombat(lab) {
     }
     stage.zoom = 1;
     view.pose = null;
+    recoil.use(def.id);
     const beh = BEHAVIOURS[def.id];
     const branch = lab.state.level >= 3 ? lab.state.branch : "base";
     const level = lab.state.level;
@@ -413,6 +422,14 @@ export async function createCombat(lab) {
       casingDone: true,
       shots: 0,
       shot: 9,
+      burst: 0, // which shot of the burst the last one was
+      inShot: false,
+      bloom: 0, // 0..1 how far sustained fire has opened the aim
+      aimBase: undefined, // the spread the weapon last fired with (rad)
+      grip: null, // where the hand holds it, in the kick group's space
+      gripN: 0,
+      hitStop: 0, // seconds a cut that bit still hangs
+      swingRate: 1,
       heat: 0,
       charge: 0,
       charging: false,
@@ -445,18 +462,26 @@ export async function createCombat(lab) {
     W.swingN = n;
     W.swingOpts = opts || null;
     W.swingHit = false;
+    W.hitStop = 0;
+    W.swingRate = 1;
     W.swingDur = (W.spec.swingTime || 0.5) / mods.rate;
     const tr = W.spec.trail || { color: C(0xffffff, 2) };
     W.trail = null;
     W.trailSpec = tr;
   }
+  const swingSet = () =>
+    W.swingN === 9
+      ? SWINGS[9]
+      : (W.spec.heavy ? SWINGS.heavy : SWINGS.light)[
+          W.swingN % (W.spec.heavy ? 2 : 3)
+        ];
+  // which way the cut travels: -1, 0 or 1 about each of pitch, yaw and roll
+  const swingDir = (i) => {
+    const set = swingSet();
+    return Math.sign(set.to.r[i] - set.from.r[i]);
+  };
   function swingPose(k) {
-    const set =
-      W.swingN === 9
-        ? SWINGS[9]
-        : (W.spec.heavy ? SWINGS.heavy : SWINGS.light)[
-            W.swingN % (W.spec.heavy ? 2 : 3)
-          ];
+    const set = swingSet();
     // wind-up 0–0.2, strike 0.2–0.5, recover 0.5–1
     let r, p, w;
     if (k < 0.2) {
@@ -607,13 +632,38 @@ export async function createCombat(lab) {
       }
       lightUsed[i] = false;
     }
-    // camera: recoil settles, trauma shakes
-    cam.pitch *= Math.exp(-9 * dt);
-    cam.yaw *= Math.exp(-9 * dt);
+    // camera: the recoil, the lean into a blade's swing, and trauma shaking it
+    recoil.update(dt);
+    const M = W && active && W.swing >= 0 ? recoil.feel.melee : null;
+    if (M && M.follow) {
+      // strongest while the edge is travelling, gone by the time the weapon is back
+      const b = Math.sin(Math.PI * clamp01((W.swing - 0.08) / 0.6)) ** 2;
+      lean[0] = swingDir(0) * M.follow * 0.5 * b;
+      lean[1] = swingDir(1) * M.follow * b;
+      lean[2] = swingDir(2) * M.follow * 0.7 * b;
+    } else for (let i = 0; i < 3; i++) lean[i] *= Math.exp(-12 * dt);
+    const rc = recoil.cam;
     const tr = fx.trauma * fx.trauma;
-    stage.kick.pitch = cam.pitch + tr * 0.035 * Math.sin(t * 61.7);
-    stage.kick.yaw = cam.yaw + tr * 0.035 * Math.sin(t * 47.3 + 1.7);
-    stage.kick.roll = tr * 0.03 * Math.sin(t * 53.1 + 0.6);
+    stage.kick.pitch =
+      rc.p +
+      lean[0] +
+      tr * 0.03 * (Math.sin(t * 43.1) + 0.6 * Math.sin(t * 71.7 + 1.3));
+    stage.kick.yaw =
+      rc.y +
+      lean[1] +
+      tr * 0.03 * (Math.sin(t * 37.3 + 2.1) + 0.6 * Math.sin(t * 83.9));
+    stage.kick.roll =
+      rc.r +
+      lean[2] +
+      tr * 0.04 * (Math.sin(t * 29.7 + 0.7) + 0.5 * Math.sin(t * 61.3 + 4));
+    stage.kick.fov = rc.fov;
+    // what the crosshair shows: the spread the weapon last fired with, opened by its bloom
+    const bl = recoil.feel.bloom;
+    const want =
+      W && active && W.spec.kind === "gun"
+        ? Math.max(0.004, (W.aimBase ?? 0.012) + (bl ? W.bloom * bl.add : 0))
+        : 0.02;
+    shownSpread = want + (shownSpread - want) * Math.exp(-18 * dt);
     while (meter.window.length && time - meter.window[0].t > 5)
       meter.window.shift();
     input.fireEdge = input.altEdge = input.altUp = input.fireUp = false;
@@ -626,6 +676,8 @@ export async function createCombat(lab) {
     W.cooldown -= dt;
     W.draw = Math.min(1, W.draw + dt / 0.34);
     W.heat = Math.max(0, W.heat - dt * 0.35);
+    if (W.bloom > 0 && recoil.feel.bloom)
+      W.bloom = Math.max(0, W.bloom - dt * recoil.feel.bloom.decay);
     W.trigger += ((input.fire ? 1 : 0) - W.trigger) * Math.min(1, dt * 30);
     if (W.cycle < 1) {
       const before = W.cycle;
@@ -768,7 +820,7 @@ export async function createCombat(lab) {
           beh.tick && beh.tick(ctx);
         }
         W.shot = 0;
-        view.vz += dt * 1.2;
+        recoil.stream(dt);
       } else if (input.fire && W.rounds <= 0) startReload();
     } else if (spec.kind === "melee" && !busy) {
       W.comboT -= dt;
@@ -780,13 +832,33 @@ export async function createCombat(lab) {
     }
     if (W.swing >= 0) {
       const before = W.swing;
-      W.swing += dt / W.swingDur;
+      // a cut that bit hangs for a moment, then hurries out: the swing takes as long as ever
+      if (W.hitStop > 0) {
+        W.hitStop -= dt;
+        W.swing += (dt / W.swingDur) * 0.08;
+      } else W.swing += (dt / W.swingDur) * W.swingRate;
       const hitAt = spec.hitAt || 0.36;
       if (!W.swingHit && W.swing >= hitAt) {
         W.swingHit = true;
         W.shots++;
         W.shot = 0;
+        struck = 0;
         beh.swing && beh.swing(ctx, W.swingN, W.swingOpts || {});
+        const M = recoil.feel.melee;
+        if (M && struck > 0) {
+          const k = Math.min(1.5, 1 + 0.15 * (struck - 1));
+          W.hitStop = M.stop * k;
+          const lost = (W.hitStop * 0.92) / W.swingDur;
+          const left = Math.max(0.05, 1 - W.swing);
+          W.swingRate = left / Math.max(0.35 * left, left - lost);
+          recoil.jolt({
+            back: (M.back || 0) * k,
+            roll: -swingDir(2) * (M.roll || 0) * k,
+            pitch: swingDir(0) * (M.cam || 0) * 0.5 * k,
+            camYaw: swingDir(1) * (M.cam || 0) * k,
+            camRoll: swingDir(2) * (M.cam || 0) * 0.6 * k,
+          });
+        }
       }
       // blade trail while the edge is moving fast
       const an = W.model.anchors;
@@ -881,7 +953,14 @@ export async function createCombat(lab) {
   function shoot(cost) {
     const spec = W.spec;
     const rpm = (W.beh.rpm ? W.beh.rpm(ctx) : spec.rpm) * mods.rate;
-    W.beh.fire(ctx);
+    // a burst is shots that follow one another without a real pause
+    W.burst = W.shot > Math.max(0.3, 96 / rpm) ? 1 : W.burst + 1;
+    W.inShot = true;
+    try {
+      W.beh.fire(ctx);
+    } finally {
+      W.inShot = false;
+    }
     audio && audio.shot(W.id, W.branch);
     // the hands take the shot: fingers and wrists give a little
     lab.arms &&
@@ -911,21 +990,33 @@ export async function createCombat(lab) {
   function startReload() {
     if (!W || W.reload >= 0 || !(W.spec.reload > 0) || W.rounds >= W.spec.mag)
       return;
-    if (lab.supply && !lab.supply.can(W)) return; // nothing to load it with
+    if (lab.supply && !lab.supply.can(W)) {
+      // nothing to load it with: the trigger falls on an empty weapon
+      if (audio && input.fireEdge) audio.play("dry", { gap: 0.2 });
+      return;
+    }
     W.reload = 0;
     W.charge = 0;
     W.charging = false;
   }
 
+  // Where the hand holds the weapon, in the kick group's space: what its recoil turns about.
+  // (read for the first few frames after it is taken up, while nothing has kicked yet)
+  const GRIP = V(0.14, -0.16, -0.32);
+  function gripAt() {
+    const k = stage.viewKick;
+    if (W.grip && W.gripN >= 3) return W.grip;
+    const g = W.model.grips && (W.model.grips.right || W.model.grips.left);
+    if (!g || !g.anchor || W.model.holder.parent !== stage.viewPose)
+      return W.grip || GRIP;
+    W.gripN++;
+    k.updateWorldMatrix(true, false);
+    g.anchor.updateWorldMatrix(true, false);
+    W.grip = k.worldToLocal(g.anchor.getWorldPosition(W.grip || V()));
+    return W.grip;
+  }
+
   function animateView(dt) {
-    // recoil spring
-    view.vz += -view.kz * 220 * dt;
-    view.vz *= Math.exp(-16 * dt);
-    view.kz += view.vz * dt;
-    view.vr += -view.kr * 190 * dt;
-    view.vr *= Math.exp(-15 * dt);
-    view.kr += view.vr * dt;
-    view.ky *= Math.exp(-10 * dt);
     // sway: the weapon lags behind the look direction
     const dyaw = stage.look.yaw - view.lastYaw,
       dpitch = stage.look.pitch - view.lastPitch;
@@ -941,9 +1032,9 @@ export async function createCombat(lab) {
     const breathe = Math.sin(time * 1.3);
     let px = view.sx * 0.25,
       py = breathe * 0.0025 - view.sy * 0.2,
-      pz = Math.min(0.09, view.kz * 0.05);
-    let rx = Math.min(0.3, view.kr * 0.05) + view.sy * 0.5,
-      ry = view.ky * 0.05 + view.sx * 0.6,
+      pz = 0;
+    let rx = view.sy * 0.5,
+      ry = view.sx * 0.6,
       rz = view.sx * -0.8 + Math.sin(time * 0.9) * 0.004;
     // reload: the weapon stays in view, canted over so the support hand can get at it, and
     // dips a little each time that hand comes back with a round or a magazine
@@ -1024,8 +1115,11 @@ export async function createCombat(lab) {
       py += s.p[1];
       pz += s.p[2];
     }
+    const grip = gripAt();
     k.position.set(px, py, pz);
     k.rotation.set(rx, ry, rz, "YXZ");
+    // the recoil goes on last, and turns the weapon about the hand rather than the eye
+    recoil.apply(k, grip);
   }
 
   // ---------------------------------------------------------------- input
@@ -1087,6 +1181,11 @@ export async function createCombat(lab) {
     projectiles: proj,
     weapon: null,
     meter,
+    recoil,
+    /** The spread the crosshair should show (rad): the weapon's own, opened by sustained fire. */
+    get spread() {
+      return shownSpread;
+    },
     get mods() {
       return mods;
     },
@@ -1141,6 +1240,9 @@ export async function createCombat(lab) {
         endThrow(true);
         stage.zoom = 1;
         stage.kick.pitch = stage.kick.yaw = stage.kick.roll = 0;
+        stage.kick.fov = 0;
+        recoil.reset();
+        lean[0] = lean[1] = lean[2] = 0;
         stage.viewKick.position.set(0, 0, 0);
         stage.viewKick.rotation.set(0, 0, 0);
       } else {

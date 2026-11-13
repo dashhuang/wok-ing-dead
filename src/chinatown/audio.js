@@ -5,6 +5,11 @@
 // create() with its context, buses and event wrapper. Everything here plays through those buses,
 // so master volume, pause muting, the death low-pass and the reverb sends apply without extra work.
 
+import {
+  SOUNDS as ARMS_SOUNDS,
+  SHOTS as ARMS_SHOTS,
+} from "../../arsenal/src/audio/sounds.js";
+
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -551,6 +556,258 @@ function* carAlarm(sr, rng) {
 
 // Definitions merged into the game's sound table. `impact_enemy` replaces the old armour ping;
 // `defer` marks sounds that must never be synthesised on demand in the middle of a frame.
+// ---------------------------------------------------------------------------------------------
+// The run: a hit landing, the pass bell, tickets, pickups. Close, dry and short: these are the
+// sounds the player hears most after the weapon itself.
+// ---------------------------------------------------------------------------------------------
+
+// A round landing on one of the dead, heard at the shooter's ear whatever the distance.
+function hitTick(sr, rng, v) {
+  const k = [1, 1.06, 0.95][v % 3];
+  const a = alloc(sr, 0.07);
+  add(a, burst(sr, rng, 0.02, 0.004, { bp: 2400 * k, q: 1.2 }), 0, 0.9, sr);
+  add(a, thump(sr, 0.05, 520 * k, 300 * k, 0.006, 0.012), 0, 0.7, sr);
+  return unit(a);
+}
+// ... on the skull: a harder, brighter crack
+function hitHead(sr, rng, v) {
+  const k = [1, 1.07, 0.94][v % 3];
+  const a = alloc(sr, 0.12);
+  add(a, burst(sr, rng, 0.02, 0.003, { hp: 2600 }), 0, 1, sr);
+  add(
+    a,
+    modes(
+      sr,
+      0.1,
+      [
+        [1480 * k, 0.012, 1],
+        [2930 * k, 0.014, 0.7],
+        [4460 * k, 0.008, 0.4],
+      ],
+      rng,
+    ),
+    0,
+    0.7,
+    sr,
+  );
+  add(a, thump(sr, 0.06, 420 * k, 210 * k, 0.008, 0.016), 0, 0.5, sr);
+  return unit(a);
+}
+// ... and the one that put it down: two knocks, the second lower
+function hitKill(sr, rng, v) {
+  const k = [1, 1.05][v % 2];
+  const a = alloc(sr, 0.2);
+  for (const [t, f, g] of [
+    [0, 640, 1],
+    [0.06, 400, 0.85],
+  ]) {
+    add(a, thump(sr, 0.09, f * k, f * k * 0.55, 0.012, 0.022), t, g, sr);
+    add(
+      a,
+      burst(sr, rng, 0.02, 0.004, { bp: f * k * 3.4, q: 1.4 }),
+      t,
+      g * 0.6,
+      sr,
+    );
+  }
+  return unit(a);
+}
+// The bell on the pass: an order is up.
+function passBell(sr, rng, v) {
+  const f = [2093, 2349.3][v % 2];
+  const a = alloc(sr, 1.3);
+  add(
+    a,
+    modes(
+      sr,
+      1.25,
+      [
+        [f, 0.42, 1],
+        [f * 1.003, 0.36, 0.45],
+        [f * 2.76, 0.2, 0.35],
+        [f * 5.4, 0.07, 0.16],
+      ],
+      rng,
+    ),
+    0,
+    1,
+    sr,
+  );
+  add(a, burst(sr, rng, 0.006, 0.001, { hp: 3500 }), 0, 0.5, sr);
+  add(a, thump(sr, 0.05, 300, 200, 0.008, 0.012), 0, 0.25, sr);
+  return unit(a);
+}
+// A ticket pushed onto the spike.
+function ticketSpike(sr, rng, v) {
+  const k = [1, 1.08][v % 2];
+  const a = alloc(sr, 0.2);
+  add(a, burst(sr, rng, 0.04, 0.009, { bp: 3100 * k, q: 1.4 }), 0, 0.7, sr);
+  add(a, burst(sr, rng, 0.04, 0.008, { bp: 2300 * k, q: 1.4 }), 0.028, 0.5, sr);
+  add(a, thump(sr, 0.12, 330 * k, 180 * k, 0.012, 0.028), 0.05, 0.9, sr);
+  add(
+    a,
+    modes(
+      sr,
+      0.12,
+      [
+        [520 * k, 0.018, 1],
+        [840 * k, 0.012, 0.5],
+      ],
+      rng,
+    ),
+    0.05,
+    0.5,
+    sr,
+  );
+  return unit(a);
+}
+// A red envelope torn open, and what was in it.
+function envelopeOpen(sr, rng) {
+  const a = alloc(sr, 1);
+  add(
+    a,
+    ticks(sr, rng, 0.2, 40, { bp: 3000, q: 1, fade: 0.2, max: 0.006 }),
+    0,
+    0.7,
+    sr,
+  );
+  add(
+    a,
+    burst(sr, rng, 0.12, 0.03, { bp: 2600, q: 0.8, att: 0.01 }),
+    0,
+    0.5,
+    sr,
+  );
+  const notes = [1568, 1975.5, 2349.3, 3136, 3951];
+  notes.forEach((f, i) => {
+    const t = 0.1 + i * 0.062;
+    add(
+      a,
+      modes(
+        sr,
+        0.6,
+        [
+          [f, 0.22, 1],
+          [f * 2.02, 0.12, 0.4],
+          [f * 3.1, 0.06, 0.2],
+        ],
+        rng,
+      ),
+      t,
+      0.5 - i * 0.03,
+      sr,
+    );
+    add(a, burst(sr, rng, 0.005, 0.001, { hp: 4500 }), t, 0.2, sr);
+  });
+  return unit(a);
+}
+// A weapon case: two latches, the lid, and a moment for what is inside.
+function caseOpen(sr, rng) {
+  const a = alloc(sr, 1.1);
+  for (const [t, k] of [
+    [0, 1],
+    [0.09, 1.08],
+  ]) {
+    add(
+      a,
+      modes(
+        sr,
+        0.08,
+        [
+          [1900 * k, 0.009, 1],
+          [2900 * k, 0.007, 0.7],
+          [860 * k, 0.014, 0.4],
+        ],
+        rng,
+      ),
+      t,
+      0.7,
+      sr,
+    );
+    add(a, burst(sr, rng, 0.006, 0.001, { hp: 2500 }), t, 0.5, sr);
+  }
+  add(a, thump(sr, 0.3, 150, 78, 0.03, 0.07), 0.2, 0.9, sr);
+  add(a, burst(sr, rng, 0.12, 0.03, { lp: 900 }), 0.2, 0.6, sr);
+  add(
+    a,
+    modes(
+      sr,
+      0.8,
+      [
+        [880, 0.3, 1],
+        [1320, 0.26, 0.7],
+        [1760, 0.2, 0.5],
+        [2640, 0.14, 0.25],
+      ],
+      rng,
+    ),
+    0.24,
+    0.16,
+    sr,
+  );
+  return unit(a);
+}
+// Something to eat: chopsticks on the rim of a bowl.
+function bowl(sr, rng, v) {
+  const k = [1, 1.09, 0.93][v % 3];
+  const a = alloc(sr, 0.4);
+  for (const [t, g, d] of [
+    [0, 1, 1],
+    [0.075, 0.6, 1.19],
+  ]) {
+    add(
+      a,
+      modes(
+        sr,
+        0.3,
+        [
+          [1850 * k * d, 0.07, 1],
+          [2940 * k * d, 0.045, 0.6],
+          [4310 * k * d, 0.025, 0.35],
+        ],
+        rng,
+      ),
+      t,
+      g,
+      sr,
+    );
+    add(a, burst(sr, rng, 0.006, 0.001, { hp: 3000 }), t, g * 0.4, sr);
+  }
+  add(a, thump(sr, 0.1, 300 * k, 200 * k, 0.012, 0.025), 0, 0.3, sr);
+  return unit(a);
+}
+// Loose rounds swept into a pouch.
+function roundsUp(sr, rng, v) {
+  const k = [1, 1.07, 0.94][v % 3];
+  const a = alloc(sr, 0.34);
+  const n = 5 + Math.floor(rng() * 3);
+  let t = 0;
+  for (let i = 0; i < n; i++) {
+    const f = pick(rng, 2600, 3700) * k;
+    add(
+      a,
+      modes(
+        sr,
+        0.08,
+        [
+          [f, 0.012, 1],
+          [f * 1.5, 0.01, 0.6],
+          [f * 2.1, 0.007, 0.3],
+        ],
+        rng,
+      ),
+      t,
+      pick(rng, 0.45, 0.9),
+      sr,
+    );
+    add(a, burst(sr, rng, 0.004, 0.0008, { hp: 3500 }), t, 0.35, sr);
+    t += pick(rng, 0.014, 0.034);
+  }
+  add(a, burst(sr, rng, 0.1, 0.028, { lp: 750 }), 0.02, 0.6, sr);
+  add(a, thump(sr, 0.12, 200 * k, 118 * k, 0.014, 0.03), 0.02, 0.5, sr);
+  return unit(a);
+}
+
 export const SOUNDS = {
   impact_enemy: {
     gen: fleshHit,
@@ -656,10 +913,132 @@ export const SOUNDS = {
     pri: 1,
     defer: 1,
   },
+  // ---- the run (see the generators above)
+  hit_tick: {
+    gen: hitTick,
+    n: 3,
+    sr: 32000,
+    peak: 0.2,
+    bus: "gun",
+    max: 3,
+    pri: 4,
+  },
+  hit_head: {
+    gen: hitHead,
+    n: 3,
+    sr: 44100,
+    peak: 0.3,
+    bus: "gun",
+    max: 3,
+    pri: 6,
+  },
+  hit_kill: {
+    gen: hitKill,
+    n: 2,
+    sr: 32000,
+    peak: 0.34,
+    bus: "gun",
+    max: 2,
+    pri: 7,
+  },
+  run_bell: {
+    gen: passBell,
+    n: 2,
+    sr: 44100,
+    peak: 0.42,
+    bus: "dry",
+    max: 2,
+    pri: 8,
+  },
+  run_pick: {
+    gen: ticketSpike,
+    n: 2,
+    sr: 32000,
+    peak: 0.36,
+    bus: "dry",
+    max: 2,
+    pri: 7,
+  },
+  run_envelope: {
+    gen: envelopeOpen,
+    n: 1,
+    sr: 44100,
+    peak: 0.45,
+    bus: "dry",
+    max: 2,
+    pri: 8,
+  },
+  run_case: {
+    gen: caseOpen,
+    n: 1,
+    sr: 32000,
+    peak: 0.5,
+    bus: "near",
+    max: 2,
+    pri: 8,
+  },
+  run_food: {
+    gen: bowl,
+    n: 3,
+    sr: 44100,
+    peak: 0.34,
+    bus: "near",
+    max: 2,
+    pri: 6,
+  },
+  run_ammo: {
+    gen: roundsUp,
+    n: 3,
+    sr: 44100,
+    peak: 0.36,
+    bus: "near",
+    max: 3,
+    pri: 6,
+  },
 };
+
+// The armoury's weapons (arsenal/src/audio/sounds.js): the lab plays the same generators
+// through its own graph, here they are entries in the game's table like the rest.
+// (Its explosion is not taken: here an explosion is the game's own, see audio.js there.)
+for (const [name, def] of Object.entries(ARMS_SOUNDS))
+  if (name !== "a_explosion") SOUNDS[name] = def;
+
+// How the game plays the report of each of those weapons, in the form of its own table for
+// the rifle and the pistol: the shot and its level, and which of the two stock guns' echoes
+// off the street goes with it — [gun, level, pitch] — then how far ambience and music are
+// ducked under it (1 = not at all) and the pitch of its spent cases on the ground.
+const ECHO = {
+  shotgun: ["rifle", 1.3, 0.84, 0.4, 0.8],
+  smg: ["pistol", 0.85, 1.06, 0.6, 1.25],
+  revolver: ["pistol", 1.25, 0.9, 0.45, 1],
+  lever: ["rifle", 1.2, 0.92, 0.42, 0.9],
+  nailgun: [null, 0, 1, 0.85, 1],
+  firework: ["pistol", 0.5, 0.8, 0.6, 1],
+  crossbow: [null, 0, 1, 0.9, 1],
+  talisman: [null, 0, 1, 0.85, 1],
+};
+export const VOICES = {};
+for (const [id, forms] of Object.entries(ARMS_SHOTS))
+  for (const [branch, [sound, level]] of Object.entries(forms)) {
+    const [gun, tail, tailPitch, duck, shellPitch] = ECHO[id];
+    VOICES[branch === "base" ? id : id + ":" + branch] = {
+      shot: sound,
+      n: ARMS_SOUNDS[sound].n,
+      gain: 1.12 * level,
+      tailOut: gun && gun + "_tail_out",
+      tailIn: gun && gun + "_tail_in",
+      tail,
+      tailPitch,
+      duck,
+      shellPitch,
+    };
+  }
 
 // Synthesised early: these are needed within seconds of the first contact.
 export const ORDER = [
+  "hit_tick",
+  "hit_head",
+  "hit_kill",
   "z_shuffle",
   "z_slap",
   "z_bodyfall",
@@ -1489,6 +1868,22 @@ export function create(env) {
       jitter: 0.08,
     });
     stats.steps++;
+  });
+
+  // Every hit is confirmed at the shooter's ear, whatever the distance: a tick for the
+  // body, a crack for the head, two knocks for the one that puts it down. (A stream or a
+  // volley lands many times a second: those are thinned and quieter.)
+  let hitAt = -9;
+  on("player:hitEnemy", (e) => {
+    const t = ctx.currentTime;
+    const gap = e.killed ? 0.03 : e.spread ? 0.09 : 0.05;
+    if (t - hitAt < gap) return;
+    hitAt = t;
+    const head = e.weak || e.part === "weak";
+    play(e.killed ? "hit_kill" : head ? "hit_head" : "hit_tick", {
+      gain: e.spread && !e.killed ? 0.6 : 1,
+      jitter: 0.05,
+    });
   });
 
   on("enemy:hit", (e) => {
