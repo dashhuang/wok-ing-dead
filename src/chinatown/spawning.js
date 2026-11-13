@@ -200,7 +200,7 @@ export function createSpawnPicker(G, { sites, clock }) {
         if (!routes.has(c.site)) {
           if (searches >= PATH_BUDGET) continue;
           searches++;
-          routes.set(c.site, nav.findPath(c.pos, from));
+          routes.set(c.site, nav.findPath(c.pos, from, { approach: true }));
         }
         const path = routes.get(c.site);
         if (!path) continue;
@@ -257,7 +257,7 @@ export function createSpawnPicker(G, { sites, clock }) {
         return null;
       }
       // Refresh the final route against the CURRENT target, including the jitter.
-      const path = nav.findPath(out, from);
+      const path = nav.findPath(out, from, { approach: true });
       if (!path) {
         debug.last = { reason: "route-changed", searches: searches + 1 };
         return null;
