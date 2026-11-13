@@ -2641,10 +2641,6 @@ kbd {
 .m-order .btn.primary {
   width: 100%;
 }
-/* the branch (stage) row: same shape as the spice row, a little closer to it */
-.m-spice.m-place {
-  margin: 12px 0 -4px;
-}
 .m-lock {
   display: none;
   width: 9px;
@@ -2666,7 +2662,7 @@ kbd {
 .seg button.locked .m-lock {
   display: inline-block;
 }
-.m-place-note {
+.m-difficulty-note {
   margin: -4px 0 12px;
   font: 500 12px/1.4 var(--f-ui);
   color: var(--paper-dim);
@@ -3735,7 +3731,7 @@ kbd {
   .m-order > .m-spice > span {
     display: none;
   }
-  .m-place-note {
+  .m-difficulty-note {
     margin: -4px 0 8px;
   }
 }

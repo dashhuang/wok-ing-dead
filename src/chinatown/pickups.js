@@ -29,8 +29,6 @@ export function createPickups(G) {
     });
   // Unlit colour, so it reads as a lamp. The night street is exposed for very dim light:
   // values around 0.5 already look fully lit, and anything near 1 burns out to white.
-  // The docks are in evening daylight and the eye adapts to it: the same values there are
-  // close to black, so everything unlit is raised by GAIN for that stage (setGain).
   const glows = []; // [material, r, g, b] as written for the night street
   let gain = 1;
   const lamp = (r, g, b) => {
@@ -89,7 +87,6 @@ export function createPickups(G) {
   const UP = new T.Vector3(0, 1, 0);
 
   // A set of instanced meshes that share one transform per item.
-  // (the street's own code turns layer 2 on for the main camera; the docks' does not)
   G.camera.layers.enable(2);
   function makeSet(name, max, parts) {
     const meshes = parts.map(([geo, material, opts = {}]) => {

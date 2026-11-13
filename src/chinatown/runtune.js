@@ -66,23 +66,8 @@ export const RUN = {
       pack: 0.025,
     },
   ],
-  // Where the meal is served (G.stage). The street is the numbers here as written. The docks
-  // are open ground with long sight lines: more of the dead up at once, more of them running,
-  // elites closer together and a tougher house special. Shares are added to a course's own
-  // (only where the course has any).
-  places: {
-    street: {},
-    docks: {
-      glow: 2.6, // lamps and beams of pickups: evening daylight, see pickups.setGain
-      alive: 1.12,
-      every: 0.92,
-      runner: 0.1,
-      brute: 0.02,
-      bloater: 0.02,
-      eliteEvery: 55,
-      bossHp: 1.25,
-    },
-  },
+  // The street uses the course values without place multipliers.
+  places: { street: {} },
   difficulty: {
     // bossHit: how hard the house special claws, on top of boss.damage. On mild it is the
     // climax of a run that should usually be finished, not the wall it ends against.

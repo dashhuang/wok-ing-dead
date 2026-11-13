@@ -62,7 +62,6 @@ export function createRun(G, hooks) {
   const V3 = G.THREE.Vector3;
   const rng = G.rng && G.rng.fork ? G.rng.fork() : Math.random;
   const pickups = createPickups(G);
-  pickups.setGain((RUN.places[G.stage] || {}).glow || 1);
   const hud = createRunHud(G);
   // the firing range (/?range=1): this same run with the timeline off and a panel instead
   let range = null;
@@ -90,7 +89,6 @@ export function createRun(G, hooks) {
     eliteAt: 0,
     eliteN: 0,
     eliteIdle: 0, // timed elites since the last stove was lit
-    newPlace: false,
     elites: [],
     boss: null,
     bossSeen: false,
@@ -128,7 +126,7 @@ export function createRun(G, hooks) {
   };
   const diff = () =>
     RUN.difficulty[G.game && G.game.difficulty] || RUN.difficulty.hard;
-  const place = () => RUN.places[G.stage] || RUN.places.street;
+  const place = () => RUN.places.street;
   const dirName = (pos) => {
     const p = G.player.pos;
     const deg =
@@ -144,7 +142,6 @@ export function createRun(G, hooks) {
       runs: 0,
       bossSeen: 0,
       clears: 0,
-      docksClears: 0,
       hardClears: 0,
       allSirens: 0,
       weapons: [],
@@ -169,22 +166,13 @@ export function createRun(G, hooks) {
     id === "pistol" ||
     RUN.unlocks.start.includes(id) ||
     profile.weapons.includes(id);
-  const placeOpen = (id) =>
-    id !== "docks" ||
-    everything ||
-    profile.clears > 0 ||
-    profile.docksClears > 0;
   // fold a finished run into the profile; returns the weapons it put on the menu
   function bank(cleared) {
     if (S.range) return []; // the firing range keeps no record and unlocks nothing
     profile.kills += S.kills;
     profile.runs++;
     if (S.bossSeen) profile.bossSeen++;
-    S.newPlace = false;
     if (cleared) {
-      // the first meal served on the street opens the docks branch
-      if (G.stage !== "docks" && !placeOpen("docks")) S.newPlace = true;
-      if (G.stage === "docks") profile.docksClears++;
       profile.clears++;
       if (G.game.difficulty !== "standard") profile.hardClears++;
       if (S.sirens >= 3) profile.allSirens++;
@@ -1248,8 +1236,7 @@ export function createRun(G, hooks) {
   function placeCases() {
     const C = RUN.cases;
     const P = G.player.pos;
-    // where the dead rise, on the ground and somewhere a person can walk to (the docks also
-    // list points in the air, some of them over the water)
+    // Supply cases must stand on reachable ground.
     const nav = G.physics && G.physics.nav;
     const spots = pickN(
       ((G.level && G.level.enemySpawns) || [])
@@ -1743,9 +1730,6 @@ export function createRun(G, hooks) {
       if (Math.abs(S.scale - target) < 0.01) S.scale = target;
       G.time.scale = S.scale;
 
-      // (the docks have no updaters of their own: their stoves burn on this clock)
-      const stoves = G.level && G.level.stoves;
-      if (stoves) for (const st of stoves) st.update(dt);
       if (range) {
         // no timeline on the firing range: the panel decides who is on the street
         range.update(dt, real);
@@ -1887,7 +1871,6 @@ export function createRun(G, hooks) {
           : 0.15;
     },
     /** For the receipts: numbers of the run and the names of weapons it unlocked. */
-    placeOpen,
     summary() {
       return {
         kills: S.kills,
@@ -1895,10 +1878,7 @@ export function createRun(G, hooks) {
         sirens: S.sirens,
         dishes: S.served,
         weapons: loadout.owned().length,
-        unlocked: [
-          ...(S.newPlace ? [L10N.t("stage.docks.open")] : []),
-          ...S.unlocked.map(wname),
-        ],
+        unlocked: S.unlocked.map(wname),
       };
     },
     // test helpers (window.__G.run.debug)

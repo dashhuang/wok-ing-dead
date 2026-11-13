@@ -457,21 +457,4 @@ export default {
   "run.spice.rice": "糯米",
   "run.spice.rice.d": "爆头 {c}% 贴符，三张定身",
   "run.listSep": "、",
-  // ---- branches (stages); "@docks" lines replace the plain ones on the docks
-  "title.stage": "分店",
-  "stage.street": "金龙街",
-  "stage.docks": "咸水码头",
-  "stage.docks.open": "咸水码头分店",
-  "stage.locked": "先在金龙街出完一次套餐，码头分店才开张。",
-  "stage.loading": "正在搬灶……",
-  "title.premise@docks":
-    "死人是跟着船上岸的，码头已经归它们了，接你的船要等三份外卖齐了才来。菜单照旧，地方更开阔：它们老远就看得见你，会跑的也更多。点起三口灶，把三道菜炒好打包，招牌菜就会上桌。放倒它，去东南角泊位上船。",
-  "radio.intro@docks":
-    "守夜人，这里是灯笼台。码头已经失守，接你的船要等三份外卖到手才靠东南角泊位。货场里有三口灶，每口炒一道菜，炒好打包——弹药省着用，亮灯的补给箱里有货，灯是什么颜色就是哪种弹药。",
-  "radio.cut1@docks": "灶烧起来了。整个货场都闻得到——它们来了。",
-  "radio.cut2@docks": "第二口灶。每排货柜后面都在往外涌。",
-  "radio.all@docks": "三座全哑了。船在东南角泊位，发动机没熄火。快走。",
-  "radio.done@docks": "守夜人已登船。码头封锁完毕。干得好。",
-  "radio.boss@docks": "船到了，可那个大家伙也跟来了。放倒它，才上得了船。",
-  "radio.bossDown@docks": "它倒了。船在东南角泊位，快走。",
 };

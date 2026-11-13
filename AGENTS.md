@@ -47,7 +47,7 @@ Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值
 | 路径 | 说明 |
 | --- | --- |
 | `src/game.js` | 反压缩后的原版发布包（含内嵌 Three.js r180）。变量名是压缩名（`ov`、`hT`、`pT`…），靠 architecture.md 的入口表和搜索字符串定位 |
-| `src/chinatown/` | 唐人街关卡的全部新模块：布局、建筑、店铺、街市、车辆、招牌、灯光、僵尸、音效；套餐（肉鸽关卡）的规则 `run.js`、纯规则 `runflow.js` 和数值 `runtune.js`、武器与弹药 `loadout.js`、武器轮盘 `wheel.js`、僵尸数值 `zombietune.js`、接入试验场武器的 `armory.js` / `armtargets.js`、第二关的补充 `docks.js` |
+| `src/chinatown/` | 唐人街关卡的全部新模块：布局、建筑、店铺、街市、车辆、招牌、灯光、僵尸、音效；套餐（肉鸽关卡）的规则 `run.js`、纯规则 `runflow.js` 和数值 `runtune.js`、武器与弹药 `loadout.js`、武器轮盘 `wheel.js`、僵尸数值 `zombietune.js`、接入试验场武器的 `armory.js` / `armtargets.js` |
 | `src/telemetry/`、`api/`、`server/telemetry/` | 游玩日志客户端、Vercel 接口与校验/存储；数据库迁移和查询脚本在 `scripts/telemetry/`，日志测试用 `npm run test:telemetry` |
 | `src/i18n/` | 语言选择和四份语言包（`locales/`，英文是基准） |
 | `src/style.css` | 全部界面样式，设计变量在开头 |
@@ -121,7 +121,7 @@ Dash 定了新的方向、某件事做完或留下没验证的部分、踩到值
   游戏由用户自己在 Vercel 预览地址或线上实际玩。交付时说明“没有在浏览器里验证”，并写出用户试玩时该重点看哪里。
 - 用户明确要求在浏览器里验证时，按下面做：用真实鼠标点击和按键走入口，不能只靠 `?autostart=1` 或直接调用 `G.game.start()`
   （曾经标题页按钮被透明元素挡住，脚本直达的检查全部通过，用户一上手就点不动）。界面改动走一遍：标题页 → 开镬 → 选主菜 → 数字键换武器 →
-  Esc 暂停 → 设置里换语言 → 继续 → 死亡重试 → 通关再开（第二关码头暂时没有在用，不用验证），桌面、手机竖屏、手机横屏各看一次。
+  Esc 暂停 → 设置里换语言 → 继续 → 死亡重试 → 通关再开，桌面、手机竖屏、手机横屏各看一次。
 - 手动验证用 `npm run build` + `npx vite preview --port 5185` 之类的独立端口，不要用开发服务器：别的会话改文件会触发热重载打断测试。
   端口约定：dev 5173、arsenal 5311（测试 5312）、e2e 5199。
 - **这台 Mac 有人在用：浏览器自动化不能真的锁定鼠标。** Chromium 在 macOS 上执行 `requestPointerLock()` 会移动系统光标（无头模式也会），
