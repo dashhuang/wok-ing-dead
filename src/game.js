@@ -12,6 +12,7 @@ import { createNavigation, STEP_HEIGHT } from "./chinatown/navigation.js";
 import { createSpawnPicker } from "./chinatown/spawning.js";
 import * as DOORS from "./chinatown/doors.js";
 import { pickLook, sunDirection } from "./chinatown/look.js";
+import * as STREETFX from "./chinatown/streetfx.js";
 
 (() => {
   var bT = Object.defineProperty;
@@ -35810,8 +35811,8 @@ void main(){ vDir = position; vec4 p = projectionMatrix * vec4(mat3(viewMatrix) 
   }
   var $M = "// SALTLINE_SHADOW",
     e1 = null;
-  function ZM(n, e, t, i, s) {
-    let o = Z0.dir.clone().normalize(),
+  function ZM(n, e, t, i, s, dir) {
+    let o = (dir || Z0.dir).clone().normalize(),
       r = e.clone().add(t).multiplyScalar(0.5);
     (n.target.position.copy(r),
       n.position.copy(r).addScaledVector(o, 200),
@@ -36002,6 +36003,7 @@ uniform vec3 uCamPos, uSunRad, uAmb;
 uniform vec2 uTanHalf;
 uniform float uHasShadow, uMaxDist, uSigma, uFarZ, uFarHaze, uFlicker, uBoxDust;
 uniform vec3 uBoxMin, uBoxMax;
+${STREETFX.HALO_PARS}
 ${nv}
 float shape(float h){ return 0.30 + 0.70 * exp(-max(h, 0.0) / 5.5); }
 float hg(float mu, float g){ float g2 = g * g; return (1.0 - g2) / (12.566371 * pow(max(1.0 + g2 - 2.0 * g * mu, 1e-4), 1.5)); }
@@ -36041,6 +36043,8 @@ void main(){
     acc += T * src * (1.0 - Ti);
     T *= Ti; tPrev = t1;
   }
+  // halos round the street's lamps and signs (src/chinatown/streetfx.js)
+  ${STREETFX.HALO_FOG}
   // analytic continuation for far geometry (ship, cranes, skyline): fades into the horizon colour of that direction
   if (!isSky && dist > uMaxDist) {
     float h1 = uCamPos.y + rd.y * uMaxDist, h2 = uCamPos.y + rd.y * dist;
@@ -36520,6 +36524,7 @@ ${ge}`,
           uBoxDust: { value: 0 },
           uBoxMin: { value: new K(1e6, 1e6, 1e6) },
           uBoxMax: { value: new K(-1e6, -1e6, -1e6) },
+          ...STREETFX.uniformsFor.halo(),
           ...m(),
         },
         { defines: { VOL_STEPS: 16 } },
@@ -37026,13 +37031,13 @@ ${ge}`,
     r.add(u.mesh);
     let f = new Il(Z0.color, Z0.intensity);
     ((f.name = "sun"), (f.castShadow = !0));
-    let h = ZM(
-        f,
+    let sunFit = [
         new K(-41, -0.2, -33),
         new K(37, 32, 31),
         new K(-41, -3, -64),
         new K(72, 36, 34),
-      ),
+      ],
+      h = ZM(f, ...sunFit),
       p = () =>
         Math.min(n.quality.shadow || 2048, i.capabilities.maxTextureSize);
     (f.shadow.mapSize.set(p(), p()),
@@ -37169,7 +37174,40 @@ ${ge}`,
             Math.sin(te) * (Math.random() < 0.5 ? -1 : 1),
           )
           .normalize();
+        // the bolt lights the street from the side of the sky that flashed, from high up, so
+        // the light reaches the road between the buildings
+        let oe = u.material.uniforms.uFlashDir.value;
+        bolt.dir.set(oe.x, 0, oe.z).normalize().multiplyScalar(0.62).setY(0.78);
       });
+    // Lightning as a light: for the first half second of a flash the sun's directional light
+    // (the only shadow caster) is lent to the bolt: cold, far brighter, from the bolt's side of
+    // the sky. Everything in the street throws a hard shadow, the fog pass draws its shafts,
+    // then the light goes back. The static shadow cache notices the moved light and redraws
+    // itself, once on the way out and once on the way back; the low preset keeps the old
+    // sky-only flash to spare phones those two redraws.
+    let bolt = { dir: new K(-0.5, 0.78, 0.3), on: !1, force: !1 };
+    function strike() {
+      let G = CT.fx.lightning || 0,
+        te =
+          G > 0 && n.quality.name !== "low" && w.t < 0.5 && w.power > 0
+            ? w.power *
+              Math.exp(-w.t * 6) *
+              (0.7 + 0.3 * Math.sin(w.t * 47) * Math.sin(w.t * 13 + 1))
+            : 0;
+      if (te > 0.02) {
+        (bolt.on ||
+          ((bolt.on = bolt.force = !0),
+          ZM(f, ...sunFit, bolt.dir),
+          f.color.setRGB(0.72, 0.82, 1)),
+          (f.intensity = G * te));
+      } else
+        bolt.on &&
+          ((bolt.on = !1),
+          (bolt.force = !0),
+          ZM(f, ...sunFit),
+          f.color.copy(Z0.color),
+          (f.intensity = Z0.intensity));
+    }
     let S = {
       scale: 1,
       enabled: !(e.shot || e.show || e.dynres === "0"),
@@ -37285,9 +37323,11 @@ ${ge}`,
         i.clear(!0, !0, !1),
         (n.quality.name === "ultra" ||
           e.shot ||
+          bolt.force ||
           (k & 1) === 0 ||
           !f.shadow.map) &&
           (i.shadowMap.needsUpdate = !0),
+        (bolt.force = !1),
         i.render(r, a),
         T && (E.copyDepth(b), i.setRenderTarget(g)),
         s.depthRange(0, 0.05));
@@ -37311,9 +37351,11 @@ ${ge}`,
       // (a weapon drawn ahead of time needs its shaders for indoors and outdoors alike:
       // armory.js asks for one, then the other, for a few frames each)
       Q.envWarm && (le = Q.envWarm === "in" && !!Q.interiorEnv);
-      (le && (r.environment = Q.interiorEnv),
+      // outdoors the hands and the gun reflect the street they are in (see captureStreet)
+      let se = le ? Q.interiorEnv : Q.streetEnv;
+      (se && (r.environment = se),
         (r.environmentIntensity =
-          te * (le ? i_ / n_ : 1) * (Q.viewFill || 1.1)));
+          te * (se ? (le ? i_ : CT.fx.probe) / n_ : 1) * (Q.viewFill || 1.1)));
       try {
         i.render(r, l);
       } finally {
@@ -37361,6 +37403,7 @@ ${ge}`,
         exposure: 1,
         env: y ? y.texture : null,
         interiorEnv: null,
+        streetEnv: null,
         envWarm: null,
         resolution: new We(4, 4),
         depthTextureIsLive: !1,
@@ -37435,6 +37478,13 @@ ${ge}`,
           } catch (G) {
             console.error(
               "[render] interior probe failed: " + ((G && G.stack) || G),
+            );
+          }
+          try {
+            captureStreet();
+          } catch (G) {
+            console.error(
+              "[render] street probe failed: " + ((G && G.stack) || G),
             );
           }
           try {
@@ -37531,6 +37581,7 @@ ${ge}`,
                   0.35
                 : 0),
             (u.material.uniforms.uFlash.value = Math.max(0, w.value)),
+            strike(),
             A());
           for (let ee of z)
             try {
@@ -37630,6 +37681,54 @@ ${ge}`,
       }),
         j &&
           console.log(`[render] interior probe assigned to ${j} material(s)`));
+    }
+    // One probe for the street: what the neon, the lanterns and the last light look like from
+    // the middle of Golden Dragon Street. The open-sky environment stays on walls and ground;
+    // the things that show a reflection (the gun and hands, vehicle paint, chrome, glass:
+    // materials flagged userData.street) take this one. Same size as the interior probe, so
+    // the first-person pass needs no third set of shaders.
+    function captureStreet() {
+      if (!CT.on || !(CT.fx.probe > 0) || Q.streetEnv) return;
+      let G = new Lc(128, { type: ro, generateMipmaps: !1 }),
+        te = new Dc(0.15, 300, G),
+        oe = new Pa(i);
+      (te.layers.set(Ia), te.position.set(-12, 2, 6), te.updateMatrixWorld(!0));
+      let ee = i.toneMapping;
+      ((i.toneMapping = Cs),
+        (u.material.uniforms.uEnv.value = 1),
+        (i.shadowMap.needsUpdate = !0));
+      try {
+        te.update(i, r);
+      } finally {
+        ((u.material.uniforms.uEnv.value = 0),
+          (i.toneMapping = ee),
+          i.setRenderTarget(null));
+      }
+      ((Q.streetEnv = oe.fromCubemap(G.texture).texture),
+        G.dispose(),
+        oe.dispose());
+      let le = new Set();
+      r.traverse((xe) => {
+        let j = xe.material
+          ? Array.isArray(xe.material)
+            ? xe.material
+            : [xe.material]
+          : null;
+        if (j)
+          for (let O of j)
+            !O ||
+              le.has(O) ||
+              !O.userData ||
+              O.userData.street !== !0 ||
+              O.userData.interior === !0 ||
+              !("envMap" in O) ||
+              (le.add(O),
+              (O.envMap = Q.streetEnv),
+              (O.envMapIntensity = (O.envMapIntensity || 1) * CT.fx.probe),
+              (O.needsUpdate = !0));
+      });
+      le.size &&
+        console.log(`[render] street probe assigned to ${le.size} material(s)`);
     }
     ((Q.captureInteriorProbe = J),
       Q.resize(),
@@ -39907,7 +40006,7 @@ float metalnessFactor = metalness * slORM.b;
   // cache keys, so switching quality recompiles (see render.setQuality).
   var slLite = !1;
   function g_(n, e) {
-    (Object.assign(n.uniforms, e),
+    (Object.assign(n.uniforms, e, STREETFX.uniformsFor.glow()),
       slLite && (n.fragmentShader = "#define SL_LITE\n" + n.fragmentShader),
       (n.vertexShader = n.vertexShader
         .replace(
@@ -39924,7 +40023,14 @@ float metalnessFactor = metalness * slORM.b;
         .replace(
           "#include <common>",
           `#include <common>
-` + pk,
+` +
+            pk +
+            STREETFX.GLOW_PARS,
+        )
+        // lamp and sign light baked onto the ground (src/chinatown/streetfx.js)
+        .replace(
+          "#include <lights_fragment_end>",
+          "#include <lights_fragment_end>\n" + STREETFX.glowApply("vSlPos"),
         )
         .replace("#include <map_fragment>", mk)
         .replace("#include <roughnessmap_fragment>", gk)
@@ -48993,6 +49099,7 @@ vec2 gRipple(vec2 p, float t, float cell, float seed){
         uMarkRect: { value: new Jt(Ha.x0, Ha.z0, 1 / Ha.w, 1 / Ha.h) },
         uReflMatrix: { value: new Je() },
         uReflScale: { value: new We(0.5, 0.5) },
+        ...STREETFX.uniformsFor.glow(),
       },
       i = new L0({ color: 16777215, roughness: 1, metalness: 0 });
     ((i.name = "apron_wet"),
@@ -49013,7 +49120,9 @@ vec2 gRipple(vec2 p, float t, float cell, float seed){
               .replace(
                 "#include <common>",
                 `#include <common>
-` + TP,
+` +
+                  TP +
+                  STREETFX.GLOW_PARS,
               )
               .replace("#include <map_fragment>", CT.on ? CT.asphalt(AP) : AP)
               .replace(
@@ -49038,11 +49147,12 @@ vec2 gRipple(vec2 p, float t, float cell, float seed){
               .replace(
                 "#include <lights_fragment_end>",
                 `#include <lights_fragment_end>
+${STREETFX.GLOW_GROUND}
   reflectedLight.directSpecular = min(reflectedLight.directSpecular, vec3(40.0));`,
               )));
       }),
       (i.customProgramCacheKey = () =>
-        "saltline-apron-3" +
+        "saltline-apron-4" +
         (n.quality.name === "low" ? "L" : "") +
         ((n.quality.planar || 0) > 0 ? "" : "N")),
       (i.userData.qualityKeyed = !0));
@@ -49407,6 +49517,7 @@ uniform float uTime, uRain, uPix, uDrip; uniform vec3 uVel, uBox, uSunDir, uSunC
 attribute vec4 aSeed;
 varying vec3 vCol; varying float vA; varying vec2 vUv;
 ${Ww}
+${STREETFX.RAIN_PARS}
 uniform vec4 uSky[8];   // roof openings (x, z, half w, half d): rain falls through these into the shed
 bool wSky(vec3 p){
   for (int i = 0; i < 8; i++) { if (abs(p.x - uSky[i].x) < uSky[i].z && abs(p.z - uSky[i].y) < uSky[i].w) return true; }
@@ -49439,7 +49550,7 @@ void main(){
   vec3 wp = p + dir * (len * (position.y - 0.5)) + side * (w * position.x);
   float a = (w0 / w) * smoothstep(0.7, 2.6, dist) * (1.0 - smoothstep(0.38, 0.5, dist / uBox.x));
   float c = dot(toP / max(dist, 1e-3), uSunDir);
-  vCol = uAmb + uSunCol * wPhase(c);
+  vCol = uAmb + uSunCol * wPhase(c) + stRainLight(p);
   vA = a * (0.55 + 0.45 * fract(aSeed.w * 13.3));
   gl_Position = kill > 0.5 ? vec4(2.0, 2.0, 2.0, 1.0) : projectionMatrix * viewMatrix * vec4(wp, 1.0);
 }`,
@@ -49455,6 +49566,7 @@ uniform float uTime, uRain; uniform vec3 uSunDir, uSunCol, uAmb, uMaskRect; unif
 attribute vec4 aSeed;
 varying vec3 vCol; varying float vA; varying vec2 vUv; varying float vLife;
 ${Ww}
+${STREETFX.RAIN_PARS}
 vec2 sHash(vec2 p){ vec3 q = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973)); q += dot(q, q.yzx + 33.33); return fract((q.xx + q.yz) * q.zy); }
 void main(){
   vUv = position.xy;
@@ -49478,7 +49590,7 @@ void main(){
   vec3 side = normalize(vec3(toP.z, 0.0, -toP.x));
   vec3 wp = p + side * (wd * position.x * 2.0) + vec3(0.0, ht * position.y + 0.004, 0.0);
   float c = dot(toP / max(dist, 1e-3), uSunDir);
-  vCol = uAmb * 1.4 + uSunCol * wPhase(c) * 0.8;
+  vCol = uAmb * 1.4 + uSunCol * wPhase(c) * 0.8 + stRainLight(p + vec3(0.0, 0.3, 0.0)) * 1.5;
   vA = (1.0 - life) * (1.0 - smoothstep(11.0, 15.0, dist)) * mix(0.5, 1.0, pud);
   vLife = life;
   gl_Position = kill > 0.5 ? vec4(2.0, 2.0, 2.0, 1.0) : projectionMatrix * viewMatrix * vec4(wp, 1.0);
@@ -49534,6 +49646,7 @@ void main(){
         uSunDir: { value: Z0.dir.clone() },
         uSunCol: { value: c },
         uAmb: { value: u },
+        ...STREETFX.uniformsFor.rain(),
       },
       h = [0, 1, 2, 3, 4, 5, 6, 7].map(() => new Jt(0, 0, -1, -1)),
       p = {
@@ -77990,6 +78103,7 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
     skyGain: 1,
     sunDisk: 1,
     post: {},
+    fx: {},
     puddles: [
       [-31, 6.4, 3.2, 2, 0.24],
       [-20, 3.2, 6.5, 0.8, 0.26],
@@ -78165,7 +78279,8 @@ uniform float uArmWet; varying vec4 vArmRest; varying vec4 vArmHand; varying vec
         T0.fog.setRGB(...sky.fog),
         (CT.skyGain = sky.gain),
         (CT.sunDisk = sky.disk),
-        (CT.post = look.post));
+        (CT.post = look.post),
+        (CT.fx = look.fx));
     },
   };
   async function cL() {

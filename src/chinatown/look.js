@@ -42,6 +42,16 @@ export const LOOK = {
     lookPower: 1.24,
     lookSat: 1.24,
   },
+  // What the lamps and signs add beyond the few real point lights (src/chinatown/streetfx.js)
+  // and the two things the renderer does for the street. 0 or false switches one off.
+  fx: {
+    glow: 1, // pools of lamp and sign light baked onto the ground
+    glowNear: 0.35, // their weight near the camera, where real lights already shine
+    halo: 0.0045, // halo in the wet air around lamps and signs
+    rainLit: 0.1, // their colour on the rain falling past them
+    probe: 1.3, // the gun, hands and glossy paint reflect the street, not the open sky (gain)
+    lightning: 12, // peak strength of the light a flash throws, with shadows; 0 = sky only
+  },
 };
 
 // What the street looked like before this table existed (`?look=0`), for side-by-side checks.
@@ -54,22 +64,41 @@ export const LOOK_BEFORE = {
   },
   sky: { ...LOOK.sky, gain: 0.28 },
   post: {},
+  fx: {
+    glow: 0,
+    glowNear: 0,
+    halo: 0,
+    rainLit: 0,
+    probe: 0,
+    lightning: 0,
+  },
 };
 
-// `?look=0` is the old look; `?sun=azimuth,elevation,intensity` moves the sun on the current one.
+// `?look=0` is the old look; `?sun=azimuth,elevation,intensity` moves the sun on the current one;
+// `?fx=halo:0,glow:2` overrides entries of `fx` by name.
 export function pickLook(params = {}) {
-  const base = params.look === "0" ? LOOK_BEFORE : LOOK;
-  if (!params.sun) return base;
-  const [az, el, power] = String(params.sun).split(",").map(Number);
-  return {
-    ...base,
-    sun: {
-      ...base.sun,
-      azimuth: Number.isFinite(az) ? az : base.sun.azimuth,
-      elevation: Number.isFinite(el) ? el : base.sun.elevation,
-      intensity: Number.isFinite(power) ? power : base.sun.intensity,
-    },
-  };
+  let look = params.look === "0" ? LOOK_BEFORE : LOOK;
+  if (params.sun) {
+    const [az, el, power] = String(params.sun).split(",").map(Number);
+    look = {
+      ...look,
+      sun: {
+        ...look.sun,
+        azimuth: Number.isFinite(az) ? az : look.sun.azimuth,
+        elevation: Number.isFinite(el) ? el : look.sun.elevation,
+        intensity: Number.isFinite(power) ? power : look.sun.intensity,
+      },
+    };
+  }
+  if (params.fx) {
+    const fx = { ...look.fx };
+    for (const pair of String(params.fx).split(",")) {
+      const [key, value] = pair.split(":");
+      if (key in fx && Number.isFinite(+value)) fx[key] = +value;
+    }
+    look = { ...look, fx };
+  }
+  return look;
 }
 
 // Unit vector pointing at the sun; +x is east along the street, +z is south.

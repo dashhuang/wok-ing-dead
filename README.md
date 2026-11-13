@@ -137,8 +137,9 @@ Dash 定下的方向见 [决定与偏好](docs/decisions.md)，各功能的进�
 - `/?cam=x,y,z,lx,ly,lz`：固定相机，`&noweapon=1` 隐藏武器，方便截图检查场景。
 - `/?q=low|medium|high|ultra`：指定画质档位；`/?unlock=all`：全部武器解锁。
 - `/?bench=1`：沿镜头路径巡航并统计帧耗时。
-- `/?look=0`：换回调整主光和后期之前的画面，用来对比；`/?sun=方位,仰角,强度`（度，方位 0 是正对街东头）临时挪太阳。
-  数值在 `src/chinatown/look.js`。
+- `/?look=0`：换回调整主光、后期和街灯效果之前的画面，用来对比；`/?sun=方位,仰角,强度`（度，方位 0 是正对街东头）临时挪太阳；
+  `/?fx=glow:0,halo:0,rainLit:0,probe:0,lightning:0` 单独关掉或调某一项街灯效果。数值在 `src/chinatown/look.js`。
+  `__G.events.emit("thunder", { intensity: 1 })` 立刻打一次闪电。
 - `window.__G.run`：套餐关卡。`state` 是当前局的状态，`tune` 是全部数值，`loadout` 是武器和弹药；`debug.addXp(n)`、
   `debug.setTime(秒)`、`debug.envelope()`、`debug.pack("heavy")`、`debug.give("flamer")`、`debug.set("shotgun", 5, "b")`
   用来直接造出升级、关底、红包、弹药包、新武器，以及指定等级和形态的武器。`/?pool=1` 在电脑上也用手机的 30 只僵尸池。
