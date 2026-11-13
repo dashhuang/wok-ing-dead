@@ -353,25 +353,6 @@ export function dishStep(c, dt, { home = true } = {}) {
   return ev;
 }
 
-/**
- * Which of a dish's steps it is at, from 0: toss, fry, toss, fry, toss, fry, pack (see
- * dishSteps). A wok waiting for its toss, in hand or on its way back is at that toss.
- */
-export function dishAt(c) {
-  const n = RUN.stove.fry.length;
-  if (c.phase === "ready" || c.phase === "pack" || c.phase === "done")
-    return 2 * n;
-  return Math.min(n - 1, c.k) * 2 + (c.phase === "fry" ? 1 : 0);
-}
-
-/** The steps of a dish, in order: "toss" and "fry" in turn, then "pack". */
-export function dishSteps() {
-  const out = [];
-  for (let i = 0; i < RUN.stove.fry.length; i++) out.push("toss", "fry");
-  out.push("pack");
-  return out;
-}
-
 /** The grade of a dish (0-3): which stove it is, one better, less one for every time it caught. */
 export const dishGrade = (c) =>
   Math.max(0, Math.min(RUN.stove.heal.length - 1, c.n + 1 - c.late));

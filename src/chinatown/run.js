@@ -42,8 +42,6 @@ import {
   dishTossed,
   dishHot,
   dishStep,
-  dishAt,
-  dishSteps,
   dishLeft,
   dishGrade,
   timedElite,
@@ -697,39 +695,37 @@ export function createRun(G, hooks) {
       tmp.set(c.pos.x, (c.pos.y || 0) + 1.1, c.pos.z);
       wokHands.smoke(tmp, dt, c.charred);
     }
-    // the ticket under the course name: every step of the dish, and what to do now
-    const left = dishLeft(c);
+    // the line under the course name: what to do now, and the mark on the stove that says
+    // the same from across the street
     const waits = c.phase === "due" || c.phase === "ready";
+    const last = K.fry.length - 1;
     let key = c.phase;
     let s = 0;
-    let frac = 1;
     let urgent = false;
+    let mark = "";
     if (c.phase === "toss") {
-      key = dishTossed(c) ? "back" : "toss";
-      frac = c.t / K.toss.seconds;
+      const tossed = dishTossed(c);
+      key = tossed ? "back" : "toss" + Math.min(c.k, last);
+      mark = tossed ? "back" : "";
     } else if (c.phase === "fry") {
-      key = c.k < K.fry.length - 1 ? "fry" : "fryLast";
+      key = "fry" + Math.min(c.k, last);
       s = K.fry[c.k] - c.t;
-      frac = c.t / K.fry[c.k];
-    } else if (waits && c.charred) {
-      key = "charred";
-      urgent = true;
+      mark = "fry";
     } else if (waits) {
-      key = c.phase + (c.caught ? "Late" : "");
-      s = left;
-      frac = left / (c.caught ? K.char : K.burn);
-      urgent = c.caught || left < 6;
-    } else if (c.phase === "pack") frac = c.t / K.pack;
-    hud.setCook({
-      steps: dishSteps(),
-      at: dishAt(c),
-      key,
-      s: Math.max(0, Math.ceil(s)),
-      frac,
-      urgent,
-      late: c.late,
-      charred: c.charred,
-    });
+      key = mark = c.charred ? "charred" : c.caught ? "late" : c.phase;
+      s = dishLeft(c) || 0;
+      urgent = c.charred || c.caught || s < 6;
+    }
+    s = Math.max(0, Math.ceil(s));
+    hud.setCook({ key, s, urgent });
+    // (the mark is redrawn when what it says changes: once a second while it counts)
+    const markText = mark
+      ? L10N.t("run.mark.wok") + " " + L10N.t("run.mark." + mark, { s })
+      : "";
+    if (markText !== c.mark) {
+      c.mark = markText;
+      hooks.refreshMarkers();
+    }
     hud.setHands(!!S.hands);
   }
   // The dead already in the street get wind of the dish: those within RUN.stove.smell of the
@@ -791,7 +787,7 @@ export function createRun(G, hooks) {
         }),
         "gold",
       );
-      if (c.late) hud.toast(L10N.t("run.dish.scorched", { n: c.late }), "warn");
+      if (c.late) hud.toast(L10N.t("run.dish.scorched"), "warn");
     }
     play("complete", { gain: 0.5, pitch: c.charred ? 0.7 : 1.2 });
     G.events.emit("run:dish", {
@@ -1824,6 +1820,7 @@ export function createRun(G, hooks) {
         ...newDish(S.stoves),
         o: relay.o,
         pos: relay.o.pos,
+        mark: "",
         can: false,
         beat: 0,
       };
@@ -1840,11 +1837,9 @@ export function createRun(G, hooks) {
       if (S.bossSeen) return L10N.t("run.obj.boss");
       const left = stoveCount() - S.served;
       if (left <= 0) return L10N.t("run.obj.bossDue");
-      // (what to do with the dish that is on is the ticket's to say, under the course name)
-      return L10N.t(S.cook ? "run.obj.dish" : "run.obj.light", {
-        n: S.served,
-        of: stoveCount(),
-      });
+      // (what to do with the dish that is on is said under the course name; how many are
+      // packed, by the bags beside it)
+      return L10N.t(S.cook ? "run.obj.dish" : "run.obj.light");
     },
     // extra compass and world markers; pos objects are live, so elites are tracked as they move
     markers() {
@@ -1883,12 +1878,12 @@ export function createRun(G, hooks) {
             pos: z.pos,
             kind: "elite",
           });
-      // the stove with the dish on it, whenever the cook has something to do there
+      // the stove with the dish on it: how long it has, or what it wants (cookTick words it)
       const c = S.cook;
-      if (c && (c.phase === "due" || c.phase === "ready" || dishTossed(c)))
+      if (c && c.mark)
         out.push({
           id: "wok",
-          short: L10N.t("run.mark.wok"),
+          short: c.mark,
           pos: c.pos,
           kind: "relay",
         });
@@ -2030,6 +2025,8 @@ export function createRun(G, hooks) {
       },
     });
   L10N.onLocale(() => {
+    // (the mark on the stove is worded here: have it worded again)
+    if (S.cook) S.cook.mark = null;
     if (S.active) hooks.refreshMarkers();
   });
   return api;

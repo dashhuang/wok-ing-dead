@@ -53,6 +53,7 @@ npm run arsenal:test   # 试验场的冒烟和真实点击测试（端口 5312�
   （`python scripts/assets/build-ui-fonts.py <字体目录>`，需要 fonttools、brotli 和 Google Fonts 源文件，见 docs/assets.md）。
   做不了就在交付时明确说「字体子集还没重建」。
 - **文案语气**：菜单是唐人街炒锅餐馆的厨房双关（点单票、辣度、「开镬」「出餐！」「凉了。」）；HUD 和无线电台词保持严肃。
+  例外是炒菜那一行提示和它的弹出提示（`run.cook.*`、糊了和烧焦的 `run.toast.*` / `run.dish.*`）：用后厨喊话的口气，不报「1/3」这类计数。
 - **性能约定**（详见 architecture.md）：手机靠 `low` 档；世界和武器两遍渲染的灯光布局必须一致；不用 transmission 材质；
   静态网格标 `userData.staticShadow`，之后改动要调 `G.render.invalidateStaticShadows()`。
 - **存档键不改名**：设置和纪录用 `saltline.*`，语言用 `wokingdead.lang`。

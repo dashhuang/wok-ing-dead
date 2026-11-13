@@ -33,14 +33,8 @@ export function createRunHud(G) {
     "rl-boss",
     '<span class="rl-boss-n"></span><div class="rl-boss-bar"><i></i></div>',
   );
-  const cook = el(
-    "div",
-    "rl-cook",
-    '<div class="rl-steps"></div><span class="rl-cook-n"></span><div class="rl-cook-bar"><i></i></div>',
-  );
-  const cookSteps = cook.querySelector(".rl-steps");
+  const cook = el("div", "rl-cook", '<span class="rl-cook-n"></span>');
   const cookName = cook.querySelector(".rl-cook-n");
-  const cookFill = cook.querySelector(".rl-cook-bar i");
   const bossName = boss.querySelector(".rl-boss-n");
   const bossFill = boss.querySelector(".rl-boss-bar i");
 
@@ -92,23 +86,17 @@ export function createRunHud(G) {
   const ammoBlock = G.hud && G.hud.root && G.hud.root.querySelector(".h-ammo");
   const altLine = ammoBlock && ammoBlock.querySelector(".h-alt");
   if (ammoBlock) ammoBlock.insertBefore(wlv, altLine || null);
-  // and what stands there instead of the rounds while the hands are full
-  const handsEl = el("div", "rl-hands");
-  handsEl.textContent = L10N.t("run.hands");
-  if (ammoBlock) ammoBlock.appendChild(handsEl);
 
   const last = {
     bags: "",
     stage: "",
-    cookSteps: "",
-    cookAt: "",
+    cookUrgent: null,
     hands: null,
     xp: -1,
     level: -1,
     wlv: "",
     boss: -1,
     bossOn: null,
-    cook: -1,
     cookOn: null,
     cookKey: "",
     spices: "",
@@ -321,12 +309,9 @@ export function createRunHud(G) {
       last.wlv = key;
       wlv.innerHTML = level > 0 ? PIPS(level, max) : "";
     },
-    // The dish on a stove, as a ticket: every step of it in a row (done, doing, to come)
-    // and one line under them saying what to do now. null, or
-    // { steps: ["toss", "fry", ..., "pack"], at: which is being done, key: the line
-    //   ("run.cook." + key, with s: whole seconds, where it counts any), frac: how far
-    //   through (the bar), urgent: it is about to catch or has, late: times it caught,
-    //   charred }.
+    // The dish on a stove: one line under the course name saying what to do now, in the
+    // kitchen's own voice. null, or { key: the line ("run.cook." + key, with s: whole
+    // seconds, where it counts any), urgent: it is about to catch, or has }.
     setCook(info) {
       const on = !!info;
       cookInfo = info;
@@ -335,46 +320,24 @@ export function createRunHud(G) {
         cook.classList.toggle("on", on);
       }
       if (!on) return;
-      const stepsKey = info.steps.join(",") + L10N.locale();
-      if (stepsKey !== last.cookSteps) {
-        last.cookSteps = stepsKey;
-        last.cookAt = "";
-        cookSteps.innerHTML = info.steps
-          .map((k) => `<i class="s-${k}">${L10N.t("run.step." + k)}</i>`)
-          .join("<u></u>");
-      }
-      const atKey =
-        info.at + (info.urgent ? "!" : "") + (info.charred ? "x" : "");
-      if (atKey !== last.cookAt) {
-        last.cookAt = atKey;
-        [...cookSteps.querySelectorAll("i")].forEach((el, i) => {
-          el.classList.toggle("done", i < info.at);
-          el.classList.toggle("cur", i === info.at);
-        });
-        [...cookSteps.querySelectorAll("u")].forEach((el, i) =>
-          el.classList.toggle("done", i < info.at),
-        );
-        cook.classList.toggle("urgent", !!info.urgent);
-        cook.classList.toggle("charred", !!info.charred);
-      }
-      const key = info.key + ":" + info.s + ":" + info.late + L10N.locale();
+      const key = info.key + ":" + info.s + L10N.locale();
       if (key !== last.cookKey) {
         last.cookKey = key;
-        cookName.innerHTML =
-          L10N.t("run.cook." + info.key, { s: info.s }) +
-          (info.late && !info.charred
-            ? `<em>${L10N.t("run.cook.late", { n: info.late })}</em>`
-            : "");
-        cook.dataset.k = info.key;
+        cookName.textContent = L10N.t("run.cook." + info.key, { s: info.s });
+        if (cook.dataset.k !== info.key) {
+          // a new thing to do: the line is seen to change
+          cook.dataset.k = info.key;
+          cook.classList.remove("flash");
+          void cook.offsetWidth;
+          cook.classList.add("flash");
+        }
       }
-      const f = Math.round(Math.max(0, Math.min(1, info.frac)) * 250) / 250;
-      if (f !== last.cook) {
-        last.cook = f;
-        cookFill.style.transform = `scaleX(${f})`;
+      if (!!info.urgent !== last.cookUrgent) {
+        last.cookUrgent = !!info.urgent;
+        cook.classList.toggle("urgent", !!info.urgent);
       }
     },
-    // both hands are full of the wok or the packing: where the weapon's rounds are shown,
-    // it says so instead
+    // both hands are full of the wok or the packing: the weapon's rounds are not shown
     setHands(on) {
       if (on === last.hands) return;
       last.hands = on;
@@ -469,7 +432,6 @@ export function createRunHud(G) {
       xpLabel.textContent = L10N.t("run.xp");
       if (bossKey) bossName.textContent = L10N.t(bossKey);
       last.cookKey = "";
-      handsEl.textContent = L10N.t("run.hands");
       if (cookInfo) api.setCook(cookInfo);
       last.spices = "";
       last.weapons = "";
