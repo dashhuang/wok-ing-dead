@@ -13,6 +13,12 @@
 // off the wok (flare).
 //
 // Everything is laid out in the eye's own space: x to the right, y up, -z away, in metres.
+//
+// The grips are written so that each hand lies in line with its forearm. An arm comes in from
+// its own shoulder, low and to the side, so a hand that is set square to what it holds (the
+// way a handle is drawn on paper) ends up at a right angle to its forearm, which no wrist
+// does. These directions were found by solving the arms for every moment a grip is held and
+// keeping the one that bends the wrist least (under twenty-five degrees throughout).
 import * as THREE from "three";
 
 const V3 = THREE.Vector3;
@@ -159,6 +165,32 @@ export function createWokHands(armory) {
     _a = new V3(),
     _b = new V3(),
     _c = new V3();
+  // The ladle is held the way a cook holds one: not across the fist like a hammer, but lying
+  // slantwise from the heel of the hand out past the first finger, so it carries on the line
+  // of the forearm.
+  const LADLE_GRIP = (node) => ({
+    parent: node,
+    at: [0, 0.006, -0.02],
+    palm: [-0.985, -0.174, 0],
+    fingers: [-0.087, 0.492, 0.866],
+    pose: {
+      base: "wrap",
+      r: 0.014,
+      index: [0.5, 0.6, 0.35, 0.04],
+      thumb: [0.5, -0.45, 0.75, 0.35, 0.25],
+    },
+    give: [0.3, 0.4],
+  });
+  // a hand under the rim of the wok: the fingers a little curled against the underside of
+  // it, the thumb come over the top
+  const UNDER = {
+    base: "flat",
+    index: [0.3, 0.36, 0.2, 0.03],
+    middle: [0.32, 0.38, 0.22, 0],
+    ring: [0.34, 0.4, 0.22, -0.03],
+    pinky: [0.38, 0.42, 0.24, -0.08],
+    thumb: [0.5, -0.62, 0.6, 0.5, 0.45],
+  };
   // point a ladle from its grip at a spot (the bowl ends up there), the back of its bowl down
   function aimLadle(node, from, to, roll = 0) {
     _z.subVectors(to, from).normalize();
@@ -260,31 +292,24 @@ export function createWokHands(armory) {
 
     const gripAt = [
       Math.cos(EAR) * (WOK.r + 0.03),
-      -0.006,
+      -0.018,
       Math.sin(EAR) * (WOK.r + 0.03),
     ];
-    const inward = [-Math.cos(EAR), 0, -Math.sin(EAR)];
     const model = kit.weapon({
       id: "wok",
       root,
       hands: {
-        // under and round the towelled ear, thumb over the top of it
+        // under the towelled ear, palm up, the fingers running forward beneath the rim and
+        // the thumb over the top of it: the way a tray is carried by its edge
         left: {
           parent: body,
           at: gripAt,
-          palm: [inward[0] * 0.45, 0.89, inward[2] * 0.45],
-          fingers: [inward[0] * 0.89, -0.45, inward[2] * 0.89],
-          pose: { base: "wrap", r: 0.024 },
+          palm: [0, 1, 0],
+          fingers: [0, 0, -1],
+          pose: UNDER,
           give: [0.35, 0.5],
         },
-        // the ladle, overhand
-        right: {
-          parent: ld,
-          at: [0, 0.006, -0.02],
-          palm: [0, -1, 0],
-          fingers: [-1, 0, 0],
-          pose: { base: "wrap", r: 0.013 },
-        },
+        right: LADLE_GRIP(ld),
       },
       anchors: {
         // where the fire comes off: the far lip
@@ -607,24 +632,21 @@ export function createWokHands(armory) {
         left: {
           parent: pail,
           at: [-0.012, -0.004, 0.006],
-          palm: [0, 1, 0],
-          fingers: [0.45, 0, -0.89],
+          palm: [-0.315, 0.933, 0.174],
+          fingers: [0.25, 0.259, -0.933],
           pose: "cradle",
           give: [0.4, 0.3],
         },
         right: {
-          parent: ld,
-          at: [0, 0.006, -0.02],
-          palm: [0, -1, 0],
-          fingers: [-1, 0, 0],
-          pose: { base: "wrap", r: 0.013 },
+          ...LADLE_GRIP(ld),
           alts: {
             free: {
               parent: free,
               at: [0, 0, 0],
-              // from the right, across the lid: the arm stays out of the way of what it presses
-              palm: [0, -1, 0],
-              fingers: [-0.94, 0, -0.34],
+              // flat on the lid, the fingers away and a little up: the hand comes over the
+              // near corner of the pail and leaves the rest of it to be seen
+              palm: [-0.171, -0.94, -0.296],
+              fingers: [-0.47, 0.342, -0.814],
               pose: "flat",
             },
           },

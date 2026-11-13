@@ -12,6 +12,8 @@
 // ordinary object in the scene.
 import { createGameTargets } from "./armtargets.js";
 
+// a prop is no weapon: neither hand has a trigger to stay on, so both wrists are eased
+const BOTH = { left: true, right: true };
 const LAB_FOV = 68; // the lab's first-person field of view; every hip pose is written for it
 const VIEW_LAYER = 1;
 const rad = (deg) => (deg * Math.PI) / 180;
@@ -648,6 +650,7 @@ export async function createArmory(G) {
           dt,
           visible: P.alive,
           gain: ARMORY_TUNE.handGain,
+          eased: BOTH,
         });
         setLayer(arms.group, VIEW_LAYER);
         adoptTree(root);

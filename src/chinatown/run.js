@@ -1912,6 +1912,10 @@ export function createRun(G, hooks) {
       get wokReady() {
         return !!wokHands;
       },
+      // the cook's hands (wokhand.js), for measuring grips
+      get wokHands() {
+        return wokHands;
+      },
       envelope() {
         dropEnvelope(G.player.pos.clone().add(new V3(0, 0, -2.5)));
       },
