@@ -34,7 +34,10 @@ const FW_PALETTES = [
 const pick = (a) => a[(Math.random() * a.length) | 0];
 
 // ---------------------------------------------------------------- shared pieces
+// o.self: the share of it that reaches back to the shooter, o.selfMax: at most this much
 function splash(ctx, pos, radius, dmg, o = {}) {
+  if (o.self > 0)
+    ctx.blowback(pos, radius, Math.min(dmg * o.self, o.selfMax ?? Infinity));
   for (const h of ctx.targets.inSphere(pos, radius)) {
     const k = 1 - 0.6 * Math.min(1, h.dist / radius);
     ctx.hit(h.z, dmg * k, {
@@ -1104,14 +1107,14 @@ export const BEHAVIOURS = {
         const pal = o.colors || pick(FW_PALETTES);
         E.firework(pos, {
           colors: pal,
-          radius: o.radius ?? 2.4,
-          count: o.count ?? 90,
+          radius: o.radius ?? 3.6,
+          count: o.count ?? 125,
           kind: o.kind || pick(["peony", "peony", "ring", "willow"]),
           crackle: o.crackle,
         });
         if (o.blast !== false)
           E.explosion(pos, {
-            radius: (o.radius ?? 2.4) * 0.45,
+            radius: (o.radius ?? 3.6) * 0.4,
             smoke: 0.5,
             sparks: 0,
             shake: 0.1,
@@ -1180,8 +1183,8 @@ export const BEHAVIOURS = {
           const pal = pick(FW_PALETTES);
           burst(pos, {
             colors: [...pal, 0xffffff],
-            radius: 5 * c,
-            count: Math.round(220 * c),
+            radius: 6.5 * c,
+            count: Math.round(260 * c),
             kind: "willow",
             crackle: true,
             blast: false,
@@ -1190,12 +1193,14 @@ export const BEHAVIOURS = {
           fx.after(0.18, () =>
             E.firework(pos.clone().add(V(0, 0.4, 0)), {
               colors: [pal[1], 0xffffff],
-              radius: 3.2 * c,
-              count: 70,
+              radius: 4.4 * c,
+              count: 90,
               kind: "ring",
             }),
           );
           splash(ctx, pos, 7 * c * (ctx.cap ? 1.5 : 1), 320 * c, {
+            self: F.firework.self,
+            selfMax: F.firework.selfMax,
             element: "fire",
             status: "fire",
             stacks: 2,
@@ -1239,6 +1244,8 @@ export const BEHAVIOURS = {
       const boom = (pos) => {
         burst(pos);
         splash(ctx, pos, F.firework.radius, F.firework.splash, {
+          self: F.firework.self,
+          selfMax: F.firework.selfMax,
           element: "fire",
           status: "fire",
           knock: 1.2,
@@ -1312,8 +1319,10 @@ export const BEHAVIOURS = {
         },
       });
       const star = (pos, pal) => {
-        E.firework(pos, { colors: pal, radius: 1.2, count: 36, kind: "peony" });
+        E.firework(pos, { colors: pal, radius: 1.9, count: 50, kind: "peony" });
         splash(ctx, pos, 1.8, 40, {
+          self: F.firework.self,
+          selfMax: F.firework.selfMax,
           element: "fire",
           status: "fire",
           knock: 0.5,

@@ -552,7 +552,17 @@ export function createEffects(fx, stage) {
     },
 
     /**
-     * Firework burst. o: { colors: [hex...], count, radius, kind: "peony" | "willow" | "ring" | "crackle", pal }
+     * Firework burst. o: { colors: [hex...], count, radius, kind: "peony" | "willow" | "ring" | "crackle" }
+     *
+     * These go off a few metres from the eye, so the burst is built the way a shell is, not
+     * painted as a puff: stars thrown out evenly at one speed, braked hard by the air so the
+     * ball stops growing at about `radius`, then pulled over by gravity. Each sheds a trail of
+     * sparks that is left hanging where it was laid and gutters out; the stars come down, hit
+     * the street and skip. Round them, a spray of fine sparks that is gone in half a second.
+     *   peony   a ball of coloured stars
+     *   willow  slower, longer-burning stars with heavy trails that droop into curtains
+     *   ring    one circle of stars, tilted
+     *   crackle a peony whose embers pop
      */
     firework(pos, o = {}) {
       fx.audio &&
@@ -563,122 +573,155 @@ export function createEffects(fx, stage) {
       const colors = o.colors || [0xff3a2a, 0xffc23a];
       const r = o.radius ?? 3;
       const kind = o.kind || "peony";
-      const count = o.count ?? 90;
+      const q = fx.detail;
+      const count = (o.count ?? 90) * q;
       const p = pos.clone();
+      const big = Math.sqrt(r / 2.4); // bigger shells have bigger stars, not just more room
+      // the break: a hard white flash, then the colour hanging in the smoke for a moment
       fx.flash(p, colors[0], 45 * r, 0.3, 12 + r * 3);
       fx.glow({
         pos: p,
-        life: 0.12,
-        size: [r * 0.2, r * 1.0],
+        life: 0.1,
+        size: [r * 0.12, r * 0.5],
         color: C(0xffffff, 3),
         type: P.GLOW,
         fadePow: 1,
       });
       fx.glow({
         pos: p,
-        life: 0.1,
-        size: [r * 0.3, r * 1.3],
-        color: C(0xffffff, 2.5),
+        life: 0.09,
+        size: [r * 0.25, r * 0.95],
+        color: C(0xfff2d8, 2.2),
         type: P.STAR,
         fadePow: 1,
       });
+      fx.glow({
+        pos: p,
+        life: 0.5,
+        size: [r * 0.45, r * 1.25],
+        color: C(colors[0], 1.4),
+        alpha: 0.3,
+        type: P.GLOW,
+        fadeIn: 0.05,
+        fadePow: 1.6,
+      });
+      // ---- the stars
       const willow = kind === "willow";
-      const speed = (willow ? 2.2 : 3.6) * r;
-      for (let i = 0; i < count; i++) {
-        if (kind === "ring") {
-          const a = (i / count) * Math.PI * 2;
-          _b.set(Math.cos(a), Math.sin(a) * 0.35 + 0.1, Math.sin(a));
-        } else randDir(_b);
-        const sp = speed * (kind === "ring" ? 1 : rand(0.75, 1.05));
-        _b.multiplyScalar(sp);
-        const col = C(colors[i % colors.length], rand(1.8, 3.0));
-        const life = willow ? rand(1.4, 2.2) : rand(0.8, 1.3);
+      const ring = kind === "ring";
+      const brake = willow ? 1.9 : 2.6; // air drag on a star (1/s): it stalls speed / brake out
+      const fall = willow ? 4.2 : 5.5;
+      const speed = brake * r * (willow ? 0.95 : 1.1);
+      const stars = Math.max(8, Math.round(count * (ring ? 0.5 : 0.45)));
+      // a ring lies in a plane of its own, tilted at random
+      const tilt = _d.set(srand(0.5), 1, srand(0.5)).normalize();
+      const u = _a
+        .set(1, 0, 0)
+        .addScaledVector(tilt, -tilt.x)
+        .normalize()
+        .clone();
+      const w = _a.crossVectors(tilt, u).clone();
+      const turn = Math.random() * Math.PI * 2;
+      for (let i = 0; i < stars; i++) {
+        if (ring) {
+          const a = (i / stars) * Math.PI * 2 + turn;
+          _b.copy(u)
+            .multiplyScalar(Math.cos(a))
+            .addScaledVector(w, Math.sin(a));
+        } else {
+          // packed evenly over the ball, as the stars are in a shell (drawn at random they
+          // clump and leave holes)
+          const y = 1 - (2 * (i + 0.5)) / stars;
+          const s = Math.sqrt(1 - y * y);
+          const a = i * 2.39996 + turn + srand(0.25);
+          _b.set(Math.cos(a) * s, y, Math.sin(a) * s);
+        }
+        _b.multiplyScalar(speed * (ring ? rand(0.97, 1.03) : rand(0.9, 1.06)));
+        // (as bright as the other sparks in here: the game's night street takes most of it
+        // away again, see ARMORY_TUNE.fxGain)
+        const mine = colors[i % colors.length];
+        const hot = C(mine, rand(6, 7.5));
         fx.glow({
           pos: p,
           vel: _b,
-          life,
-          size: [0.085, 0.028],
-          color: [col, C(colors[(i + 1) % colors.length], 1.2)],
+          life: willow ? rand(1.9, 2.7) : rand(1.15, 1.75),
+          size: [0.075 * big, 0.03 * big],
+          color: [hot, C(mine, 3.2)], // a star burns one colour from first to last
           type: P.STREAK,
-          stretch: willow ? 9 : 5,
-          drag: willow ? 2.2 : 3.0,
-          gravity: willow ? 3.2 : 1.8,
-          fadePow: 0.55,
+          stretch: 2.2,
+          drag: brake,
+          gravity: fall,
+          fadePow: 0.5,
+          ground: true,
+          trail: {
+            rate: willow ? 70 : 55,
+            life: willow ? 1.0 : 0.6,
+            size: 0.03 * big,
+          },
         });
-        if (i % 2 === 0)
-          fx.glow({
-            pos: p,
-            vel: _c.copy(_b).multiplyScalar(0.92),
-            life: life * 0.8,
-            size: [0.11, 0.03],
-            color: col,
-            alpha: 0.5,
-            type: P.GLOW,
-            drag: willow ? 2.2 : 3.0,
-            gravity: willow ? 3.2 : 1.8,
-            fadePow: 0.8,
-          });
       }
-      // glitter that hangs and twinkles after the stars burn out
-      const glit = Math.round(count * 0.5);
-      fx.after(0.25, () => {
-        for (let i = 0; i < glit; i++) {
-          randDir(_b).multiplyScalar(rand(0.2, 1) * r);
-          fx.glow({
-            pos: _a.copy(p).add(_b),
-            vel: _c.set(srand(0.3), rand(-0.9, -0.2), srand(0.3)),
-            life: rand(0.35, 1.1),
-            size: [rand(0.02, 0.045), 0.005],
-            color: C(
-              i % 3 === 0 ? 0xfff4d8 : colors[i % colors.length],
-              rand(1.5, 3.2),
-            ),
-            type: P.STAR,
-            fadeIn: rand(0.1, 0.6),
-            fadePow: 0.5,
-            gravity: 0.6,
-            drag: 1,
-          });
-        }
-      });
+      // ---- the spray: fine sparks, fast and soon spent, that rattle off the ground
+      const spray = Math.round(count * (ring ? 0.4 : 0.9));
+      for (let i = 0; i < spray; i++) {
+        randDir(_b).multiplyScalar(r * rand(2.2, 6.5));
+        fx.glow({
+          pos: p,
+          vel: _b,
+          life: rand(0.35, 0.95),
+          size: [0.024, 0.007],
+          color:
+            i % 3 === 0
+              ? [C(colors[i % colors.length], 5), C(0xff7a18, 1.4)]
+              : [C(0xfff0c8, 6), C(0xff7a18, 1.6)],
+          type: P.STREAK,
+          stretch: 7,
+          drag: 4.2,
+          gravity: 9,
+          fadePow: 0.7,
+          ground: true,
+        });
+      }
       if (kind === "crackle" || o.crackle) {
-        for (let i = 0; i < 9; i++) {
-          fx.after(rand(0.3, 0.9), () => {
-            randDir(_b).multiplyScalar(rand(0.4, 1) * r);
-            const q = _a.copy(p).add(_b).clone();
+        // embers that pop on the way down: under the middle of the burst, where they are falling
+        for (let i = 0; i < Math.round(9 * q); i++) {
+          fx.after(rand(0.45, 1.3), () => {
+            randDir(_b).multiplyScalar(rand(0.3, 1) * r);
+            _b.y = -Math.abs(_b.y) * 0.8;
+            const at = _a.copy(p).add(_b).clone();
+            at.y = Math.max(0.15, at.y);
             fx.glow({
-              pos: q,
+              pos: at,
               life: 0.08,
-              size: [0.1, 0.5],
+              size: [0.1, 0.45],
               color: C(0xfff0d0, 3),
               type: P.STAR,
               fadePow: 1,
             });
-            for (let k = 0; k < 6; k++)
+            for (let k = 0; k < 7; k++)
               fx.glow({
-                pos: q,
-                vel: randDir(_d).multiplyScalar(rand(2, 6)),
-                life: rand(0.15, 0.35),
+                pos: at,
+                vel: randDir(_d).multiplyScalar(rand(2, 7)),
+                life: rand(0.15, 0.4),
                 size: [0.012, 0.004],
                 color: C(0xffe0a0, 6),
                 type: P.STREAK,
                 stretch: 5,
                 drag: 4,
-                gravity: 3,
+                gravity: 6,
+                ground: true,
               });
           });
         }
       }
-      // smoke ghost left hanging in the rain
-      for (let i = 0; i < 6; i++) {
+      // smoke left hanging in the rain, lit by the colour while it is young
+      for (let i = 0; i < Math.round(7 * (0.5 + 0.5 * q)); i++) {
         randDir(_b).multiplyScalar(rand(0.3, 1.2) * r);
         fx.puff({
           pos: p,
           vel: _b,
           life: rand(1.8, 3),
           size: [r * 0.2, r * rand(0.6, 0.9)],
-          color: [C(colors[i % colors.length], 0.35), C(0x3a3836, 0.4)],
-          alpha: 0.22,
+          color: [C(colors[i % colors.length], 0.4), C(0x3a3836, 0.4)],
+          alpha: 0.2,
           type: P.SMOKE,
           drag: 2.6,
           gravity: 0.15,

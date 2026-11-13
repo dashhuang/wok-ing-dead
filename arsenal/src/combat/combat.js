@@ -133,6 +133,15 @@ export async function createCombat(lab) {
     if (W && W.beh.onDamage) W.beh.onDamage(ctx, ev);
   });
   targets.on("kill", () => meter.kills++);
+  // The shooter is hurt. The game takes it from the player's health (lab.hurt); the range
+  // has no health to take it from and counts it.
+  function hurtShooter(dmg, from) {
+    if (lab.hurt) return void lab.hurt(dmg, from);
+    meter.taken += dmg;
+    fx.shake(0.3);
+    audio && audio.play("flesh", { gain: 1.1 });
+    lab.ui && lab.ui.hurt && lab.ui.hurt(dmg);
+  }
   targets.on("attack", (ev) => {
     meter.taken += ev.dmg;
     fx.shake(0.3);
@@ -309,6 +318,25 @@ export async function createCombat(lab) {
     },
     push(z, dir, knock) {
       targets.push(z, dir, knock);
+    },
+    /**
+     * A blast reaches back to whoever set it off: `amount` standing at its centre, less
+     * with distance, nothing at `radius` or with a wall in the way. Returns what was taken.
+     */
+    blowback(pos, radius, amount) {
+      // (measured to the chest, as the game's own blasts are)
+      const at = _c.copy(aim.origin);
+      at.y -= 0.6;
+      const d = at.distanceTo(pos);
+      if (!(d < radius) || !(amount > 0)) return 0;
+      if (d > 0.3) {
+        const dir = _b.subVectors(at, pos).multiplyScalar(1 / d);
+        const wall = stage.range.raycast(pos, dir, d);
+        if (wall && wall.dist < d - 0.3) return 0;
+      }
+      const dmg = amount * (1 - d / radius);
+      hurtShooter(dmg, pos.clone());
+      return dmg;
     },
     /**
      * The weapon kicks: a is its strength, on the scale the weapon's numbers in data/feel.js
@@ -1182,6 +1210,8 @@ export async function createCombat(lab) {
     weapon: null,
     meter,
     recoil,
+    /** A blast reaching back to the shooter (see ctx.blowback): for scripts and checks. */
+    blowback: (pos, radius, amount) => ctx.blowback(pos, radius, amount),
     /** The spread the crosshair should show (rad): the weapon's own, opened by sustained fire. */
     get spread() {
       return shownSpread;
