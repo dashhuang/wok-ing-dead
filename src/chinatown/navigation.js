@@ -405,15 +405,43 @@ export function createNavigation({ boxes, bounds, groundY, quayX, vector }) {
         to = anchor(b);
       return !!from && !!to && travel(from, to);
     },
-    findPath(a, b) {
+    findPath(a, b, { approach = false } = {}) {
       ready();
-      const from = anchor(a),
-        to = anchor(b);
-      if (!from || !to) return null;
-      if (travel(from, to)) return [to];
-      const start = attach(from),
-        end = attach(to);
-      if (start < 0 || end < 0 || region(start) !== region(end)) return null;
+      const from = anchor(a);
+      let to = anchor(b);
+      if (!from) return null;
+      if (to && travel(from, to)) return [to];
+      const start = attach(from);
+      if (start < 0) return null;
+      let end = to ? attach(to) : -1;
+      if (end < 0 || region(start) !== region(end)) {
+        // A jumping player is not a reachable destination. Pursuit may instead
+        // end beside the prop, in the pursuer's own connected ground region.
+        // Keep exact routing strict for spawn filtering and other nav callers.
+        if (!approach || !(b.y > groundY + STEP_HEIGHT)) return null;
+        const reach = 8;
+        const x0 = Math.max(0, Math.floor((b.x - reach - minX) / CELL)),
+          x1 = Math.min(w - 1, Math.floor((b.x + reach - minX) / CELL)),
+          z0 = Math.max(0, Math.floor((b.z - reach - minZ) / CELL)),
+          z1 = Math.min(h - 1, Math.floor((b.z + reach - minZ) / CELL));
+        let best = Infinity;
+        end = -1;
+        for (let z = z0; z <= z1; z++)
+          for (let x = x0; x <= x1; x++) {
+            const i = z * w + x;
+            if (blocked[i] || regions[i] !== regions[start]) continue;
+            const d = (xs[i] - b.x) ** 2 + (zs[i] - b.z) ** 2;
+            if (d > reach * reach) continue;
+            // Prefer the nearer approach side when equally close to the player.
+            const score = d + Math.hypot(xs[i] - a.x, zs[i] - a.z) * 0.001;
+            if (score < best) {
+              best = score;
+              end = i;
+            }
+          }
+        if (end < 0) return null;
+        to = point(end);
+      }
       const path = search(start, end);
       if (!path) return null;
       path.push(to);
