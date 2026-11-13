@@ -319,7 +319,18 @@ export const WEAPONS = [
     slot: "主",
     element: "fire",
     tagline: "过年剩下的，今晚全放了。",
-    fire: { kind: "projectile", damage: 60, splash: 80, radius: 3, rpm: 100 },
+    // self: the share of a burst's damage the shooter takes standing at its centre, falling
+    // to nothing at its edge (a wall in between stops it); selfMax: the most one burst may
+    // take. Every burst of every form: fire it at your own feet and it bites.
+    fire: {
+      kind: "projectile",
+      damage: 60,
+      splash: 80,
+      radius: 3.6,
+      rpm: 100,
+      self: 0.25,
+      selfMax: 40,
+    },
     mag: 6,
     reserve: 30,
     reload: "整排换装 2.6 秒",

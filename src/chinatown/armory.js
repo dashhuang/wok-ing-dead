@@ -197,6 +197,8 @@ export async function createArmory(G) {
     emit() {},
     // the game's zombies instead of the firing range's
     makeTargets: (l, fx, E) => createGameTargets(G, l, fx, E, root),
+    // a weapon's own blast catching the player (a firework set off too close)
+    hurt: (dmg, from) => G.player.damage(dmg, from),
     // a reload draws on the run's pools instead of filling the magazine from nowhere
     supply: {
       can: (W) => !hooks.canReload || hooks.canReload(W.id, W),

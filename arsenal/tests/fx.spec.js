@@ -113,3 +113,67 @@ test("the sparks stay within their pool however much is fired", async ({
   expect(got.peak).toBeLessThan(got.cap * 0.85);
   expect(got.thinnest).toBeLessThan(0.9);
 });
+
+test("a firework set off too close catches the shooter, one across the street does not", async ({
+  page,
+}) => {
+  await open(page, "mode=fp&ui=0&w=firework");
+  const got = await page.evaluate(() => {
+    const lab = window.__lab;
+    const c = lab.combat;
+    const V = lab.stage.THREE.Vector3;
+    c.targets.setLayout("far");
+    lab.advance(0.4, 1 / 60, false);
+    // the blast of the weapon in hand, set off `d` metres in front of the shooter's chest
+    const eye = lab.stage.camera.getWorldPosition(new V());
+    const taken = (d, radius, amount) => {
+      const before = c.meter.taken;
+      const at = new V(eye.x, eye.y - 0.6, eye.z - d);
+      // (through the same door the weapon's own bursts use)
+      const got = c.blowback(at, radius, amount);
+      return { got, counted: c.meter.taken - before };
+    };
+    return {
+      centre: taken(0, 3.6, 20),
+      half: taken(1.8, 3.6, 20),
+      edge: taken(3.6, 3.6, 20),
+      beyond: taken(6, 3.6, 20),
+    };
+  });
+  expect(got.centre.got).toBeCloseTo(20, 3);
+  expect(got.half.got).toBeCloseTo(10, 1);
+  expect(got.edge.got).toBe(0);
+  expect(got.beyond.got).toBe(0);
+  // and the range counts it as it counts a bite
+  expect(got.centre.counted).toBeCloseTo(20, 3);
+  expect(got.beyond.counted).toBe(0);
+});
+
+test("the firework's own rockets hurt the shooter at arm's length and not at range", async ({
+  page,
+}) => {
+  await open(page, "mode=fp&ui=0&w=firework");
+  const got = await page.evaluate(() => {
+    const lab = window.__lab;
+    const c = lab.combat;
+    lab.advance(0.5, 1 / 60, false);
+    const shot = (pitch) => {
+      const before = c.meter.taken;
+      c.aim(0, pitch);
+      lab.advance(0.1, 1 / 60, false);
+      c.press("fire");
+      lab.advance(1 / 60, 1 / 60, false);
+      c.release("fire");
+      lab.advance(1.6, 1 / 120, false);
+      return c.meter.taken - before;
+    };
+    c.targets.setLayout("far");
+    lab.advance(0.2, 1 / 60, false);
+    const far = shot(0); // down the alley: it bursts well away
+    const feet = shot(-0.69); // at the ground a pace in front
+    return { far, feet };
+  });
+  expect(got.far).toBe(0);
+  expect(got.feet).toBeGreaterThan(3);
+  expect(got.feet).toBeLessThanOrEqual(20);
+});
