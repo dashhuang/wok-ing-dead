@@ -25,6 +25,11 @@ export const STATUS = {
   // the ground at `speed` metres a second per unit of force along the hit and `up[0] + up[1]
   // x force` upwards (a blast throws `blast` times higher), never faster than `max` / `maxUp`.
   // `gravity` brings it down; `skid` is how fast it stops once it has landed.
+  // No two bodies go the same way. The force is scaled by how much of its health the blow
+  // took (`share`: from a blow that only finished it off to one that took all of it; a
+  // pattern of shot landing in the same `window` seconds is one blow), then by a roll of the
+  // dice (`vary`); how high it goes by another (`upVary`), and it leaves up to `turn`
+  // radians off the line of the hit. What falls under `from` after all that just drops.
   launch: {
     from: 0.9,
     speed: 1.9,
@@ -35,6 +40,25 @@ export const STATUS = {
     small: [0.6, 1.5],
     gravity: 14,
     skid: 5,
+    share: [0.45, 1],
+    vary: [0.45, 1.05],
+    upVary: [0.75, 1.1],
+    turn: 0.35,
+    window: 0.06,
+  },
+  // How much blood (combat/fate.js bloodOf / goreOf; the amounts are those of the effects
+  // blood() and gore(), where 1 is a rifle round in the chest and the whole of a burst).
+  //   hit    a hit bleeds hit[0], and hit[1] more for one that takes all its health
+  //   kill   a kill bursts kill[0], and kill[1] more if the blow took all its health
+  //   head   times this for the head;  blast  times this for an explosion
+  //   vary   and then times a roll of the dice between these;  max  never more than this
+  blood: {
+    hit: [0.3, 1.5],
+    kill: [0.3, 0.8],
+    head: 1.3,
+    blast: 1.3,
+    vary: [0.55, 1.35],
+    max: 2.2,
   },
   // What a kill takes off the body (combat/fate.js; the limbs are those of fx/limbs.js).
   //   head    a bullet through the head that takes this share of its health in one bursts it

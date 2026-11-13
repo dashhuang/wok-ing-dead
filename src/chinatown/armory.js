@@ -11,6 +11,7 @@
 // of view); everything a weapon throws into the street (particles, projectiles, decals) is an
 // ordinary object in the scene.
 import { createGameTargets } from "./armtargets.js";
+import { bloodOf } from "../../arsenal/src/combat/fate.js";
 
 const LAB_FOV = 68; // the lab's first-person field of view; every hip pose is written for it
 const VIEW_LAYER = 1;
@@ -220,14 +221,14 @@ export async function createArmory(G) {
     G.events.on("impact", (e) => {
       if (!e || e.surface !== "enemy" || e.killed || !e.point) return;
       const gz = e.enemy;
-      // more for the head, and for a hit that takes a large share of its health
-      const power = Math.min(1, e.power ?? 0.3);
-      E.blood(
-        e.point,
-        e.dir || UP,
-        (e.part === "weak" ? 1.3 : 0.9) * (0.6 + 1.4 * power),
-        { quiet: true, ground: gz ? gz.pos.y : 0 },
-      );
+      // more for the head, and for a hit that takes a large share of its health (the game's
+      // own guns do not say how much: the zombie remembers what it last took)
+      const power =
+        e.power ?? (gz && gz.maxHp ? (gz.lastDealt || 0) / gz.maxHp : 0.3);
+      E.blood(e.point, e.dir || UP, bloodOf(power, e.part === "weak"), {
+        quiet: true,
+        ground: gz ? gz.pos.y : 0,
+      });
     });
     G.events.on("enemy:killed", (e) => {
       const gz = e && e.enemy;
@@ -240,6 +241,7 @@ export async function createArmory(G) {
         head,
         ground: gz.pos.y,
         thrown: !!e.thrown,
+        amount: e.gore ?? 1,
         quiet: true,
       });
     });
@@ -247,7 +249,7 @@ export async function createArmory(G) {
     // (the zombies ask for each spurt and each mark as they happen)
     G.events.on("enemy:severed", (e) => {
       if (!e || !e.pos) return;
-      E.blood(e.pos, e.dir || UP, e.pop ? 2.2 : 1.7, {
+      E.blood(e.pos, e.dir || UP, bloodOf(0.6, !!e.pop), {
         quiet: true,
         ground: e.ground ?? 0,
       });

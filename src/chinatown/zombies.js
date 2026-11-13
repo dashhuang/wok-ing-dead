@@ -497,6 +497,7 @@ export async function createZombies(G) {
         if (!z.alive) return false;
         const dealt = amount * (PART_DAMAGE[part] ?? 1);
         z.hp -= dealt;
+        z.lastDealt = dealt;
         if (part === "leg") z.legDamage += dealt;
         // which arm or leg it landed on, if any (the armoury's weapons only say head or body)
         const on = point ? limbAt(z, point) : null;
@@ -679,7 +680,7 @@ export async function createZombies(G) {
       bone,
       mesh,
       radius,
-      bleed: z.alive ? 3.2 : 2,
+      bleed: (z.alive ? 3.2 : 2) * rand(0.5, 1.15),
       t: 0,
       next: 0,
     });
@@ -1194,6 +1195,16 @@ export async function createZombies(G) {
       fromBehind = dir.x * z.fwd.x + dir.z * z.fwd.z > 0.15;
       const push = launch ? launch.speed : Math.min(2.6, 0.6 + dealt / 45);
       z.knock.set(dir.x, 0, dir.z).normalize().multiplyScalar(push);
+      if (launch && launch.turn) {
+        // (not quite along the hit: no two go the same way)
+        const c = Math.cos(launch.turn),
+          n = Math.sin(launch.turn);
+        z.knock.set(
+          z.knock.x * c + z.knock.z * n,
+          0,
+          z.knock.z * c - z.knock.x * n,
+        );
+      }
       if (launch && !z.crawling) {
         z.flying = true;
         z.airV = launch.up;
@@ -1233,6 +1244,7 @@ export async function createZombies(G) {
       rank: z.rank,
       dir,
       thrown: z.flying,
+      gore: fate.gore, // how much it bursts (combat/fate.js)
     });
   }
 
