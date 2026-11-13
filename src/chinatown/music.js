@@ -6,22 +6,30 @@ export const MUSIC_TRACKS = {
   horde: "assets/audio/music/horde-rock-v1.mp3",
 };
 
-export function prepareMusicLoop(buffer) {
+// Skip quiet intros in game; the source files remain intact.
+export const MUSIC_ENTRY = { normal: 15, horde: 18 };
+
+export function prepareMusicLoop(buffer, entrySeconds = 0) {
+  const entry = Math.min(
+    Math.max(0, Math.round(entrySeconds * buffer.sampleRate)),
+    Math.floor(buffer.length / 2),
+  );
   const overlap = Math.min(
     Math.round(buffer.sampleRate * 2),
-    Math.floor(buffer.length / 4),
+    Math.floor((buffer.length - entry) / 4),
   );
-  if (overlap < 2) return 0;
+  if (overlap < 2) return entry / buffer.sampleRate;
   for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
     const samples = buffer.getChannelData(channel);
     const tail = samples.length - overlap;
     for (let i = 0; i < overlap; i++) {
       const mix = i / (overlap - 1);
-      samples[tail + i] = samples[tail + i] * (1 - mix) + samples[i] * mix;
+      samples[tail + i] =
+        samples[tail + i] * (1 - mix) + samples[entry + i] * mix;
     }
   }
   // The head has just played under the tail. Resume after it, not at zero.
-  return overlap / buffer.sampleRate;
+  return (entry + overlap) / buffer.sampleRate;
 }
 
 export function createMusic({ ctx, out, running, game }) {
@@ -34,10 +42,11 @@ export function createMusic({ ctx, out, running, game }) {
       id,
       {
         url,
+        entry: MUSIC_ENTRY[id],
         buffer: null,
         loopStart: 0,
         voice: null,
-        offset: 0,
+        offset: MUSIC_ENTRY[id],
         startedAt: 0,
         loadState: "loading",
         error: null,
@@ -60,7 +69,9 @@ export function createMusic({ ctx, out, running, game }) {
         const response = await fetch(track.url);
         if (!response.ok) throw new Error(`Music HTTP ${response.status}`);
         track.buffer = await ctx.decodeAudioData(await response.arrayBuffer());
-        track.loopStart = prepareMusicLoop(track.buffer);
+        track.entry = Math.min(track.entry, track.buffer.duration / 2);
+        track.offset = track.entry;
+        track.loopStart = prepareMusicLoop(track.buffer, track.entry);
         track.loadState = "ready";
       } catch (cause) {
         track.buffer = null;
@@ -204,9 +215,9 @@ export function createMusic({ ctx, out, running, game }) {
         state === "dead"
           ? 0.24
           : state === "playing"
-            ? 1.2 + weight * 0.24
-            : 0.6;
-      mix.gain.setTargetAtTime(level * (now < duckUntil ? 0.5 : 1), now, 0.4);
+            ? 1.7 + weight * 0.3
+            : 1.2;
+      mix.gain.setTargetAtTime(level * (now < duckUntil ? 0.5 : 1), now, 0.12);
     },
     debug() {
       return {
@@ -227,6 +238,8 @@ export function createMusic({ ctx, out, running, game }) {
               error: track.error,
               position: +position(track, ctx.currentTime).toFixed(2),
               duration: track.buffer?.duration || 0,
+              entry: track.entry,
+              loopStart: track.loopStart,
               playing: !!track.voice,
               gain: track.voice?.gain.gain.value || 0,
             },
