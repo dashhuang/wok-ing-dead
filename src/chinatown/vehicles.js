@@ -593,7 +593,7 @@ function loft(spec) {
         id = buf.vert(D.p, D.n);
       buf.tri(ia, ib, ic);
       buf.tri(ia, ic, id);
-      if (inCabin && key !== "glass" && h >= 2) {
+      if (inCabin && key !== "glass") {
         const la = inner(A),
           lb = inner(Bq),
           lc = inner(C),
@@ -667,17 +667,28 @@ function loft(spec) {
           continue;
         const pi = [p[0], p[1], p[2] - s * depth],
           qi = [q[0], q[1], q[2] - s * depth];
-        if (s > 0) bufs.trim.quad(q, p, pi, qi);
-        else bufs.trim.quad(p, q, qi, pi);
+        // (each face twice: the housing from the wheel's side, and from inside the cabin, where
+        // the open arch would otherwise show the tyre and the road through the glass)
+        if (s > 0) {
+          bufs.trim.quad(q, p, pi, qi);
+          bufs.liner.quad(p, q, qi, pi);
+        } else {
+          bufs.trim.quad(p, q, qi, pi);
+          bufs.liner.quad(q, p, pi, qi);
+        }
       }
       const z = s * (W - depth);
       const x0 = a.x - a.r,
         x1 = a.x + a.r,
         y1 = wheelR + a.r;
       const yw = sill - 0.02; // not below the sill, where it showed as a flap behind the wheel
-      if (s > 0)
+      if (s > 0) {
         bufs.trim.quad([x0, yw, z], [x1, yw, z], [x1, y1, z], [x0, y1, z]);
-      else bufs.trim.quad([x1, yw, z], [x0, yw, z], [x0, y1, z], [x1, y1, z]);
+        bufs.liner.quad([x1, yw, z], [x0, yw, z], [x0, y1, z], [x1, y1, z]);
+      } else {
+        bufs.trim.quad([x1, yw, z], [x0, yw, z], [x0, y1, z], [x1, y1, z]);
+        bufs.liner.quad([x0, yw, z], [x1, yw, z], [x1, y1, z], [x0, y1, z]);
+      }
     }
   const xr = xRear + 0.14,
     xf = xFront - 0.14,
@@ -1308,7 +1319,7 @@ export function createVehicles(ctx) {
     roughness: 0.05,
     metalness: 1,
     transparent: true,
-    opacity: 0.6,
+    opacity: 0.8,
     depthWrite: false,
     blending: THREE.CustomBlending,
     blendSrc: THREE.OneFactor,
@@ -1325,7 +1336,7 @@ export function createVehicles(ctx) {
   const tint = new THREE.MeshBasicMaterial({
     color: 0x000000,
     transparent: true,
-    opacity: 0.7,
+    opacity: 0.8,
     depthWrite: false,
     side: THREE.BackSide,
   });
@@ -1957,14 +1968,17 @@ export function createVehicles(ctx) {
   };
 
   // ---------------- placement
-  // squares along the length follow any heading without filling the corners
+  // Squares along the length follow any heading without filling the corners. They reach both
+  // ends of the body: left short, one could walk into a nose or a tail until the camera cut
+  // through the skin and showed the inside of the car.
   function footprint(x, y, z, yaw, len, wid, h) {
-    const n = Math.max(1, Math.round(len / wid));
     const fx = Math.sin(yaw),
       fz = Math.cos(yaw);
     const hw = wid / 2 - 0.04;
+    const reach = Math.max(0, len / 2 - hw);
+    const n = Math.max(1, Math.ceil((2 * reach) / hw) + 1);
     for (let i = 0; i < n; i++) {
-      const t = ((i + 0.5) / n - 0.5) * (len - wid * 0.6);
+      const t = n > 1 ? reach * ((2 * i) / (n - 1) - 1) : 0;
       const cx = x + fx * t,
         cz = z + fz * t;
       kit.solid(cx - hw, y, cz - hw, cx + hw, y + h, cz + hw, "metal");
