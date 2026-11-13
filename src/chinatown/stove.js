@@ -318,6 +318,11 @@ export function buildStove(THREE, mats, rnd = Math.random) {
   }
   setState("live");
   update(0);
+  // The ironwork that never moves or hides may be merged with the street on phones
+  // (phonebatch.js); the door's fire, the wok, the burner ring and the flames stay their own.
+  const live = new Set([door, wok, bed, ring, curtain, ...tongues]);
+  for (const c of g.children)
+    if (c.isMesh && !live.has(c)) c.userData.batch = true;
   g.userData.setState = setState;
   g.userData.setDish = setDish;
   return { group: g, light, setState, setDish, update };

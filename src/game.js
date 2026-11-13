@@ -78625,6 +78625,16 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       } catch {}
     }
     await fa(L10N.t("boot.light"), 0.92);
+    // phones: the static street merged into a handful of draws (chinatown/phonebatch.js)
+    if (isHandheld() && t.quality.name === "low" && t.params.batch !== "0")
+      try {
+        (await import("./chinatown/phonebatch.js")).batchStatic(t);
+      } catch (p) {
+        console.error(
+          "[phonebatch] failed, drawing the street as it was: " +
+            ((p && p.stack) || p),
+        );
+      }
     try {
       await t.render.onLevelReady();
     } catch (p) {
