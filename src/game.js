@@ -76503,6 +76503,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         <button class="btn" data-act="settings" data-i18n="act.settings"></button>
         <button class="btn" data-act="controls" data-i18n="act.controls"></button>
         <button class="btn" data-act="restart" data-i18n="act.restart"></button>
+        <button class="btn" data-act="home" data-i18n="act.home"></button>
       </div>
     </section>
 
@@ -76513,7 +76514,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       <h2 class="m-h" data-i18n="dead.title"></h2>
       <dl class="m-stats"><div><dt data-i18n="dead.time"></dt><dd data-f="dead-time">00:00</dd></div><div data-only="mission"><dt data-i18n="dead.sirens"></dt><dd data-f="dead-relays">0/3</dd></div><div data-only="mission"><dt data-i18n="dead.kills"></dt><dd data-f="dead-rkills">0</dd></div><div data-only="mission"><dt data-i18n="run.level"></dt><dd data-f="dead-level">1</dd></div><div data-only="holdout"><dt data-i18n="dead.waves"></dt><dd data-f="dead-wave">0</dd></div><div data-only="holdout"><dt data-i18n="dead.kills"></dt><dd data-f="dead-kills">0</dd></div><div data-only="holdout"><dt data-i18n="dead.score"></dt><dd data-f="dead-score">0</dd></div><div data-only="holdout"><dt data-i18n="dead.best"></dt><dd data-f="dead-best">0</dd></div></dl>
       <p class="m-unlock" data-f="dead-unlock" hidden></p>
-      <div class="m-actions col"><button class="btn primary" data-act="retry" data-i18n="act.retry"></button></div>
+      <div class="m-actions col"><button class="btn primary" data-act="retry" data-i18n="act.retry"></button><button class="btn" data-act="home" data-i18n="act.home"></button></div>
     </section>
 
     <section class="m-screen m-card m-receipt m-debrief" data-s="complete" data-i18n-aria="debrief.title">
@@ -76558,6 +76559,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         <div class="row"><label for="s-fov" data-i18n="set.fov"></label><div class="slider"><input id="s-fov" type="range" min="60" max="95" step="1"><output data-o="fov"></output></div></div>
         <div class="row row-inline" data-row="fs"><label id="l-fs" data-i18n="set.display"></label><button class="btn small" data-act="fullscreen" aria-labelledby="l-fs fs-t"><span id="fs-t"></span></button></div>
         <p class="panel-note" data-f="qnote"></p>
+        <div class="m-actions col"><button class="btn" data-act="home" data-i18n="act.home"></button></div>
       </div>
       <div class="panel-b" data-pane="controls" hidden>
         <h3 data-i18n="ctl.keyboard"></h3>${sL}
@@ -77137,6 +77139,10 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
           (a(n.audio, "resume"), r.requestLock(), G({ quick: !0 }));
         },
         // the side doors off the title page (chinatown/doors.js): pages of their own
+        home() {
+          a(n.telemetry, "finish", "quit");
+          DOORS.go(DOORS.homeUrl());
+        },
         gallery() {
           DOORS.go(DOORS.galleryUrl());
         },
