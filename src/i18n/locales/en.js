@@ -19,6 +19,7 @@ export default {
   "boot.light": "Waiting for the last light",
   "boot.ready": "Ready",
   "boot.fatal": "Wok-ing Dead could not start: {error}",
+  "boot.reload": "Restart",
 
   "title.unit": "Open all night",
   "title.premise":

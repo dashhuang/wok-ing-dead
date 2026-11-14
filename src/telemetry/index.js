@@ -1,35 +1,22 @@
 import { createTransport } from "./transport.js";
 import { readDevice } from "./device.js";
 import { createFrameStats } from "./perf.js";
+import {
+  isTestSession,
+  playerId as readPlayerId,
+  telemetryEnabled,
+  telemetryStorage,
+} from "./player.js";
 
 import { AMMO_TYPES } from "../chinatown/loadout.js";
 
-const KEY = "wokingdead.telemetry.player.v1";
 const round = (v) => Math.round((Number.isFinite(v) ? v : 0) * 100) / 100;
 
 export function createTelemetry(G) {
   const noop = { start() {}, finish() {} };
-  if (
-    import.meta.env.MODE !== "production" ||
-    import.meta.env.VITE_TELEMETRY_ENABLED === "0"
-  )
-    return noop;
-  if (!globalThis.crypto?.randomUUID || location.protocol === "file:")
-    return noop;
-  let storage;
-  try {
-    storage = localStorage;
-  } catch {}
-  let playerId;
-  try {
-    playerId = storage?.getItem(KEY);
-  } catch {}
-  if (!/^[0-9a-f-]{36}$/.test(playerId || "")) {
-    playerId = crypto.randomUUID();
-    try {
-      storage?.setItem(KEY, playerId);
-    } catch {}
-  }
+  if (!telemetryEnabled()) return noop;
+  const storage = telemetryStorage();
+  const playerId = readPlayerId(storage);
   const transport = createTransport({
     storage,
     send: async (body) => {
@@ -174,11 +161,7 @@ export function createTelemetry(G) {
         mode: G.game.run.mode,
         difficulty: G.game.difficulty,
         difficultyChanged: false,
-        test:
-          !!navigator.webdriver ||
-          ["range", "bench", "autostart", "w", "unlock", "cam", "shot"].some(
-            (k) => params[k] != null,
-          ),
+        test: isTestSession(params),
         activeSeconds: 0,
         kills: 0,
         damageTaken: 0,
