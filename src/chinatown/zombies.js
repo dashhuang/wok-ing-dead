@@ -1466,6 +1466,69 @@ export async function createZombies(G) {
     list,
     TUNE,
     ensure,
+    async stageStartup(draw, count) {
+      if (list.length) throw new Error("Cannot prepare an active crowd");
+      const snapshots = [];
+      const restore = () => {
+        for (const saved of snapshots) {
+          const zombie = saved.zombie;
+          zombie.rig.removeFromParent();
+          if (saved.parent) saved.parent.add(zombie.rig);
+          zombie.rig.visible = saved.visible;
+          zombie.rig.position.copy(saved.position);
+          zombie.rig.updateMatrix();
+          sync(zombie);
+        }
+        G.renderer.shadowMap.needsUpdate = true;
+      };
+      try {
+        const spawn = G.level.playerStart;
+        for (const zombie of pool) {
+          for (const mesh of zombie.meshes) {
+            const skeleton = mesh.skeleton;
+            if (!skeleton) continue;
+            if (!skeleton.boneTexture) skeleton.computeBoneTexture();
+            G.renderer.initTexture(skeleton.boneTexture);
+          }
+        }
+        const representatives = [
+          ...new Set(
+            Object.keys(templates)
+              .map((name) => pool.find((zombie) => zombie.kind === name))
+              .filter(Boolean),
+          ),
+        ];
+        const staged = [
+          ...representatives,
+          ...pool.filter((zombie) => !representatives.includes(zombie)),
+        ].slice(0, Math.max(count, representatives.length));
+        for (const [index, zombie] of staged.entries()) {
+          snapshots.push({
+            zombie,
+            parent: zombie.rig.parent,
+            visible: zombie.rig.visible,
+            position: zombie.rig.position.clone(),
+          });
+          const angle = spawn.yaw + (index / staged.length) * Math.PI * 2;
+          const distance = 5 + (index % 3) * 3;
+          zombie.rig.position.set(
+            spawn.pos.x + Math.sin(angle) * distance,
+            spawn.pos.y,
+            spawn.pos.z + Math.cos(angle) * distance,
+          );
+          zombie.rig.updateMatrix();
+          sync(zombie);
+          zombie.rig.visible = true;
+          root.add(zombie.rig);
+        }
+        G.renderer.shadowMap.needsUpdate = true;
+        await draw(2);
+        return restore;
+      } catch (error) {
+        restore();
+        throw error;
+      }
+    },
     /** Whether a trial body has been downloaded and can be spawned by name. */
     has: ready,
     /**

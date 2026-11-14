@@ -17,6 +17,10 @@ export default {
   "boot.weapon": "Checking the rifle",
   "boot.dead": "Waking the dead",
   "boot.light": "Waiting for the last light",
+  "boot.warmup": "Polishing the hardware",
+  "boot.calibrate": "Tending the flame",
+  "boot.prepareError":
+    "Startup preparation is incomplete. Reload or lower the quality setting.",
   "boot.ready": "Ready",
   "boot.fatal": "Wok-ing Dead could not start: {error}",
 

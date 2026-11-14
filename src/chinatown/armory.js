@@ -28,6 +28,7 @@ export const ARMORY_TUNE = {
 };
 
 export async function createArmory(G) {
+  let preparing = false;
   const T = G.THREE;
   const V3 = T.Vector3;
   const [kitMod, handsMod, combatMod, audioMod, dataMod, behMod] =
@@ -104,6 +105,15 @@ export async function createArmory(G) {
       group: root,
       bounds: { halfW: 1e6, far: -1e6, near: 1e6, wallH: 1e6 },
       raycast(o, d, max = 300) {
+        if (preparing) {
+          if (max < 2) return null;
+          return {
+            dist: 2,
+            point: new V3().copy(o).addScaledVector(d, 2),
+            normal: new V3().copy(d).negate(),
+            surface: "concrete",
+          };
+        }
         let h = null;
         try {
           h = G.physics.raycast(o, d, max);
@@ -139,6 +149,7 @@ export async function createArmory(G) {
       return G.input && G.input.touch ? 0.4 : 1;
     },
     nudgeLook(dp, dy) {
+      if (preparing) return;
       const P = G.player;
       P.pitch = Math.max(-1.5, Math.min(1.5, P.pitch + dp));
       P.yaw += dy;
@@ -201,11 +212,12 @@ export async function createArmory(G) {
     // the game's zombies instead of the firing range's
     makeTargets: (l, fx, E) => createGameTargets(G, l, fx, E, root),
     // a weapon's own blast catching the player (a firework set off too close)
-    hurt: (dmg, from) => G.player.damage(dmg, from),
+    hurt: (dmg, from) => !preparing && G.player.damage(dmg, from),
     // a reload draws on the run's pools instead of filling the magazine from nowhere
     supply: {
-      can: (W) => !hooks.canReload || hooks.canReload(W.id, W),
-      take: (W, want) => (hooks.loaded ? hooks.loaded(W.id, W, want) : want),
+      can: (W) => preparing || !hooks.canReload || hooks.canReload(W.id, W),
+      take: (W, want) =>
+        preparing || !hooks.loaded ? want : hooks.loaded(W.id, W, want),
     },
   };
   const combat = await combatMod.createCombat(lab);
@@ -338,34 +350,37 @@ export async function createArmory(G) {
     };
   }
   let glowScaled = 0;
-  async function prepare(id) {
+  async function prepare(id, schedule = (task) => task()) {
     if (models.has(id)) return models.get(id);
     const imp = builderOf(id);
     if (!imp) throw new Error(`no weapon model "${id}"`);
     const mod = await imp();
     if (models.has(id)) return models.get(id);
-    const model = mod.default(kit);
-    for (const a of Object.values(model.anchors)) patchAnchor(a);
-    model.holder.traverse((n) => {
-      if (n.isMesh) {
-        n.castShadow = false;
-        n.receiveShadow = true;
-        n.frustumCulled = false;
+    return schedule(() => {
+      if (models.has(id)) return models.get(id);
+      const model = mod.default(kit);
+      for (const a of Object.values(model.anchors)) patchAnchor(a);
+      model.holder.traverse((n) => {
+        if (n.isMesh) {
+          n.castShadow = false;
+          n.receiveShadow = true;
+          n.frustumCulled = false;
+        }
+      });
+      // glow parts are shared through the kit's material library: scale the new ones once
+      const glows = kit.mats.glowMats;
+      for (; glowScaled < glows.length; glowScaled++) {
+        const m = glows[glowScaled];
+        m.userData.glow = (m.userData.glow || 1) * ARMORY_TUNE.glowGain;
+        m.emissiveIntensity = m.userData.glow;
+        m.userData.armKeep = true;
       }
+      setLayer(model.holder, VIEW_LAYER);
+      // now, not when it is first held: the warm-up has to draw it the way it will be drawn
+      adoptTree(model.holder);
+      models.set(id, model);
+      return model;
     });
-    // glow parts are shared through the kit's material library: scale the new ones once
-    const glows = kit.mats.glowMats;
-    for (; glowScaled < glows.length; glowScaled++) {
-      const m = glows[glowScaled];
-      m.userData.glow = (m.userData.glow || 1) * ARMORY_TUNE.glowGain;
-      m.emissiveIntensity = m.userData.glow;
-      m.userData.armKeep = true;
-    }
-    setLayer(model.holder, VIEW_LAYER);
-    // now, not when it is first held: the warm-up has to draw it the way it will be drawn
-    adoptTree(model.holder);
-    models.set(id, model);
-    return model;
   }
   // Draw something for a few frames before it is needed, a thousandth of its size in front of
   // the weapon camera: shaders are compiled, buffers and label textures uploaded, and the
@@ -374,6 +389,7 @@ export async function createArmory(G) {
   ghost.name = "armory-warm";
   ghost.position.set(0, 0, -0.6);
   ghost.scale.setScalar(0.001);
+  ghost.visible = false;
   G.camera.add(ghost);
   // "A few frames" has to mean frames in which the weapon pass really drew the ghost: while
   // the game is still loading, or showing the title without a weapon, nothing on this layer
@@ -408,83 +424,143 @@ export async function createArmory(G) {
       requestAnimationFrame(step);
     });
   const warmLog = []; // what was drawn ahead of time, for tests
+  let deferredEnvironment = null;
   // The weapon pass lights what is in hand with one environment map outdoors and another
   // inside the hall, and each needs shaders of its own: draw with one, then with the other.
-  async function bothEnvs(n) {
-    const R = G.render;
-    try {
-      R.envWarm = "out";
-      await frames(n);
-      if (R.interiorEnv) {
-        R.envWarm = "in";
-        await frames(n);
+  async function bothEnvs(n, options = {}, valid = () => true) {
+    const render = G.render;
+    const draw = options.draw || frames;
+    const schedule = options.schedule || ((task) => task());
+    const environments = render.interiorEnv ? ["out", "in"] : ["out"];
+    for (const environment of environments) {
+      for (let index = 0; index < n; index++) {
+        const drawn = await schedule(async () => {
+          if (!valid()) return false;
+          const previous = render.envWarm;
+          const before = ghostFrames;
+          ghost.visible = true;
+          render.warmupPending = true;
+          render.envWarm = environment;
+          if (options.schedule) deferredEnvironment = environment;
+          try {
+            await draw(1);
+            if (ghostFrames === before)
+              throw new Error("Weapon warmup did not render");
+            return true;
+          } finally {
+            deferredEnvironment = null;
+            ghost.visible = false;
+            render.warmupPending = false;
+            render.envWarm = previous;
+          }
+        });
+        if (!drawn) return false;
       }
-    } finally {
-      R.envWarm = null;
     }
+    return true;
   }
-  async function ghostDraw(obj, home) {
+  async function ghostDraw(obj, home, options = {}) {
     if (obj.parent && obj.parent !== home) return false; // in use right now
     ghost.add(obj);
     setLayer(obj, VIEW_LAYER);
     const was = obj.visible;
     obj.visible = true;
-    await bothEnvs(3);
-    if (obj.parent !== ghost) return false; // taken in hand meanwhile
-    ghost.remove(obj);
-    if (home) home.add(obj);
-    obj.visible = was;
-    return true;
-  }
-  async function warm(id) {
-    const model = await prepare(id);
-    if (model.warmed) return model;
-    model.warmed = true;
     try {
-      // both forms as well: their parts are in the same tree, hidden
-      const hidden = [];
+      return await bothEnvs(3, options, () => obj.parent === ghost);
+    } finally {
+      if (obj.parent === ghost) {
+        ghost.remove(obj);
+        if (home) home.add(obj);
+        obj.visible = was;
+      }
+    }
+  }
+  const warming = new Map();
+  const restoreWarm = new Map();
+  async function warm(id, options = {}) {
+    const model = await prepare(id, options.schedule);
+    if (model.warmed === G.quality.name) return model;
+    if (warming.has(id)) return warming.get(id);
+    const pending = warmModel(id, model, options);
+    warming.set(id, pending);
+    try {
+      return await pending;
+    } finally {
+      warming.delete(id);
+    }
+  }
+  async function warmModel(id, model, options) {
+    if (model.holder.parent) {
+      if (options.required) throw new Error("Weapon is already in use: " + id);
+      return model;
+    }
+    const hidden = [];
+    const restore = () => {
+      for (const object of hidden) object.visible = false;
+    };
+    restoreWarm.set(model, restore);
+    try {
       model.holder.traverse((n) => {
         if (!n.visible) {
           hidden.push(n);
           n.visible = true;
         }
       });
-      const drawn = await ghostDraw(model.holder, null);
+      const drawn = await ghostDraw(model.holder, null, options);
+      if (drawn) model.warmed = G.quality.name;
       warmLog.push(id + (drawn ? "" : ":in-hand"));
-      for (const n of hidden) n.visible = false;
-      if (lab.model !== model) model.setBranch("base");
-    } catch (e) {
-      warmLog.push(id + ":failed");
-      console.warn("[armory] warm-up of " + id + " failed: " + e);
+      if (!drawn && options.required)
+        throw new Error("Weapon warmup interrupted: " + id);
+    } finally {
+      restoreWarm.delete(model);
+      if (lab.model !== model) {
+        restore();
+        model.setBranch("base");
+      }
     }
     return model;
   }
   /** The arms, and anything else handed in (the game's own rigs), drawn once ahead of time. */
-  async function warmAll(extra = []) {
+  async function warmAll(extra = [], options = {}) {
     if (!api.held) {
-      arms.setVisible(true);
-      await ghostDraw(arms.group, view);
+      await ghostDraw(arms.group, view, options);
     }
     for (const o of extra) {
-      if (o.visible) continue;
       const parent = o.parent;
       const s = o.scale.clone();
+      const visible = o.visible;
       o.scale.setScalar(0.001);
       o.visible = true;
-      await bothEnvs(3);
-      if (o.scale.x === 0.001) {
-        o.scale.copy(s);
-        // (the game may have taken it in hand for real in the meantime: then it stays up)
-        const arm = G.camera.children.find((c) => c.name === "arm-right");
-        const inHand =
-          !api.held && G.weapon && G.weapon.root === o && !!arm && arm.visible;
-        if (!inHand) o.visible = false;
+      try {
+        await bothEnvs(3, options);
+      } finally {
+        if (o.scale.x === 0.001) {
+          o.scale.copy(s);
+          // (the game may have taken it in hand for real in the meantime: then it stays up)
+          const arm = G.camera.children.find((c) => c.name === "arm-right");
+          const inHand =
+            !api.held &&
+            G.weapon &&
+            G.weapon.root === o &&
+            !!arm &&
+            arm.visible;
+          if (!inHand) o.visible = visible;
+        }
+        if (parent && o.parent !== parent) parent.add(o);
       }
-      if (parent && o.parent !== parent) parent.add(o);
     }
+    for (const id of options.ids || api.ids) {
+      await warm(id, options);
+      options.progress?.(id);
+    }
+  }
+  async function warmRemaining(budget) {
     for (const id of api.ids) {
-      await warm(id);
-      await frames(2);
+      try {
+        await warm(id, { schedule: (task) => budget.schedule(task) });
+      } catch (error) {
+        console.warn("[armory] deferred warmup failed: " + id, error);
+      }
     }
   }
 
@@ -535,6 +611,62 @@ export async function createArmory(G) {
     prepare,
     warm,
     warmAll,
+    warmRemaining,
+    async prepareStartup(ids, draw) {
+      if (cur || prop || G.enemies.list.length)
+        throw new Error("Cannot rehearse active combat");
+      const muted = audio?.muted;
+      const alive = G.player.alive;
+      const rotation = G.camera.quaternion.clone();
+      const fov = G.camera.fov;
+      const stockVisible = G.weapon.root.visible;
+      const clock = time;
+      preparing = true;
+      audio?.setMuted(true);
+      G.player.alive = true;
+      G.weapon.setVisible(false);
+      try {
+        adoptTree(root);
+        await fx.prepareStartup(draw);
+        for (const id of ids) {
+          await api.equip(id);
+          for (let frame = 0; frame < 66; frame++) {
+            G.camera.quaternion.copy(rotation);
+            G.camera.fov = fov;
+            G.camera.updateProjectionMatrix();
+            G.camera.updateMatrixWorld(true);
+            api.frame(1 / 60, {
+              fire: frame >= 22 && frame < 50,
+              ads: false,
+              pressed: () => false,
+            });
+            await draw(1);
+          }
+          api.holster(true);
+          combat.clear();
+          fx.update(0, time);
+        }
+      } finally {
+        api.holster(true);
+        stage.mount(null);
+        combat.clear();
+        combat.resetMeter();
+        fx.update(0, clock);
+        time = clock;
+        G.player.alive = alive;
+        G.camera.quaternion.copy(rotation);
+        G.camera.fov = fov;
+        G.camera.updateProjectionMatrix();
+        G.weapon.setVisible(stockVisible);
+        audio?.setMuted(muted);
+        preparing = false;
+      }
+    },
+    syncWarmup(allowed) {
+      if (!deferredEnvironment) return;
+      ghost.visible = allowed;
+      G.render.envWarm = allowed ? deferredEnvironment : null;
+    },
     get held() {
       return !!cur;
     },
@@ -556,6 +688,7 @@ export async function createArmory(G) {
      */
     async equip(id, o = {}) {
       const model = await prepare(id);
+      restoreWarm.get(model)?.();
       api.holster(true);
       prop = null;
       cur = { id, model };
@@ -575,7 +708,7 @@ export async function createArmory(G) {
       wasFire = wasAlt = false;
       view.visible = true;
       arms.setVisible(true);
-      hooks.changed && hooks.changed(id);
+      !preparing && hooks.changed && hooks.changed(id);
       return model;
     },
     /** Level or branch of the weapon in hand changed (a red envelope): keep the magazine. */
@@ -598,7 +731,7 @@ export async function createArmory(G) {
      * anchors, layers and materials are treated like a weapon's, and it is drawn once ahead
      * of time so that taking it up costs no frame.
      */
-    async adopt(model) {
+    async adopt(model, options = {}) {
       for (const a of Object.values(model.anchors)) patchAnchor(a);
       model.holder.traverse((n) => {
         if (n.isMesh) {
@@ -609,18 +742,17 @@ export async function createArmory(G) {
       });
       setLayer(model.holder, VIEW_LAYER);
       adoptTree(model.holder);
+      const hidden = [];
       try {
-        const hidden = [];
         model.holder.traverse((n) => {
           if (!n.visible) {
             hidden.push(n);
             n.visible = true;
           }
         });
-        await ghostDraw(model.holder, null);
+        await ghostDraw(model.holder, null, options);
+      } finally {
         for (const n of hidden) n.visible = false;
-      } catch (e) {
-        console.warn("[armory] warm-up of a prop failed: " + e);
       }
       return model;
     },
@@ -720,7 +852,7 @@ export async function createArmory(G) {
       }
       combat.update(dt, time);
       const spent = combat.meter.spent - spentBefore;
-      if (cur && spent > 0)
+      if (!preparing && cur && spent > 0)
         G.events.emit("telemetry:spent", { weapon: cur.id, amount: spent });
       fx.update(dt, time);
       if (prop && !cur) {
