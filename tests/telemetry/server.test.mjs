@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { parseSnapshot } from "../../server/telemetry/schema.js";
+import { parseBoot, parseSnapshot } from "../../server/telemetry/schema.js";
 import { database, saveSnapshot } from "../../server/telemetry/db.js";
 import handler from "../../api/telemetry.js";
 import summary from "../../api/telemetry-summary.js";
@@ -66,6 +66,17 @@ const perf = {
   res: "1080x2400",
   minutes: [{ fps: 50, slow: 1.1, zombies: 12.5 }],
 };
+const boot = () => ({
+  kind: "boot",
+  schema: 1,
+  bootId: randomUUID(),
+  playerId: randomUUID(),
+  release: "test",
+  test: true,
+  fatal: true,
+  quality: "high",
+  errors: [{ module: "enemies", message: "romero.glb: Load failed" }],
+});
 const response = () => ({
   code: 200,
   headers: {},
@@ -101,6 +112,19 @@ test("reject arbitrary fields, invalid counts, stale records and unbounded array
     { choices: Array(129).fill({}) },
   ])
     assert.throws(() => parseSnapshot({ ...fixture(), ...extra }));
+});
+test("boot reports carry only short ASCII errors from known modules", () => {
+  assert.equal(parseBoot({ ...boot(), device }).errors[0].module, "enemies");
+  assert.equal(parseBoot({ ...boot(), device: { gpu: 1 } }).device, undefined);
+  for (const bad of [
+    { errors: [] },
+    { errors: Array(13).fill(boot().errors[0]) },
+    { errors: [{ module: "Enemies!", message: "x" }] },
+    { errors: [{ module: "enemies", message: "x".repeat(241) }] },
+    { errors: [{ module: "enemies", message: "無法" }] },
+    { stack: "at main.js" },
+  ])
+    assert.throws(() => parseBoot({ ...boot(), ...bad }));
 });
 test("write endpoint denies foreign origins and summary requires a secret", async () => {
   const r = response();
@@ -178,6 +202,20 @@ test(
         res,
       );
       assert.equal(res.code, 204);
+      const b = response();
+      await handler(
+        {
+          method: "POST",
+          headers: {
+            origin: "https://wok-ing-dead.vercel.app",
+            "content-type": "application/json",
+          },
+          body: { ...boot(), release: p.release, test: false, device },
+          socket: { remoteAddress: "local-test" },
+        },
+        b,
+      );
+      assert.equal(b.code, 204);
       const q = fixture();
       await saveSnapshot(
         sql,
@@ -204,8 +242,12 @@ test(
       assert.equal(report.data.devices[0].model, "Pixel 8");
       assert.equal(Number(report.data.devices[0].fps), 50);
       assert.equal(report.data.fpsByZombies[0].zombies, 10);
+      assert.equal(report.data.bootFailures.length, 1);
+      assert.equal(report.data.bootFailures[0].module, "enemies");
+      assert.equal(report.data.bootFailures[0].fatal, true);
     } finally {
       await sql`DELETE FROM play_runs WHERE payload->>'release'=${p.release}`;
+      await sql`DELETE FROM play_boot_failures WHERE payload->>'release'=${p.release}`;
       if (oldToken === undefined) delete process.env.TELEMETRY_ADMIN_TOKEN;
       else process.env.TELEMETRY_ADMIN_TOKEN = oldToken;
       if (oldEnv === undefined) delete process.env.VERCEL_ENV;

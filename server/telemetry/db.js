@@ -19,3 +19,10 @@ export async function saveSnapshot(sql, p, environment) {
     SELECT run_id, ${p.seq}, ${body}::jsonb FROM accepted
     ON CONFLICT DO NOTHING`;
 }
+
+// One row per page load; a retried request with the same id is ignored.
+export async function saveBootFailure(sql, p, environment) {
+  return sql`INSERT INTO play_boot_failures (boot_id, player_id, environment, payload)
+    VALUES (${p.bootId}::uuid, ${p.playerId}::uuid, ${environment}, ${JSON.stringify(p)}::jsonb)
+    ON CONFLICT (boot_id) DO NOTHING`;
+}

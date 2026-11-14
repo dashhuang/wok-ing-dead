@@ -75,9 +75,26 @@ export default async function handler(req, res) {
       WHERE first_seen >= now() - ${days} * interval '1 day'
       AND NOT (payload->>'test')::boolean AND (${release}='' OR payload->>'release'=${release})
       GROUP BY 1,2,3,4 ORDER BY 1,2,3,4`;
-    return res
-      .status(200)
-      .json({ days, groups, weapons, deathMinutes, devices, fpsByZombies });
+    // Pages that hit errors while starting: which module, what error, on what. fatal: the page
+    // stopped at the error screen; otherwise it went on with a stand-in for that module.
+    const bootFailures =
+      await sql`SELECT payload->>'release' AS release, e->>'module' AS module, e->>'message' AS message,
+      (payload->>'fatal')::boolean AS fatal, payload->'device'->>'kind' AS kind,
+      payload->'device'->>'browser' AS browser, payload->>'quality' AS quality,
+      count(*)::int AS pages, count(DISTINCT player_id)::int AS players, max(received_at) AS last_seen
+      FROM play_boot_failures CROSS JOIN LATERAL jsonb_array_elements(payload->'errors') e
+      WHERE received_at >= now() - ${days} * interval '1 day'
+      AND NOT (payload->>'test')::boolean AND (${release}='' OR payload->>'release'=${release})
+      GROUP BY 1,2,3,4,5,6,7 ORDER BY pages DESC, last_seen DESC LIMIT 200`;
+    return res.status(200).json({
+      days,
+      groups,
+      weapons,
+      deathMinutes,
+      devices,
+      fpsByZombies,
+      bootFailures,
+    });
   } catch {
     return res.status(503).end();
   }

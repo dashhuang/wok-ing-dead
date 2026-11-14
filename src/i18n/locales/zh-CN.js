@@ -17,6 +17,7 @@ export default {
   "boot.light": "等待最后一盏灯",
   "boot.ready": "就绪",
   "boot.fatal": "守护夜排档无法启动：{error}",
+  "boot.reload": "重新启动",
 
   "title.unit": "通宵营业",
   "title.premise":

@@ -66,6 +66,7 @@ const perf = z
       .max(60),
   })
   .strict();
+const release = z.string().regex(/^[a-zA-Z0-9._-]{1,80}$/);
 export const snapshotSchema = z
   .object({
     schema: z.literal(1),
@@ -73,7 +74,7 @@ export const snapshotSchema = z
     playerId: z.uuid(),
     seq: z.number().int().min(1).max(10000),
     startedAt: z.number().int().positive(),
-    release: z.string().regex(/^[a-zA-Z0-9._-]{1,80}$/),
+    release,
     stage: z.enum(["street", "docks"]),
     mode: z.enum(["mission", "holdout"]),
     difficulty: z.enum(["standard", "hard", "brutal"]),
@@ -137,4 +138,28 @@ export function parseSnapshot(body, now = Date.now()) {
   if (p.startedAt > now + 300000 || p.startedAt < now - 7 * 86400000)
     throw new Error("Invalid start time");
   return p;
+}
+
+// A page that hit errors while starting (src/telemetry/boot.js): the modules that threw and
+// whether the page stopped at the error screen (fatal) or went on with a stand-in.
+export const bootSchema = z
+  .object({
+    kind: z.literal("boot"),
+    schema: z.literal(1),
+    bootId: z.uuid(),
+    playerId: z.uuid(),
+    release,
+    test: z.boolean(),
+    fatal: z.boolean(),
+    quality: id,
+    errors: z
+      .array(z.object({ module: id, message: text(240) }).strict())
+      .min(1)
+      .max(12),
+    device: device.optional().catch(undefined),
+  })
+  .strict();
+
+export function parseBoot(body) {
+  return bootSchema.parse(body);
 }
