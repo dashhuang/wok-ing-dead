@@ -1,6 +1,10 @@
 import { createHmac } from "node:crypto";
-import { parseSnapshot } from "../server/telemetry/schema.js";
-import { database, saveSnapshot } from "../server/telemetry/db.js";
+import { parseBoot, parseSnapshot } from "../server/telemetry/schema.js";
+import {
+  database,
+  saveBootFailure,
+  saveSnapshot,
+} from "../server/telemetry/db.js";
 import { noCache } from "../server/telemetry/http.js";
 
 export default async function handler(req, res) {
@@ -20,9 +24,9 @@ export default async function handler(req, res) {
     const raw =
       typeof req.body === "string" ? req.body : JSON.stringify(req.body);
     if (!raw || Buffer.byteLength(raw) > 24576) return res.status(413).end();
-    p = parseSnapshot(
-      typeof req.body === "string" ? JSON.parse(raw) : req.body,
-    );
+    const body = typeof req.body === "string" ? JSON.parse(raw) : req.body;
+    // a boot report (src/telemetry/boot.js) or a run snapshot
+    p = body?.kind === "boot" ? parseBoot(body) : parseSnapshot(body);
   } catch {
     return res.status(400).end();
   }
@@ -48,7 +52,8 @@ export default async function handler(req, res) {
     }
     const environment = process.env.VERCEL_ENV || "development";
     p.test ||= environment !== "production" || p.release === "local";
-    await saveSnapshot(sql, p, environment);
+    if (p.kind === "boot") await saveBootFailure(sql, p, environment);
+    else await saveSnapshot(sql, p, environment);
     return res.status(204).end();
   } catch {
     console.error("[telemetry] storage unavailable");

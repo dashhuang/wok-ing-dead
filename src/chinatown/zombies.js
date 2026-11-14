@@ -40,6 +40,9 @@ const HIT = { head: 1, body: 1, arm: 1, leg: 1 };
 
 const PART_DAMAGE = { weak: 1, body: 1, arm: 0.6, leg: 0.7 };
 
+// waits before the second and third try of a model that did not arrive
+const LOAD_RETRY_MS = [800, 2500];
+
 export async function createZombies(G) {
   const T = G.THREE;
   const V3 = T.Vector3;
@@ -52,7 +55,20 @@ export async function createZombies(G) {
   // ---------- assets ----------
   const loader = new GLTFLoader();
   const base = import.meta.env.BASE_URL || "/";
-  const load = (file) => loader.loadAsync(base + ASSETS + file);
+  // A dropped connection or a slow edge costs a few seconds, not the run: game.js cannot go on
+  // without the dead and stops at the error screen. The last error names the file.
+  async function load(file) {
+    for (let i = 0; ; i++) {
+      try {
+        return await loader.loadAsync(base + ASSETS + file);
+      } catch (e) {
+        const why = (e && e.message) || String(e);
+        if (i >= LOAD_RETRY_MS.length) throw new Error(`${file}: ${why}`);
+        console.warn(`[zombies] ${file} failed (${why}), trying again`);
+        await new Promise((r) => setTimeout(r, LOAD_RETRY_MS[i]));
+      }
+    }
+  }
   const [charFiles, clipFiles] = await Promise.all([
     Promise.all(Object.values(CHARACTERS).map((c) => load(c.file))),
     Promise.all(Object.keys(CLIPS).map((n) => load(`clip_${n}.glb`))),

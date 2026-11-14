@@ -19,6 +19,7 @@ import {
 import { createComms } from "./chinatown/comms.js";
 import { uiIcon } from "./chinatown/icons.js";
 import { createTelemetry } from "./telemetry/index.js";
+import { noteBootError, reportBoot } from "./telemetry/boot.js";
 import { createNavigation, STEP_HEIGHT } from "./chinatown/navigation.js";
 import { createSpawnPicker } from "./chinatown/spawning.js";
 import { createMusic } from "./chinatown/music.js";
@@ -78317,6 +78318,13 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       (e.id = "fatal"),
       document.getElementById("app").appendChild(e)),
       (e.textContent = L10N.t("boot.fatal", { error: n })));
+    // most of these are a file that did not arrive: a fresh load usually gets past it
+    let b = document.createElement("button");
+    ((b.type = "button"),
+      (b.className = "fatal-reload"),
+      (b.textContent = L10N.t("boot.reload")),
+      b.addEventListener("click", () => location.reload()),
+      e.prepend(b));
   }
   window.addEventListener("error", (n) => {
     window.__errors.push(String(n.message));
@@ -78577,6 +78585,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       } catch (b) {
         if (
           (console.error(`[boot] module "${p}" failed: ${(b && b.stack) || b}`),
+          noteBootError(p, b),
           x || !Sr[p])
         )
           throw b;
@@ -78679,13 +78688,19 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         t.explosives = yE(t);
       } catch (p) {
         (console.error("[boot] explosives failed: " + ((p && p.stack) || p)),
+          noteBootError("explosives", p),
           (t.explosives = { items: [], reset() {}, update() {} }));
       }
       (await fa(L10N.t("boot.weapon"), 0.74),
         await r("weapon", "weapon", () => I5(t)),
         await fa(L10N.t("boot.dead"), 0.82),
-        await r("enemies", "enemies", async () =>
-          (await import("./chinatown/zombies.js")).createZombies(t),
+        // required: the stand-in spawns nothing, and a street without the dead is not a
+        // game (it played like that for some players until the error screen took over)
+        await r(
+          "enemies",
+          "enemies",
+          async () => (await import("./chinatown/zombies.js")).createZombies(t),
+          !0,
         ),
         await r("hud", "hud", () => sT(t)),
         (t.game = pT(t)));
@@ -78703,6 +78718,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
           "[phonebatch] failed, drawing the street as it was: " +
             ((p && p.stack) || p),
         );
+        noteBootError("phonebatch", p);
       }
     try {
       await t.render.onLevelReady();
@@ -78710,6 +78726,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       console.error(
         "[boot] render.onLevelReady failed: " + ((p && p.stack) || p),
       );
+      noteBootError("levelready", p);
     }
     let a = 0;
     if (
@@ -78730,6 +78747,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
     (n.noweapon && t.weapon.setVisible && t.weapon.setVisible(!1),
       e && uL(t),
       await fa(L10N.t("boot.ready"), 1),
+      reportBoot(t),
       gT.classList.add("done"),
       setTimeout(() => {
         gT.hidden = !0;
@@ -78988,5 +79006,9 @@ errors ${window.__errors.length}${
       update() {},
     };
   }
-  cL().catch((n) => yT((n && n.stack) || n));
+  cL().catch((n) => {
+    (noteBootError("boot", n),
+      reportBoot(window.__G, { fatal: !0 }),
+      yT((n && n.stack) || n));
+  });
 })();

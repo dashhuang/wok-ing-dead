@@ -17,6 +17,7 @@ export default async function handler(req, res) {
     await sql`DELETE FROM play_samples WHERE received_at < now()-interval '30 days'`;
     await sql`DELETE FROM play_runs WHERE first_seen < now()-interval '90 days'`;
     await sql`DELETE FROM play_limits WHERE minute < ${Math.floor(Date.now() / 60000) - 1440}`;
+    await sql`DELETE FROM play_boot_failures WHERE received_at < now()-interval '90 days'`;
     return res.status(204).end();
   } catch {
     return res.status(503).end();

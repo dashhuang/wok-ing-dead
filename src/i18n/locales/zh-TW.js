@@ -17,6 +17,7 @@ export default {
   "boot.light": "等待最後一盞燈",
   "boot.ready": "就緒",
   "boot.fatal": "守護夜排檔無法啟動：{error}",
+  "boot.reload": "重新啟動",
 
   "title.unit": "通宵營業",
   "title.premise":

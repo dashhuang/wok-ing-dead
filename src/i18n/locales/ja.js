@@ -17,6 +17,7 @@ export default {
   "boot.light": "最後の灯りを待つ",
   "boot.ready": "準備完了",
   "boot.fatal": "Wok-ing Dead を起動できません：{error}",
+  "boot.reload": "再起動",
 
   "title.unit": "深夜営業",
   "title.premise":
