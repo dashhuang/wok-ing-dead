@@ -1161,6 +1161,39 @@ export function createFx(stage) {
         lights: stage.fxLights.filter((l) => !l.userData.free).length,
       };
     },
+    async prepareStartup(draw) {
+      const position = camera.getWorldPosition(new THREE.Vector3());
+      const direction = camera.getWorldDirection(new THREE.Vector3());
+      position.addScaledVector(direction, 2);
+      const end = position.clone().add(new THREE.Vector3(0.1, 0.1, 0));
+      try {
+        for (const ribbon of ribbons)
+          ribbon.start({ points: [position, end], width: 0.01 });
+        for (let index = 0; index < decals.length; index++)
+          fx.decal({
+            pos: position,
+            normal: direction.clone().negate(),
+            size: 0.01,
+          });
+        fx.glow({
+          pos: position,
+          life: 1,
+          size: [0.01, 0.01],
+          color: [1, 1, 1],
+        });
+        fx.puff({
+          pos: position,
+          life: 1,
+          size: [0.01, 0.01],
+          color: [1, 1, 1],
+        });
+        fx.update(0, time);
+        await draw(2);
+      } finally {
+        fx.clear();
+        fx.update(0, time);
+      }
+    },
     clear() {
       // pending tasks may be holding pooled lights: hand every light back
       for (const l of stage.fxLights) stage.releaseLight(l);
@@ -1173,6 +1206,14 @@ export function createFx(stage) {
         d.mesh.visible = false;
       }
       tasks.length = 0;
+      trauma = 0;
+      for (const casing of Object.values(casings)) {
+        for (const [index, item] of casing.items.entries()) {
+          item.on = false;
+          casing.im.setMatrixAt(index, casing.hide);
+        }
+        casing.im.instanceMatrix.needsUpdate = true;
+      }
     },
   };
   return fx;

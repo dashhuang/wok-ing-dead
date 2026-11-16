@@ -26,7 +26,7 @@
     "balance:check": "node scripts/balance/report.mjs --check",
     "balance:sim": "node scripts/balance/run.mjs",
     "format": "prettier --write .",
-    "test": "node --test tests/navigation/*.test.mjs tests/telemetry/*.test.mjs",
+    "test": "node --test tests/navigation/*.test.mjs tests/telemetry/*.test.mjs tests/startup/*.test.mjs",
     "test:e2e": "playwright test",
     "verify": "npm run check && npm run build && npm test",
     "test:telemetry": "node --test tests/telemetry/*.test.mjs",

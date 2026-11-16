@@ -2,6 +2,8 @@
 // See docs/architecture.md for subsystem names, lifecycle and safe edit points.
 import { createSettingsStore } from "./settings.js";
 import { presetToBoot } from "./bootguard.js";
+import { prepareStartup } from "./chinatown/startup.js";
+import { createFrameBudget } from "./chinatown/frame-budget.js";
 import * as L10N from "./i18n/index.js";
 import { createRun } from "./chinatown/run.js";
 import {
@@ -37277,6 +37279,7 @@ ${ge}`,
       settle: 3.5,
       upWait: 4,
       upDelay: 4,
+      stableWindows: 0,
     };
     function R(G) {
       if (!S.enabled || !M || G > 1500) return;
@@ -37293,7 +37296,11 @@ ${ge}`,
           ? ((oe = te > 45 ? 0.6 : Math.max(0.6, oe - (te > 30 ? 0.2 : 0.1))),
             (S.upDelay = Math.min(60, S.upDelay * 2)),
             (S.upWait = S.upDelay))
-          : te < 17.4 && oe < 1 && S.upWait <= 0
+          : !Q.calibrating &&
+              n.game?.state !== "title" &&
+              te < 17.4 &&
+              oe < 1 &&
+              S.upWait <= 0
             ? ((oe = Math.min(1, oe + 0.1)), (S.upWait = 2))
             : te < 17.4 && oe >= 1 && (S.upDelay = 4),
         (oe = Math.round(oe * 10) / 10),
@@ -37303,7 +37310,8 @@ ${ge}`,
         let ee = { ultra: "high", high: "medium", medium: "low" }[
           n.quality.name
         ];
-        if (S.floorHits >= 2 && ee && jr[ee]) {
+        if (S.floorHits >= 2 && n.autoQuality && ee && jr[ee]) {
+          S.stableWindows = 0;
           ((S.floorHits = 0),
             (S.scale = 0.8),
             (S.settle = 2),
@@ -37321,6 +37329,10 @@ ${ge}`,
           return;
         }
       } else S.floorHits = 0;
+      const pendingQuality =
+        n.autoQuality && oe <= 0.6 && te > 26 && n.quality.name !== "low";
+      S.stableWindows =
+        oe === S.scale && !pendingQuality ? S.stableWindows + 1 : 0;
       oe !== S.scale && ((S.scale = oe), (S.settle = 1), Q.resize());
     }
     let z = [],
@@ -37466,6 +37478,32 @@ ${ge}`,
         interiorEnv: null,
         streetEnv: null,
         envWarm: null,
+        preparing: false,
+        calibrating: false,
+        warmupPending: false,
+        get calibrationReady() {
+          return !S.enabled || !M || S.stableWindows >= 2;
+        },
+        beginCalibration() {
+          Q.calibrating = true;
+          Q.preparing = false;
+          S.settle = 0;
+          S.upWait = Infinity;
+          S.acc = 0;
+          S.n = 0;
+          S.floorHits = 0;
+          S.stableWindows = 0;
+          C = 0;
+        },
+        endCalibration() {
+          Q.calibrating = false;
+          Q.preparing = false;
+          S.settle = 1;
+          S.upWait = S.upDelay;
+          S.acc = 0;
+          S.n = 0;
+          C = 0;
+        },
         resolution: new We(4, 4),
         depthTextureIsLive: !1,
         tune: E ? E.TUNE : {},
@@ -37630,7 +37668,11 @@ ${ge}`,
         },
         frame(G) {
           let te = performance.now();
-          (C && R(te - C), (C = te), k++, i.info.reset(), v.update(G));
+          (C && !Q.preparing && R(te - C),
+            (C = te),
+            k++,
+            i.info.reset(),
+            v.update(G));
           let oe = n.time ? n.time.t : k / 60;
           ((u.material.uniforms.uTime.value = oe),
             (w.t += G),
@@ -71408,6 +71450,68 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         setVisible(B) {
           ((g = !!B), (b.root.visible = g), p.setVisible(g));
         },
+        async prepareStartup(draw) {
+          const original = b;
+          const visible = g;
+          const visibility = new Map();
+          const position = n.camera.position.clone();
+          const direction = n.camera.getWorldDirection(new K());
+          position.addScaledVector(direction, 0.8);
+          try {
+            for (const rig of y) {
+              E.equip(rig.id);
+              E.setVisible(true);
+              rig.root.traverse((object) => {
+                visibility.set(object, object.visible);
+                object.visible = true;
+              });
+              n.fx.muzzleFlash(position, direction, {
+                scale: rig.def.flashScale,
+              });
+              n.fx.decal(
+                position.clone().addScaledVector(direction, 2),
+                direction.clone().negate(),
+              );
+              await draw(3);
+              const parent = rig.root.parent;
+              const localPosition = rig.root.position.clone();
+              const localRotation = rig.root.quaternion.clone();
+              const renderState = new Map();
+              try {
+                n.scene.add(rig.root);
+                rig.root.position.copy(position);
+                rig.root.quaternion.copy(n.camera.quaternion);
+                rig.root.traverse((object) => {
+                  renderState.set(object, [
+                    object.layers.mask,
+                    object.castShadow,
+                  ]);
+                  object.layers.set(Ia);
+                  if (object.isMesh) object.castShadow = object !== rig.flash;
+                });
+                if (rig.flash) rig.flash.visible = false;
+                await draw(3);
+              } finally {
+                parent.add(rig.root);
+                rig.root.position.copy(localPosition);
+                rig.root.quaternion.copy(localRotation);
+                for (const [object, state] of renderState) {
+                  object.layers.mask = state[0];
+                  object.castShadow = state[1];
+                }
+              }
+              for (const [object, wasVisible] of visibility)
+                object.visible = wasVisible;
+              visibility.clear();
+            }
+          } finally {
+            for (const [object, wasVisible] of visibility)
+              object.visible = wasVisible;
+            n.fx.clear();
+            E.equip(original.id);
+            E.setVisible(visible);
+          }
+        },
         muzzleWorld: S,
         reloadNow: z,
         addAmmo(B) {
@@ -76655,6 +76759,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
       p = "none",
       d = null;
     function m(W) {
+      if (W === "quality") n.autoQuality = i.quality === "auto";
       if (
         ((!W || W === "sens") && (n.input.sensitivity = i.sens),
         (!W || W === "invertY") && (n.input.invertY = i.invertY),
@@ -77183,6 +77288,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
           h(Y);
         },
         deploy() {
+          if (n.loading) return;
           (a(n.audio, "resume"), r.requestLock(), G({}));
         },
         resume() {
@@ -77714,7 +77820,8 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
           le();
       }),
       addEventListener("keydown", (Y) => {
-        C.state !== "title" ||
+        n.loading ||
+          C.state !== "title" ||
           l.panelOpen ||
           (Y.code !== "Enter" && Y.code !== "NumpadEnter") ||
           (Y.target && Y.target.tagName === "BUTTON") ||
@@ -78151,6 +78258,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
             ));
       }));
     function X() {
+      if (n.loading) return;
       !r.uiPressed ||
         l.screen === "none" ||
         (r.uiPressed("up") ? l.nav(-1) : r.uiPressed("down") && l.nav(1),
@@ -78518,6 +78626,9 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
     let t = {
       THREE: ut,
       params: n,
+      loading: true,
+      autoQuality: !n.q && (!iL().quality || iL().quality === "auto"),
+      preparationBudget: createFrameBudget(),
       events: BM(),
       rng: su(+(n.seed || 4207)),
       // scale < 1 slows the street (enemies, explosives, run clock); the player keeps full speed
@@ -78533,6 +78644,7 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
     // a phone's page has one memory limit for itself and its GPU memory (chinatown/texmem.js)
     releaseTextureImages(isHandheld());
     window.__G = t;
+    document.getElementById("ui").inert = true;
     let i = n.show && mT[n.show] ? n.show : null;
     t.showcase = i;
     let s = null;
@@ -78690,6 +78802,14 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         "[boot] render.onLevelReady failed: " + ((p && p.stack) || p),
       );
     }
+    if (!i) {
+      try {
+        await prepareStartup(t, (key, progress) => fa(L10N.t(key), progress));
+      } catch (error) {
+        console.error("[boot] preparation failed", error);
+        throw new Error(L10N.t("boot.prepareError"));
+      }
+    }
     let a = 0;
     if (
       ((window.__stats = () => ({
@@ -78703,16 +78823,24 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
     )
       try {
         t.game.start({ skipIntro: !0 });
+        await t.run?.initialEquipment;
       } catch (p) {
         console.error("[boot] game.start failed", p);
+        throw new Error(L10N.t("boot.prepareError"));
       }
     (n.noweapon && t.weapon.setVisible && t.weapon.setVisible(!1),
       e && uL(t),
       await fa(L10N.t("boot.ready"), 1),
+      t.input.update?.(0),
+      t.input.endFrame?.(),
+      (t.loading = false),
+      (window.__ready = true),
+      (document.getElementById("ui").inert = false),
       gT.classList.add("done"),
       setTimeout(() => {
         gT.hidden = !0;
       }, 700));
+    t.run?.armory?.warmRemaining(t.preparationBudget);
     let l = performance.now(),
       c = 1,
       u = 1.1,
@@ -78829,10 +78957,18 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         pk && pk === pauseKey
           ? pauseFrames++
           : ((pauseKey = pk), (pauseFrames = 0));
-        if (pk && pauseFrames > 8) {
+        t.run?.armory?.syncWarmup(
+          t.game.state === "title" || t.game.state === "paused",
+        );
+        if (pk && pauseFrames > 8 && !t.render.warmupPending) {
           (t.render.skipFrame && t.render.skipFrame(),
             t.input.endFrame && t.input.endFrame(),
             window.__frames++);
+          t.preparationBudget.tick({
+            frameStart: p,
+            frameMs: 0,
+            visible: !document.hidden,
+          });
           return;
         }
         try {
@@ -78844,9 +78980,13 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
               "[loop] render.frame threw: " + ((v && v.stack) || v),
             ));
         }
-        (t.input.endFrame && t.input.endFrame(),
-          window.__frames++,
-          window.__frames === 2 && (window.__ready = !0));
+        t.preparationBudget.tick({
+          frameStart: p,
+          frameMs: d * 1000,
+          idle: t.game.state === "title" || t.game.state === "paused",
+          visible: !document.hidden,
+        });
+        (t.input.endFrame && t.input.endFrame(), window.__frames++);
       }));
   }
   // === Benchmark camera and frame timing ===

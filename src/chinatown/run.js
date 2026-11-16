@@ -499,24 +499,13 @@ export function createRun(G, hooks) {
   // (wokhand.js is fetched with it: like the arsenal's modules it builds on the engine, which
   // game.js has only published once it is running)
   let wokHands = null;
-  loadout.load().then(async (a) => {
+  const handsReady = loadout.load().then(async (a) => {
     if (!a) return;
     try {
       const { createWokHands } = await import("./wokhand.js");
       const made = createWokHands(a);
-      // (usable at once; each is also drawn once ahead of time, whenever frames allow)
       wokHands = made;
-      // (the dish as it stands on a stove is drawn by the street's pass: a few frames of it
-      // a thousandth of its size before the eye, so that the first time it is set down
-      // costs nothing)
-      const d = made.dish;
-      d.scale.setScalar(0.001);
-      d.position.set(0, 0, -0.7);
-      G.camera.add(d);
-      setTimeout(() => {
-        if (d.parent === G.camera) G.camera.remove(d);
-      }, 2500);
-      for (const m of made.models) await a.adopt(m);
+      return made;
     } catch (e) {
       console.error(
         "[run] the wok could not be built: " + ((e && e.stack) || e),
@@ -1532,6 +1521,7 @@ export function createRun(G, hooks) {
     bank(false);
   });
 
+  let initialEquipment = Promise.resolve();
   // ---------- surface used by game.js
   const api = {
     tune: RUN,
@@ -1540,6 +1530,47 @@ export function createRun(G, hooks) {
     pickups,
     loadout,
     profile,
+    get initialEquipment() {
+      return initialEquipment;
+    },
+    stageStartup(draw) {
+      return G.enemies.stageStartup(draw, RUN.opening);
+    },
+    async prepareStartup(draw, progress) {
+      const armory = await loadout.load();
+      if (!armory) throw new Error(L10N.t("boot.prepareError"));
+      const requested = preset().weapon?.id;
+      const ids = armory.ids.filter((id) => unlocked(id) || id === requested);
+      await armory.warmAll(
+        Object.values(G.weapon.rigs).map((rig) => rig.root),
+        {
+          ids,
+          draw,
+          required: true,
+          progress,
+        },
+      );
+      await G.weapon.prepareStartup(draw);
+      await armory.prepareStartup(ids, draw);
+      const hands = await handsReady;
+      if (!hands) throw new Error(L10N.t("boot.prepareError"));
+      for (const model of hands.models) await armory.adopt(model, { draw });
+      const dish = hands.dish;
+      const position = dish.position.clone();
+      const scale = dish.scale.clone();
+      const parent = dish.parent;
+      try {
+        dish.scale.setScalar(0.001);
+        dish.position.set(0, 0, -0.7);
+        G.camera.add(dish);
+        await draw(3);
+      } finally {
+        G.camera.remove(dish);
+        dish.position.copy(position);
+        dish.scale.copy(scale);
+        if (parent) parent.add(dish);
+      }
+    },
     get armory() {
       return loadout.armory;
     },
@@ -1636,8 +1667,9 @@ export function createRun(G, hooks) {
       hud.setXp(0, 1);
       hud.setCourse(range ? "" : "starter");
       hud.setBags(range ? -1 : 0, stoveCount());
-      if (pre.weapon)
-        api.debug.set(pre.weapon.id, pre.weapon.level, pre.weapon.branch);
+      initialEquipment = pre.weapon
+        ? api.debug.set(pre.weapon.id, pre.weapon.level, pre.weapon.branch)
+        : Promise.resolve();
       if (range) range.begin();
     },
     // back to the title or into the other mode: undo everything we changed

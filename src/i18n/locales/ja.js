@@ -15,6 +15,10 @@ export default {
   "boot.weapon": "ライフルを点検",
   "boot.dead": "死者を目覚めさせる",
   "boot.light": "最後の灯りを待つ",
+  "boot.warmup": "得物を磨く",
+  "boot.calibrate": "火加減を整える",
+  "boot.prepareError":
+    "開始準備が完了しませんでした。再読み込みするか画質を下げてください",
   "boot.ready": "準備完了",
   "boot.fatal": "Wok-ing Dead を起動できません：{error}",
 
