@@ -12,6 +12,7 @@
 // ordinary object in the scene.
 import { createGameTargets } from "./armtargets.js";
 import { bloodOf } from "../../arsenal/src/combat/fate.js";
+import { squeezePoint } from "./portraitview.js";
 
 // a prop is no weapon: neither hand has a trigger to stay on, so both wrists are eased
 const BOTH = { left: true, right: true };
@@ -325,12 +326,19 @@ export async function createArmory(G) {
   const basePos = T.Object3D.prototype.getWorldPosition;
   // An anchor on the weapon (muzzle, ejection port, blade tip) is drawn by the weapon camera;
   // effects starting there are drawn by the world camera. Hand back the point that covers the
-  // same spot on screen.
+  // same spot on screen (on a portrait screen, where portraitview.js has moved it to).
   function patchAnchor(o) {
     o.getWorldPosition = function (target) {
       basePos.call(this, target);
       if (!underView(this)) return target;
       G.camera.worldToLocal(target);
+      const vc = G.viewCamera;
+      squeezePoint(
+        target,
+        G.render.viewSqueeze,
+        Math.tan(rad(vc.fov) / 2),
+        vc.aspect,
+      );
       const k = fovRatio();
       target.x *= k;
       target.y *= k;

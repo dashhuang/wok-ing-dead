@@ -27,6 +27,11 @@ import { afterUpload, releaseTextureImages } from "./chinatown/texmem.js";
 import { createCategoryVolumes } from "./chinatown/audiovolume.js";
 import * as DOORS from "./chinatown/doors.js";
 import { pickLook, sunDirection } from "./chinatown/look.js";
+import {
+  portraitSqueeze,
+  squeezePoint,
+  squeezeProjection,
+} from "./chinatown/portraitview.js";
 import * as STREETFX from "./chinatown/streetfx.js";
 
 (() => {
@@ -37628,6 +37633,10 @@ ${ge}`,
           ((a.aspect = l.aspect = G / te),
             a.updateProjectionMatrix(),
             l.updateProjectionMatrix());
+          // portrait: the weapon pass shrinks towards the lower right, off the reticle
+          Q.viewSqueeze = portraitSqueeze(G / te);
+          squeezeProjection(l.projectionMatrix.elements, Q.viewSqueeze);
+          l.projectionMatrixInverse.copy(l.projectionMatrix).invert();
         },
         frame(G) {
           let te = performance.now();
@@ -71584,6 +71593,12 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
     function w(B, X) {
       let re = b.root;
       (re.updateMatrix(), X.fromArray(B).applyMatrix4(re.matrix));
+      squeezePoint(
+        X,
+        n.render.viewSqueeze,
+        Math.tan((n.viewCamera.fov * Math.PI) / 360),
+        n.viewCamera.aspect,
+      );
       let Y = n.camera,
         he =
           Math.tan((Y.fov * Math.PI) / 360) /
@@ -71779,6 +71794,12 @@ uniform float uArmWet; uniform float uArmRain; uniform float uArmTime; varying v
         Math.tan((re.fov * Math.PI) / 360) /
         Math.tan((n.viewCamera.fov * Math.PI) / 360);
       (G.copy(X.position),
+        squeezePoint(
+          G,
+          n.render.viewSqueeze,
+          Math.tan((n.viewCamera.fov * Math.PI) / 360),
+          n.viewCamera.aspect,
+        ),
         (G.z /= he),
         G.applyQuaternion(re.quaternion).add(re.position),
         J.copy(re.quaternion).multiply(X.quaternion),
